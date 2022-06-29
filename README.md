@@ -13,7 +13,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Getdeck/beiboot">
-    <img src="https://github.com/Schille/beiboot/raw/main/docs/static/img/logo.png" alt="Getdeck Beiboot Logo"/>
+    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/logo.png" alt="Getdeck Beiboot Logo"/>
   </a>
 
   <h3 align="center">Getdeck Beiboot</h3>
@@ -76,7 +76,7 @@ Beiboot comes with a Kubernetes operator which handles the ad-hoc logical cluste
 Kubernetes version, the way of exposing the cluster, lifetime and so on.
 
 <div align="center">
-    <img src="https://github.com/Schille/beiboot/raw/main/docs/static/img/beiboot-ops.png" alt="Beiboot operator"/>
+    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-ops.png" alt="Beiboot operator"/>
 </div>
 
 The configuration is part of the cluster-key in the [`Deckfile`](https://getdeck.dev/docs/deckfile/specs).
