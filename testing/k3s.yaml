@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-apiserver
+spec:
+  selector:
+    app: k3s-server
+  ports:
+    - protocol: TCP
+      port: 6443
+      targetPort: 6443
+      nodePort: 31446
+  type: NodePort
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gefyra
+spec:
+  selector:
+    app: k3s-agent
+  ports:
+    - protocol: UDP
+      port: 31820
+      targetPort: 31820
+      nodePort: 31820
+  type: NodePort
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-servicelb
+spec:
+  selector:
+    app: k3s-agent
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k3s-server
+spec:
+  selector:
+    app: k3s-server
+  ports:
+    - protocol: TCP
+      port: 6443
+      targetPort: 6443
+      name: api-tcp
+    - protocol: UDP
+      port: 6443
+      targetPort: 6443
+      name: api-udp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-server
+  labels:
+    app: k3s-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k3s-server
+  template:
+    metadata:
+      labels:
+        app: k3s-server
+    spec:
+      containers:
+      - name: k3s-server
+        image: rancher/k3s:v1.24.2-rc1-k3s1
+        command: ["/bin/sh", "-c"]
+        args:
+          ["k3s server 
+          --https-listen-port=6443
+          --write-kubeconfig-mode 0644 
+          --tls-san=0.0.0.0 
+          --write-kubeconfig=/getdeck/k3s-config/kube-config.yaml
+          --cluster-cidr=10.45.0.0/16
+          --service-cidr=10.46.0.0/16
+          --cluster-dns=10.46.0.10
+          --disable-agent
+          --disable-network-policy
+          --disable-cloud-controller
+          --disable=metrics-server
+          --kubelet-arg=--cgroup-root=k3s
+          --agent-token=12345
+          --token=1234"]
+        securityContext:
+          privileged: true
+        env:
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+        ports:
+          - containerPort: 6443
+          - containerPort: 6444
+        volumeMounts:
+          - mountPath: /sys/fs/cgroup
+            name: cgroupfs
+      volumes:
+        - name: cgroupfs
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-agent
+  labels:
+    app: k3s-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k3s-agent
+  template:
+    metadata:
+      labels:
+        app: k3s-agent
+    spec:
+      containers:
+      - name: k3s-agent
+        image: rancher/k3s:v1.24.2-rc1-k3s1
+        command: ["/bin/k3s"]
+        args:
+          - agent
+          - "-s=https://k3s-server:6443"
+          - "--token=12345"
+          - "--kubelet-arg=--cgroup-root=k3s"
+          - "--with-node-id"
+        securityContext:
+          privileged: true
+        ports:
+          - containerPort: 6444
+          - containerPort: 6443
+          - containerPort: 4443
+        volumeMounts:
+          - mountPath: /sys/fs/cgroup
+            name: cgroupfs
+      volumes:
+        - name: cgroupfs
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory

@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "Getdeck Beiboot"
+version = "0.1.0"
+description = "Getdeck Beiboot is an Operator to manage logical Kubernetes on top of a Kubernetes host cluster"
+authors = ["Michael Schilonka <michael@blueshoe.de>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+kopf = "^1.35.0"
+kubernetes = "^19.15.0"
+python-decouple = "^3.5"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = "^22.1.0"
+flake8 = "^4.0.1"
+flake8-black = "^0.2.4"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+createbbt = "testing.create_bbt:create_k3s_beiboot"
