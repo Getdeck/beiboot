@@ -96,7 +96,10 @@ Beiboot builds on top of the following popular open-source technologies:
 ## Getting Started
 
 ### Install the operator to the Kubernetes host cluster.
-...
+Install the Getdeck Beiboot operator with:
+```bash
+kubectl apply -f https://raw.githubusercontent.com/Getdeck/beiboot/main/operator/manifests/beiboot.yaml
+```
 
 
 

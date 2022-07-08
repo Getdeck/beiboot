@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: getdeck
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: getdeck
+  name: beiboot-operator
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    name: "getdeck:beiboot:operator"
+    namespace: getdeck
+rules:
+  - apiGroups: ["kopf.dev"]
+    resources: ["clusterkopfpeerings"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create", "patch", "delete", "list", "watch"]
+  - apiGroups: ["", "apps", "batch", "extensions", "events.k8s.io"]
+    resources: ["namespaces","configmaps","secrets","deployments","services","pods","pods/exec","events"]
+    verbs: ["*"]
+  - apiGroups: ["getdeck.dev"]
+    resources: ["beiboots"]
+    verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    name: "getdeck-beiboot-operator"
+    namespace: getdeck
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: "getdeck:beiboot:operator"
+subjects:
+    - kind: ServiceAccount
+      name: "beiboot-operator"
+      namespace: getdeck
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: getdeck
+  name: beiboot-config
+data:
+  namespace_prefix: getdeck-bbt
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beiboot-operator
+  namespace: getdeck
+  labels:
+    app: beiboot-operator
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beiboot-operator
+  template:
+    metadata:
+      labels:
+        app: beiboot-operator
+    spec:
+      imagePullSecrets:
+      serviceAccountName: beiboot-operator
+      containers:
+        - name: beiboot
+          image: quay.io/getdeck/beiboot:latest
+          imagePullPolicy: Always
+          env:
+            - name: BEIBOOT_NAMESPACE_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: beiboot-config
+                  key: namespace_prefix
