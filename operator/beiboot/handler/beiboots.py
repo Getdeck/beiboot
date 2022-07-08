@@ -128,7 +128,9 @@ async def beiboot_created(body, logger, **kwargs):
     #
     loop = asyncio.get_event_loop_policy().get_event_loop()
     aw_api_server_ready = loop.create_task(check_deployment_ready(deployments[0]))
-    aw_kubeconfig = loop.create_task(get_kubeconfig(aw_api_server_ready, deployments[0]))
+    aw_kubeconfig = loop.create_task(
+        get_kubeconfig(aw_api_server_ready, deployments[0])
+    )
     kubeconfig = await aw_kubeconfig
 
     custom_api.patch_namespaced_custom_object(
