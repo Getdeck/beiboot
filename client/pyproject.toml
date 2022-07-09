@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "beiboot"
+version = "0.1.0"
+description = "Getdeck Beiboot client project."
+authors = ["Michael Schilonka <michael@blueshoe.de>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+kubernetes = "^19.15.0"
+docker = "^5.0.3"
+
+[tool.poetry.dev-dependencies]
+flake8-bugbear = "^22.1.11"
+black = "^22.1.0"
+flake8 = "^4.0.1"
+flake8-black = "^0.2.4"
+pytest = "^7.1.1"
+coverage = {extras = ["toml"], version = "^6.3.2"}
+coveralls = "^3.3.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.run]
+branch = true
+source = ["beiboot"]
+
+[tool.poetry.scripts]
+create = "testing.exec:create_a_cluster"
+remove = "testing.exec:remove_a_cluster"
