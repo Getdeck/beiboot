@@ -122,5 +122,5 @@ def establish_connection(
         )
     start_kubeapi_portforwarding(configuration, cluster_name)
     logger.info(
-        f"You can not run 'export KUBECONFIG={kubeconfig_location}' and work with the cluster."
+        f"You can now set 'export KUBECONFIG={kubeconfig_location}' and work with the cluster."
     )
