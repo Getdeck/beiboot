@@ -117,7 +117,6 @@ kubectl apply -f https://raw.githubusercontent.com/Getdeck/beiboot/main/operator
 ```
 This creates the target namespace `getdeck` for the operator and kubernetes extension (CRD) `beiboot, beiboots, bbt`.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
 
 ### Usage
 There are multiple ways you can manage Beiboot in a Kubernetes host cluster.
@@ -137,7 +136,7 @@ and it will output:
 [INFO] Now creating Beiboot cluster-1
 [INFO] Waiting for the cluster to become ready
 [INFO] KUBECONFIG file for cluster-1 written to: /home/<user>/.getdeck/cluster-1.yaml.
-[INFO] You can now run 'export KUBECONFIG=/home/mschilonka/.getdeck/cluster-1.yaml' and work with the cluster.
+[INFO] You can now run 'export KUBECONFIG=/home/<user>/.getdeck/cluster-1.yaml' and work with the cluster.
 ```
 
 A local Docker container has been started to proxy the Kubernes API to you local host.
