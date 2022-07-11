@@ -48,7 +48,7 @@
     <li>
       <a href="#getting-started">Getting Started</a>
       <ul>
-        <li><a href="#install-the-operator-to-the-kubernetes-host-cluster.">Install the operator to the Kubernetes host cluster.</a></li>
+        <li><a href="#install-the-operator-to-the-kubernetes-host-cluster">Install the operator to the Kubernetes host cluster</a></li>
         <li><a href="#usage">Usage</a></li>
       </ul>
     </li>
@@ -93,6 +93,7 @@ This includes the Kubernetes version, the way of exposing the cluster, lifetime 
     <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-ops.png" alt="Beiboot operator"/>
 </div>
 
+<p align="right">(<a href="#top">back to top</a>)</p> 
 
 ## Built with
 Beiboot builds on top of the following popular open-source technologies:
@@ -109,7 +110,7 @@ Beiboot builds on top of the following popular open-source technologies:
 <!-- GETTING STARTED -->
 ## Getting Started
 
-### Install the operator to the Kubernetes host cluster.
+### Install the operator to the Kubernetes host cluster
 Install the Getdeck Beiboot operator with:
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Getdeck/beiboot/main/operator/manifests/beiboot.yaml
@@ -132,7 +133,7 @@ In order to create a Beiboot and automatically connect to it, run from the `clie
 poetry run create cluster-1
 ```
 and it will output:
-```bash
+```
 [INFO] Now creating Beiboot cluster-1
 [INFO] Waiting for the cluster to become ready
 [INFO] KUBECONFIG file for cluster-1 written to: /home/<user>/.getdeck/cluster-1.yaml.
@@ -140,7 +141,7 @@ and it will output:
 ```
 
 A local Docker container has been started to proxy the Kubernes API to you local host.
-```bash
+```
 > docker ps
 CONTAINER ID   IMAGE                            COMMAND                  CREATED         STATUS         PORTS  NAMES
 e17...1b9db2   quay.io/getdeck/tooler:latest    "kubectl port-forwar…"   2 minutes ago   Up 2 minutes          getdeck-proxy-cluster-1
@@ -177,7 +178,7 @@ EOF
 ```
 It creates an object of type `beiboot`. Required fields are `name` and `provider` (currently only _k3s_ is supported). 
 ```bash
-kubectl -n getdeck get bbt 
+> kubectl -n getdeck get bbt 
 NAME        AGE
 cluster-1   1m22s
 ```
@@ -191,8 +192,9 @@ To reach this logical Kubernetes cluster you have to set up a `kubectl port-forw
 ```bash
 kubectl port-forward -n getdeck-bbt-cluster-1 svc/kubeapi 6443:6443
 ```
-Now, in a different terminal you can set `export KUBECONFIG=<path>/cluster-1.yaml` and you are ready to go. From this
-terminal session on, you can now use `kubectl` just as usual.  
+Now, in a different terminal you can set `export KUBECONFIG=<path>/cluster-1.yaml` and you are ready to go. In this
+terminal session you can now use `kubectl` just as usual.  
+
 If you wish to remove the logical Kubernetes cluster, please type
 ```bash
 kubectl -n getdeck delete bbt cluster-1
@@ -212,9 +214,13 @@ Distributed under the Apache License 2.0. See `LICENSE` for more information.
 If you encounter issues, please create a new issue on GitHub or talk to us on the
 [Unikube Slack channel](https://unikubeworkspace.slack.com/). 
 
+<p align="right">(<a href="#top">back to top</a>)</p>
+
 ## Acknowledgments
 Getdeck Beiboot is sponsored by the [Blueshoe GmbH](https://blueshoe.io). Beiboot heavily relies on the work of [Rancher
 k3s](https://rancher.com/docs/k3s/latest/en/).
+
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
