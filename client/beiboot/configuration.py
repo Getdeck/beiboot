@@ -33,7 +33,8 @@ class ClientConfiguration(object):
             )
         self.TOOLER_IMAGE = (
             # tooler_image or f"{self.REGISTRY_URL}/tooler:{__VERSION__}"
-            tooler_image or f"{self.REGISTRY_URL}/tooler:latest"
+            tooler_image
+            or f"{self.REGISTRY_URL}/tooler:latest"
         )
         if tooler_image:
             logger.debug(f"Using Tooler image (other than default): {tooler_image}")

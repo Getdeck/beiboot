@@ -12,7 +12,11 @@ from beiboot.utils import (
     delete_kubeconfig_file,
 )
 
-from beiboot.utils import get_kubeconfig_location, start_kubeapi_portforwarding, kill_kubeapi_portforwarding
+from beiboot.utils import (
+    get_kubeconfig_location,
+    start_kubeapi_portforwarding,
+    kill_kubeapi_portforwarding,
+)
 
 logger = logging.getLogger("getdeck.beiboot")
 
@@ -42,7 +46,9 @@ def create_cluster(
             raise
         elif e.status == 409:
             # this cluster already exists
-            raise RuntimeError(f"The requested cluster name {cluster_name} already exists.")
+            raise RuntimeError(
+                f"The requested cluster name {cluster_name} already exists."
+            )
         else:
             # TODO handle that case
             raise
@@ -104,7 +110,6 @@ def remove_cluster(
             raise
     delete_kubeconfig_file(configuration, cluster_name)
     kill_kubeapi_portforwarding(configuration, cluster_name)
-
 
 
 def get_connection() -> str:

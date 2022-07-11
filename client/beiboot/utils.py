@@ -64,12 +64,13 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         "-n",
         bbt["beibootNamespace"],
         "svc/kubeapi",
-        f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}"
+        f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
     ]
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
     else:
         from kubernetes.config import kube_config
+
         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
     try:
         logger.debug(command)
@@ -90,7 +91,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
 
 
 def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
-    bbt = config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
+    config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
         namespace=config.NAMESPACE,
         name=cluster_name,
         group="getdeck.dev",
