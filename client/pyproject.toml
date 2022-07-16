@@ -1,8 +1,24 @@
 [tool.poetry]
 name = "beiboot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Getdeck Beiboot client project."
 authors = ["Michael Schilonka <michael@blueshoe.de>"]
+readme = "README.md"
+homepage = "https://getdeck.dev"
+repository = "https://github.com/Getdeck/beiboot"
+documentation = "https://getdeck.dev"
+keywords = [
+    "Kubernetes",
+    "Development",
+    "Cloud-native"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux"
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
