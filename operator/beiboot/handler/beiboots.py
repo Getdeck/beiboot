@@ -10,6 +10,7 @@ from beiboot.resources.k3s import (
     create_k3s_kubeapi_service,
 )
 from beiboot.utils import generate_token, check_deployment_ready, get_kubeconfig
+from beiboot.resources.services import ports_to_services
 
 core_v1_api = k8s.client.CoreV1Api()
 app_v1_api = k8s.client.AppsV1Api()
@@ -90,6 +91,7 @@ def handle_delete_namespace(logger, namespace) -> None:
 async def beiboot_created(body, logger, **kwargs):
     provider = body.get("provider")  # k3s
     name = body["metadata"]["name"]
+    ports = body.get("ports")
 
     #
     # Create the target namespace
@@ -112,6 +114,13 @@ async def beiboot_created(body, logger, **kwargs):
     # check if beiboot exists, handle that case
 
     #
+    # ports to service
+    #
+    additional_services = ports_to_services(ports, namespace)
+    if additional_services:
+        services.extend(additional_services)
+
+    #
     # Create the deployments
     #
     for deploy in deployments:
@@ -128,10 +137,10 @@ async def beiboot_created(body, logger, **kwargs):
     #
     loop = asyncio.get_event_loop_policy().get_event_loop()
     aw_api_server_ready = loop.create_task(check_deployment_ready(deployments[0]))
-    aw_kubeconfig = loop.create_task(
+    cluster_ready = loop.create_task(
         get_kubeconfig(aw_api_server_ready, deployments[0])
     )
-    kubeconfig = await aw_kubeconfig
+    kubeconfig = await cluster_ready
 
     custom_api.patch_namespaced_custom_object(
         namespace=configuration.NAMESPACE,

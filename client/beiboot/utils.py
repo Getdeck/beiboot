@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import pathlib
+from typing import List
 
 import docker.errors
 from beiboot.configuration import ClientConfiguration
@@ -9,11 +10,12 @@ from beiboot.configuration import ClientConfiguration
 logger = logging.getLogger("getdeck.beiboot")
 
 
-def create_beiboot_custom_ressource(config: ClientConfiguration, name: str) -> dict:
+def create_beiboot_custom_ressource(config: ClientConfiguration, name: str, ports: List[str]) -> dict:
     cr = {
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
         "provider": "k3s",
+        "ports": ports,
         "metadata": {
             "name": name,
             "namespace": config.NAMESPACE,
@@ -58,6 +60,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         plural="beiboots",
         version="v1",
     )
+    forwarded_ports = bbt.get("ports")
     command = [
         "kubectl",
         "port-forward",
@@ -66,6 +69,16 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         "svc/kubeapi",
         f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
     ]
+    for port in forwarded_ports:
+        command.extend([
+            "&",
+            "kubectl",
+            "port-forward",
+            "-n",
+            bbt["beibootNamespace"],
+            f"svc/port-{port.split(':')[1]}",
+            port,
+        ])
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
     else:
@@ -73,11 +86,12 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
 
         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
     try:
-        logger.debug(command)
-        config.DOCKER.containers.run(
+        _cmd = ["/bin/sh", "-c", f"{' '.join(command)}"]
+        logger.debug(_cmd)
+        container = config.DOCKER.containers.run(
             image=config.TOOLER_IMAGE,
             name=_get_tooler_container_name(cluster_name),
-            command=command,
+            command=_cmd,
             auto_remove=True,
             remove=True,
             detach=True,

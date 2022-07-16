@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from time import sleep
+from typing import List
 
 import kubernetes as k8s
 
@@ -23,6 +24,7 @@ logger = logging.getLogger("getdeck.beiboot")
 
 def create_cluster(
     cluster_name: str,
+    ports: List[str] = None,
     connect: bool = True,
     configuration: ClientConfiguration = default_configuration,
 ) -> None:
@@ -30,7 +32,9 @@ def create_cluster(
     # 1. create the CR object for Beiboot; apply it
     #
     logger.info(f"Now creating Beiboot {cluster_name}")
-    obj = create_beiboot_custom_ressource(configuration, cluster_name)
+    if ports is None:
+        ports = []
+    obj = create_beiboot_custom_ressource(configuration, cluster_name, ports)
     try:
         bbt = configuration.K8S_CUSTOM_OBJECT_API.create_namespaced_custom_object(
             namespace=configuration.NAMESPACE,

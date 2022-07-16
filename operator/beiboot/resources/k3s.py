@@ -59,7 +59,7 @@ def create_k3s_server_deployment(
     )
 
     template = k8s.client.V1PodTemplateSpec(
-        metadata=k8s.client.V1ObjectMeta(labels={"app": "k3s-server"}),
+        metadata=k8s.client.V1ObjectMeta(labels={"app": "server"}),
         spec=k8s.client.V1PodSpec(
             containers=[container],
             volumes=[
@@ -82,13 +82,13 @@ def create_k3s_server_deployment(
     spec = k8s.client.V1DeploymentSpec(
         replicas=1,
         template=template,
-        selector={"matchLabels": {"app": "k3s-server"}},
+        selector={"matchLabels": {"app": "server"}},
     )
 
     deployment = k8s.client.V1Deployment(
         api_version="apps/v1",
         kind="Deployment",
-        metadata=k8s.client.V1ObjectMeta(name="k3s-server", namespace=namespace),
+        metadata=k8s.client.V1ObjectMeta(name="server", namespace=namespace),
         spec=spec,
     )
 
@@ -99,7 +99,7 @@ def create_k3s_agent_deployment(
     namespace: str, node_token: str, cgroup: str
 ) -> k8s.client.V1Deployment:
     container = k8s.client.V1Container(
-        name="k3s-agent",
+        name="agent",
         image=f"{configuration.K3S_IMAGE}:{configuration.K3S_IMAGE_TAG}",
         image_pull_policy=configuration.K3S_IMAGE_PULLPOLICY,
         command=["/bin/sh", "-c"],
@@ -144,7 +144,7 @@ def create_k3s_agent_deployment(
     )
 
     template = k8s.client.V1PodTemplateSpec(
-        metadata=k8s.client.V1ObjectMeta(labels={"app": "k3s-agent"}),
+        metadata=k8s.client.V1ObjectMeta(labels={"app": "agent"}),
         spec=k8s.client.V1PodSpec(
             containers=[container],
             volumes=[
@@ -167,13 +167,13 @@ def create_k3s_agent_deployment(
     spec = k8s.client.V1DeploymentSpec(
         replicas=1,
         template=template,
-        selector={"matchLabels": {"app": "k3s-agent"}},
+        selector={"matchLabels": {"app": "agent"}},
     )
 
     deployment = k8s.client.V1Deployment(
         api_version="apps/v1",
         kind="Deployment",
-        metadata=k8s.client.V1ObjectMeta(name="k3s-agent", namespace=namespace),
+        metadata=k8s.client.V1ObjectMeta(name="agent", namespace=namespace),
         spec=spec,
     )
 
@@ -183,7 +183,7 @@ def create_k3s_agent_deployment(
 def create_k3s_kubeapi_service(namespace: str) -> k8s.client.V1Service:
     spec = k8s.client.V1ServiceSpec(
         type="ClusterIP",
-        selector={"app": "k3s-server"},
+        selector={"app": "server"},
         ports=[
             k8s.client.V1ServicePort(
                 name="api-tcp", target_port=6443, port=6443, protocol="TCP"

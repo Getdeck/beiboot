@@ -7,6 +7,7 @@ def create_k3s_beiboot(name="my-cluster", namespace="getdeck"):
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
         "provider": "k3s",
+        "ports": ["8080", "443", "6524"],
         "metadata": {
             "name": name,
             "namespace": namespace,

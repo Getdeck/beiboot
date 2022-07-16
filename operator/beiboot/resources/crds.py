@@ -14,7 +14,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             "providerConfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
-            "portMappings": k8s.client.V1JSONSchemaProps(
+            "ports": k8s.client.V1JSONSchemaProps(
                 type="array",
                 default=[],
                 items=k8s.client.V1JSONSchemaProps(type="string"),
