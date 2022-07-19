@@ -46,7 +46,7 @@ def create_cluster(
     except k8s.client.exceptions.ApiException as e:
         if e.status == 404:
             raise RuntimeError(
-                f"This cluster does probably not support Getdeck Beiboot, or is not ready."
+                "This cluster does probably not support Getdeck Beiboot, or is not ready."
             )
         elif e.status == 409:
             # this cluster already exists

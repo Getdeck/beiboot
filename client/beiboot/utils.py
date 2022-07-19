@@ -92,7 +92,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
     try:
         _cmd = ["/bin/sh", "-c", f"{' '.join(command)}"]
         logger.debug(_cmd)
-        container = config.DOCKER.containers.run(
+        container = config.DOCKER.containers.run(  # noqa
             image=config.TOOLER_IMAGE,
             name=_get_tooler_container_name(cluster_name),
             command=_cmd,

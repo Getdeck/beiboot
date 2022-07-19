@@ -1,6 +1,6 @@
 import kubernetes as k8s
 
-from beiboot.configuration import configuration, ClusterConfiguration
+from beiboot.configuration import ClusterConfiguration
 
 
 def create_k3s_server_deployment(
@@ -23,7 +23,7 @@ def create_k3s_server_deployment(
             "--disable-agent "
             "--disable-network-policy "
             "--disable-cloud-controller "
-            "--disable=metrics-server "
+            "--disable=metrics-server,traefik "
             f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
             f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
             f"--kubelet-arg=--cgroup-root=/{cgroup} "

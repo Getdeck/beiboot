@@ -7,7 +7,7 @@ from typing import List, Awaitable
 
 import kubernetes as k8s
 
-from beiboot.configuration import configuration, ClusterConfiguration
+from beiboot.configuration import ClusterConfiguration
 
 logger = logging.getLogger("beiboot")
 
@@ -65,7 +65,9 @@ def exec_command_pod(
     return resp
 
 
-async def check_deployment_ready(deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration):
+async def check_deployment_ready(
+    deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration
+):
     app = k8s.client.AppsV1Api()
     core_v1_api = k8s.client.CoreV1Api()
 
@@ -114,7 +116,9 @@ async def check_deployment_ready(deployment: k8s.client.V1Deployment, cluster_co
 
 
 async def get_kubeconfig(
-    aw_deployment_ready: Awaitable, deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration
+    aw_deployment_ready: Awaitable,
+    deployment: k8s.client.V1Deployment,
+    cluster_config: ClusterConfiguration,
 ) -> dict:
     api_ready = await aw_deployment_ready
     if not api_ready:
