@@ -24,6 +24,19 @@ def set_client_version(part: str):
 def set_operator_version(part: str):
     os.chdir("./operator")
     subprocess.run(["poetry", "version", part])
+    version = subprocess.run(
+        ["poetry", "version", "-s"],
+        capture_output=True,
+        text=True,
+    ).stdout.rstrip()
+    subprocess.run(
+        [
+            "sed",
+            "-i",
+            f"/^[[:space:]]*image:/ s/:.*/: quay\.io\/getdeck\/beiboot:{version}/",
+            "manifests/beiboot.yaml",
+        ]
+    )
 
 
 if __name__ == "__main__":

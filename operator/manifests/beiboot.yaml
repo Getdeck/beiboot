@@ -46,15 +46,6 @@ subjects:
       namespace: getdeck
 
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: getdeck
-  name: beiboot-config
-data:
-  namespace_prefix: getdeck-bbt
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,9 +70,3 @@ spec:
         - name: beiboot
           image: quay.io/getdeck/beiboot:latest
           imagePullPolicy: Always
-          env:
-            - name: BEIBOOT_NAMESPACE_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: beiboot-config
-                  key: namespace_prefix
