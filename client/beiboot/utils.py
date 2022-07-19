@@ -5,6 +5,7 @@ import pathlib
 from typing import List
 
 import docker.errors
+import kubernetes as k8s
 from beiboot.configuration import ClientConfiguration
 
 logger = logging.getLogger("getdeck.beiboot")
@@ -109,13 +110,16 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
 
 
 def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
-    config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
-        namespace=config.NAMESPACE,
-        name=cluster_name,
-        group="getdeck.dev",
-        plural="beiboots",
-        version="v1",
-    )
+    try:
+        config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
+            namespace=config.NAMESPACE,
+            name=cluster_name,
+            group="getdeck.dev",
+            plural="beiboots",
+            version="v1",
+        )
+    except k8s.client.exceptions.ApiException:
+        pass
 
     try:
         container = config.DOCKER.containers.get(
