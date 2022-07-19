@@ -68,5 +68,5 @@ spec:
       serviceAccountName: beiboot-operator
       containers:
         - name: beiboot
-          image: quay.io/getdeck/beiboot:latest
+          image: quay.io/getdeck/beiboot:0.2.0
           imagePullPolicy: Always
