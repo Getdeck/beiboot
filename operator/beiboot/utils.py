@@ -7,7 +7,7 @@ from typing import List, Awaitable
 
 import kubernetes as k8s
 
-from beiboot.configuration import configuration
+from beiboot.configuration import configuration, ClusterConfiguration
 
 logger = logging.getLogger("beiboot")
 
@@ -65,7 +65,7 @@ def exec_command_pod(
     return resp
 
 
-async def check_deployment_ready(deployment: k8s.client.V1Deployment):
+async def check_deployment_ready(deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration):
     app = k8s.client.AppsV1Api()
     core_v1_api = k8s.client.CoreV1Api()
 
@@ -74,7 +74,7 @@ async def check_deployment_ready(deployment: k8s.client.V1Deployment):
         name=deployment.metadata.name, namespace=deployment.metadata.namespace
     )
     # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
-    while i <= configuration.API_SERVER_STARTUP_TIMEOUT:
+    while i <= cluster_config.clusterReadyTimeout:
         s = dep.status
         if (
             s.updated_replicas == dep.spec.replicas
@@ -82,12 +82,15 @@ async def check_deployment_ready(deployment: k8s.client.V1Deployment):
             and s.available_replicas == dep.spec.replicas  # noqa
             and s.observed_generation >= dep.metadata.generation  # noqa
         ):
-
+            selector = ",".join(
+                [
+                    "{0}={1}".format(*label)
+                    for label in list(deployment.spec.selector["matchLabels"].items())
+                ]
+            )
             api_pod = core_v1_api.list_namespaced_pod(
                 deployment.metadata.namespace,
-                label_selector="=".join(
-                    list(deployment.spec.selector["matchLabels"].items())[0]
-                ),
+                label_selector=selector,
             )
             if len(api_pod.items) != 1:
                 logger.warning(
@@ -111,7 +114,7 @@ async def check_deployment_ready(deployment: k8s.client.V1Deployment):
 
 
 async def get_kubeconfig(
-    aw_deployment_ready: Awaitable, deployment: k8s.client.V1Deployment
+    aw_deployment_ready: Awaitable, deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration
 ) -> dict:
     api_ready = await aw_deployment_ready
     if not api_ready:
@@ -119,24 +122,28 @@ async def get_kubeconfig(
         return {}
     core_v1_api = k8s.client.CoreV1Api()
 
+    selector = ",".join(
+        [
+            "{0}={1}".format(*label)
+            for label in list(deployment.spec.selector["matchLabels"].items())
+        ]
+    )
+
     api_pod = core_v1_api.list_namespaced_pod(
-        deployment.metadata.namespace,
-        label_selector="=".join(
-            list(deployment.spec.selector["matchLabels"].items())[0]
-        ),
+        deployment.metadata.namespace, label_selector=selector
     )
     if len(api_pod.items) != 1:
         logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
     api_pod_name = api_pod.items[0].metadata.name
     # busywait for Kubeconfig to become available
     i = 0
-    while i <= configuration.KUBECONFIG_TIMEOUT:
+    while i <= cluster_config.clusterReadyTimeout:
         kubeconfig = exec_command_pod(
             core_v1_api,
             api_pod_name,
             deployment.metadata.namespace,
-            configuration.API_SERVER_CONTAINER_NAME,
-            ["cat", configuration.KUBECONFIG_LOCATION],
+            cluster_config.apiServerContainerName,
+            ["cat", cluster_config.kubeconfigFromLocation],
         )
         if "No such file or directory" in kubeconfig:
             await sleep(1)

@@ -10,7 +10,9 @@ from beiboot.configuration import ClientConfiguration
 logger = logging.getLogger("getdeck.beiboot")
 
 
-def create_beiboot_custom_ressource(config: ClientConfiguration, name: str, ports: List[str]) -> dict:
+def create_beiboot_custom_ressource(
+    config: ClientConfiguration, name: str, ports: List[str]
+) -> dict:
     cr = {
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
@@ -70,15 +72,17 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
     ]
     for port in forwarded_ports:
-        command.extend([
-            "&",
-            "kubectl",
-            "port-forward",
-            "-n",
-            bbt["beibootNamespace"],
-            f"svc/port-{port.split(':')[1]}",
-            port,
-        ])
+        command.extend(
+            [
+                "&",
+                "kubectl",
+                "port-forward",
+                "-n",
+                bbt["beibootNamespace"],
+                f"svc/port-{port.split(':')[1]}",
+                port,
+            ]
+        )
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
     else:

@@ -12,14 +12,16 @@ from beiboot.resources.k3s import (
 from beiboot.utils import generate_token, check_deployment_ready, get_kubeconfig
 from beiboot.resources.services import ports_to_services
 
+from beiboot.configuration import ClusterConfiguration
+
 core_v1_api = k8s.client.CoreV1Api()
 app_v1_api = k8s.client.AppsV1Api()
 events_v1_api = k8s.client.EventsV1Api()
 custom_api = k8s.client.CustomObjectsApi()
 
 
-def handle_create_namespace(logger, name) -> str:
-    namespace = f"{configuration.CLUSTER_NAMESPACE_PREFIX}-{name}"
+def handle_create_namespace(logger, name, cluster_config: ClusterConfiguration) -> str:
+    namespace = f"{cluster_config.namespacePrefix}-{name}"
     try:
         core_v1_api.create_namespace(
             body=k8s.client.V1Namespace(
@@ -35,7 +37,7 @@ def handle_create_namespace(logger, name) -> str:
     return namespace
 
 
-def handle_delete_deployment(
+def handle_create_deployment(
     logger, deployment: k8s.client.V1Deployment, namespace: str
 ) -> None:
     try:
@@ -93,19 +95,25 @@ async def beiboot_created(body, logger, **kwargs):
     name = body["metadata"]["name"]
     ports = body.get("ports")
 
+    cluster_config = configuration.refresh_k8s_config()
     #
     # Create the target namespace
     #
-    namespace = handle_create_namespace(logger, name)
+    namespace = handle_create_namespace(logger, name, cluster_config)
 
     if provider == "k3s":
         node_token = generate_token()
         cgroup = "".join(e for e in name if e.isalnum())
-        deployments = [
-            create_k3s_server_deployment(namespace, node_token, cgroup),
-            create_k3s_agent_deployment(namespace, node_token, cgroup),
+        server_deployments = [
+            create_k3s_server_deployment(namespace, node_token, cgroup, cluster_config)
         ]
-        services = [create_k3s_kubeapi_service(namespace)]
+        node_deployments = [
+            create_k3s_agent_deployment(
+                namespace, node_token, cgroup, cluster_config, node
+            )
+            for node in range(1, cluster_config.nodes + 1)
+        ]
+        services = [create_k3s_kubeapi_service(namespace, cluster_config)]
     else:
         raise RuntimeError(
             f"Cannot create Beiboot wit provider {provider}: not supported."
@@ -116,15 +124,16 @@ async def beiboot_created(body, logger, **kwargs):
     #
     # ports to service
     #
-    additional_services = ports_to_services(ports, namespace)
+    additional_services = ports_to_services(ports, namespace, cluster_config)
     if additional_services:
         services.extend(additional_services)
 
     #
     # Create the deployments
     #
+    deployments = server_deployments + node_deployments
     for deploy in deployments:
-        handle_delete_deployment(logger, deploy, namespace)
+        handle_create_deployment(logger, deploy, namespace)
 
     #
     # Create the services
@@ -136,9 +145,11 @@ async def beiboot_created(body, logger, **kwargs):
     # schedule startup tasks, work on them async
     #
     loop = asyncio.get_event_loop_policy().get_event_loop()
-    aw_api_server_ready = loop.create_task(check_deployment_ready(deployments[0]))
+    aw_api_server_ready = loop.create_task(
+        check_deployment_ready(server_deployments[0], cluster_config)
+    )
     cluster_ready = loop.create_task(
-        get_kubeconfig(aw_api_server_ready, deployments[0])
+        get_kubeconfig(aw_api_server_ready, server_deployments[0], cluster_config)
     )
     kubeconfig = await cluster_ready
 

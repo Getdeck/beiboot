@@ -39,4 +39,9 @@ async def check_beiboot_components(logger, **kwargs) -> None:
     #
     handle_crds(logger)
 
+    #
+    # handle Beiboot configuration configmap
+    #
+    configuration.refresh_k8s_config()
+
     logger.info("Beiboot components installed/patched")

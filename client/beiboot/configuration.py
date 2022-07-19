@@ -19,7 +19,7 @@ class ClientConfiguration(object):
         namespace: str = "getdeck",
         registry_url: str = None,
         tooler_image: str = None,
-        cluster_timeout: int = 20,
+        cluster_timeout: int = 60,
         api_port: int = 6443,
         kube_config_file: str = None,
     ):

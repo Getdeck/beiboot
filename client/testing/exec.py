@@ -9,7 +9,7 @@ logger.setLevel("DEBUG")
 
 def create_a_cluster():
     # these are some test ports
-    create_cluster(cluster_name=sys.argv[1], ports=["8091:80", "6542:6542"])
+    create_cluster(cluster_name=sys.argv[1])
 
 
 def remove_a_cluster():
