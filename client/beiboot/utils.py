@@ -64,7 +64,25 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         version="v1",
     )
     forwarded_ports = bbt.get("ports")
-    command = [
+    command = []
+    for idx, port in enumerate(forwarded_ports):
+        if idx != 0:
+            command.extend(["&"])
+        command.extend(
+            [
+                "(while true; do "
+                "kubectl",
+                "port-forward",
+                "-n",
+                bbt["beibootNamespace"],
+                f"svc/port-{port.split(':')[1]}",
+                port,
+                "; done)"
+            ]
+        )
+    if forwarded_ports:
+        command.extend(["&"])
+    command.extend([
         "kubectl",
         "port-forward",
         "-n",
@@ -72,18 +90,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         "svc/kubeapi",
         f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
     ]
-    for port in forwarded_ports:
-        command.extend(
-            [
-                "&",
-                "kubectl",
-                "port-forward",
-                "-n",
-                bbt["beibootNamespace"],
-                f"svc/port-{port.split(':')[1]}",
-                port,
-            ]
-        )
+    )
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
     else:
@@ -97,8 +104,8 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
             image=config.TOOLER_IMAGE,
             name=_get_tooler_container_name(cluster_name),
             command=_cmd,
-            auto_remove=True,
-            remove=True,
+            restart_policy={"Name": "unless-stopped"},
+            remove=False,
             detach=True,
             network_mode="host",
             environment=["KUBECONFIG=/tmp/.kube/config"],
@@ -125,6 +132,10 @@ def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) 
         container = config.DOCKER.containers.get(
             _get_tooler_container_name(cluster_name),
         )
-        container.kill()
-    except docker.errors.APIError:
-        pass
+        try:
+            container.kill()
+        except:  # noqa
+            pass
+        container.remove()
+    except docker.errors.APIError as e:
+        logger.warning(str(e))

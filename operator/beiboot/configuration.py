@@ -25,12 +25,14 @@ class ClusterConfiguration:
             "limits": {},
         }
     )
+    serverStorageRequests: str = field(default_factory=lambda: "2Gi")
     nodeResources: dict = field(
         default_factory=lambda: {
             "requests": {"cpu": "0.5", "memory": "512Mi"},
             "limits": {"cpu": "1", "memory": "1024Mi"},
         }
     )
+    nodeStorageRequests: str = field(default_factory=lambda: "10Gi")
     namespacePrefix: str = field(default_factory=lambda: "getdeck-bbt")
     serverStartupTimeout: int = field(default_factory=lambda: 60)
     apiServerContainerName: str = field(default_factory=lambda: "apiserver")
@@ -41,7 +43,7 @@ class ClusterConfiguration:
     gefyraPorts: str = field(default_factory=lambda: "31820-31920")
     # k3s settings
     k3sImage: str = field(default_factory=lambda: "rancher/k3s")
-    k3sImageTag: str = field(default_factory=lambda: "v1.24.2-rc1-k3s1")
+    k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")
     k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
 
     def encode_cluster_configuration(self) -> dict:

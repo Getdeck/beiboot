@@ -3,9 +3,9 @@ import kubernetes as k8s
 from beiboot.configuration import ClusterConfiguration
 
 
-def create_k3s_server_deployment(
+def create_k3s_server_workload(
     namespace: str, node_token: str, cgroup: str, cluster_config: ClusterConfiguration
-) -> k8s.client.V1Deployment:
+) -> k8s.client.V1StatefulSet:
     container = k8s.client.V1Container(
         name=cluster_config.apiServerContainerName,
         image=f"{cluster_config.k3sImage}:{cluster_config.k3sImageTag}",
@@ -16,14 +16,14 @@ def create_k3s_server_deployment(
             "--https-listen-port=6443 "
             "--write-kubeconfig-mode=0644 "
             "--tls-san=0.0.0.0 "
+            "--data-dir /getdeck/data "
             f"--write-kubeconfig={cluster_config.kubeconfigFromLocation} "
             "--cluster-cidr=10.45.0.0/16 "
             "--service-cidr=10.46.0.0/16 "
             "--cluster-dns=10.46.0.10 "
             "--disable-agent "
-            "--disable-network-policy "
             "--disable-cloud-controller "
-            "--disable=metrics-server,traefik "
+            "--disable=traefik "
             f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
             f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
             f"--kubelet-arg=--cgroup-root=/{cgroup} "
@@ -55,6 +55,7 @@ def create_k3s_server_deployment(
         volume_mounts=[
             k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
             k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
+            k8s.client.V1VolumeMount(name="k8s-server-data", mount_path="/getdeck/data"),
         ],
     )
 
@@ -79,29 +80,40 @@ def create_k3s_server_deployment(
         ),
     )
 
-    spec = k8s.client.V1DeploymentSpec(
+    volume = k8s.client.V1PersistentVolumeClaimTemplate(
+        metadata=k8s.client.V1ObjectMeta(name="k8s-server-data"),
+        spec=k8s.client.V1PersistentVolumeClaimSpec(
+            access_modes=["ReadWriteOnce"],
+            resources=k8s.client.V1ResourceRequirements(
+                requests={"storage": cluster_config.serverStorageRequests}
+            )
+        )
+    )
+
+    spec = k8s.client.V1StatefulSetSpec(
         replicas=1,
         template=template,
         selector={"matchLabels": cluster_config.serverLabels},
+        volume_claim_templates=[volume],
+        service_name="k3s-server",
     )
 
-    deployment = k8s.client.V1Deployment(
+    workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
-        kind="Deployment",
         metadata=k8s.client.V1ObjectMeta(name="server", namespace=namespace),
         spec=spec,
     )
 
-    return deployment
+    return workload
 
 
-def create_k3s_agent_deployment(
+def create_k3s_agent_workload(
     namespace: str,
     node_token: str,
     cgroup: str,
     cluster_config: ClusterConfiguration,
     node_index: int = 1,
-) -> k8s.client.V1Deployment:
+) -> k8s.client.V1StatefulSet:
     container = k8s.client.V1Container(
         name="agent",
         image=f"{cluster_config.k3sImage}:{cluster_config.k3sImageTag}",
@@ -121,7 +133,7 @@ def create_k3s_agent_deployment(
             f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
             f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
             f"--kubelet-arg=--cgroup-root=/{cgroup} "
-            "--with-node-id "
+            f"--with-node-id "
         ],
         env=[
             k8s.client.V1EnvVar(
@@ -148,6 +160,7 @@ def create_k3s_agent_deployment(
         volume_mounts=[
             k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
             k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
+            k8s.client.V1VolumeMount(name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"),
         ],
     )
 
@@ -172,22 +185,33 @@ def create_k3s_agent_deployment(
         ),
     )
 
-    spec = k8s.client.V1DeploymentSpec(
+    volume = k8s.client.V1PersistentVolumeClaimTemplate(
+        metadata=k8s.client.V1ObjectMeta(name=f"k8s-node-data-{node_index}"),
+        spec=k8s.client.V1PersistentVolumeClaimSpec(
+            access_modes=["ReadWriteOnce"],
+            resources=k8s.client.V1ResourceRequirements(
+                requests={"storage": cluster_config.nodeStorageRequests}
+            )
+        )
+    )
+
+    spec = k8s.client.V1StatefulSetSpec(
         replicas=1,
         template=template,
         selector={"matchLabels": cluster_config.nodeLabels},
+        volume_claim_templates=[volume],
+        service_name="k3s-agent",
     )
 
-    deployment = k8s.client.V1Deployment(
+    workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
-        kind="Deployment",
         metadata=k8s.client.V1ObjectMeta(
             name=f"agent-{node_index}", namespace=namespace
         ),
         spec=spec,
     )
 
-    return deployment
+    return workload
 
 
 def create_k3s_kubeapi_service(

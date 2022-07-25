@@ -65,17 +65,18 @@ def exec_command_pod(
     return resp
 
 
-async def check_deployment_ready(
-    deployment: k8s.client.V1Deployment, cluster_config: ClusterConfiguration
+async def check_workload_ready(
+    statefulset: k8s.client.V1StatefulSet, cluster_config: ClusterConfiguration
 ):
     app = k8s.client.AppsV1Api()
     core_v1_api = k8s.client.CoreV1Api()
 
     i = 0
-    dep = app.read_namespaced_deployment(
-        name=deployment.metadata.name, namespace=deployment.metadata.namespace
+    dep = app.read_namespaced_stateful_set(
+        name=statefulset.metadata.name, namespace=statefulset.metadata.namespace
     )
     # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
+    logger.info("Waiting for workload to become ready...")
     while i <= cluster_config.clusterReadyTimeout:
         s = dep.status
         if (
@@ -87,11 +88,11 @@ async def check_deployment_ready(
             selector = ",".join(
                 [
                     "{0}={1}".format(*label)
-                    for label in list(deployment.spec.selector["matchLabels"].items())
+                    for label in list(statefulset.spec.selector["matchLabels"].items())
                 ]
             )
             api_pod = core_v1_api.list_namespaced_pod(
-                deployment.metadata.namespace,
+                statefulset.metadata.namespace,
                 label_selector=selector,
             )
             if len(api_pod.items) != 1:
@@ -104,11 +105,11 @@ async def check_deployment_ready(
             logger.info(f"API Pod ready: {api_pod_name}")
             return True
         else:
-            logger.info("Waiting for API Pod to become ready")
+            logger.debug("Waiting for API Pod to become ready")
             await sleep(1)
         i += 1
-        dep = app.read_namespaced_deployment(
-            name=deployment.metadata.name, namespace=deployment.metadata.namespace
+        dep = app.read_namespaced_stateful_set(
+            name=statefulset.metadata.name, namespace=statefulset.metadata.namespace
         )
     # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
     logger.error("API Pod did not become ready")
@@ -116,11 +117,11 @@ async def check_deployment_ready(
 
 
 async def get_kubeconfig(
-    aw_deployment_ready: Awaitable,
-    deployment: k8s.client.V1Deployment,
+    aw_workload_ready: Awaitable,
+    statefulset: k8s.client.V1StatefulSet,
     cluster_config: ClusterConfiguration,
 ) -> dict:
-    api_ready = await aw_deployment_ready
+    api_ready = await aw_workload_ready
     if not api_ready:
         # this is a critical error; probably remove the complete cluster
         return {}
@@ -129,12 +130,12 @@ async def get_kubeconfig(
     selector = ",".join(
         [
             "{0}={1}".format(*label)
-            for label in list(deployment.spec.selector["matchLabels"].items())
+            for label in list(statefulset.spec.selector["matchLabels"].items())
         ]
     )
 
     api_pod = core_v1_api.list_namespaced_pod(
-        deployment.metadata.namespace, label_selector=selector
+        statefulset.metadata.namespace, label_selector=selector
     )
     if len(api_pod.items) != 1:
         logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
@@ -145,7 +146,7 @@ async def get_kubeconfig(
         kubeconfig = exec_command_pod(
             core_v1_api,
             api_pod_name,
-            deployment.metadata.namespace,
+            statefulset.metadata.namespace,
             cluster_config.apiServerContainerName,
             ["cat", cluster_config.kubeconfigFromLocation],
         )
