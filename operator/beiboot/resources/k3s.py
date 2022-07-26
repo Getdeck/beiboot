@@ -55,7 +55,9 @@ def create_k3s_server_workload(
         volume_mounts=[
             k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
             k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
-            k8s.client.V1VolumeMount(name="k8s-server-data", mount_path="/getdeck/data"),
+            k8s.client.V1VolumeMount(
+                name="k8s-server-data", mount_path="/getdeck/data"
+            ),
         ],
     )
 
@@ -86,8 +88,8 @@ def create_k3s_server_workload(
             access_modes=["ReadWriteOnce"],
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": cluster_config.serverStorageRequests}
-            )
-        )
+            ),
+        ),
     )
 
     spec = k8s.client.V1StatefulSetSpec(
@@ -160,7 +162,9 @@ def create_k3s_agent_workload(
         volume_mounts=[
             k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
             k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
-            k8s.client.V1VolumeMount(name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"),
+            k8s.client.V1VolumeMount(
+                name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"
+            ),
         ],
     )
 
@@ -191,8 +195,8 @@ def create_k3s_agent_workload(
             access_modes=["ReadWriteOnce"],
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": cluster_config.nodeStorageRequests}
-            )
-        )
+            ),
+        ),
     )
 
     spec = k8s.client.V1StatefulSetSpec(

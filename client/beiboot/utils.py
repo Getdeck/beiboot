@@ -70,26 +70,26 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
             command.extend(["&"])
         command.extend(
             [
-                "(while true; do "
-                "kubectl",
+                "(while true; do " "kubectl",
                 "port-forward",
                 "-n",
                 bbt["beibootNamespace"],
                 f"svc/port-{port.split(':')[1]}",
                 port,
-                "; done)"
+                "; done)",
             ]
         )
     if forwarded_ports:
         command.extend(["&"])
-    command.extend([
-        "kubectl",
-        "port-forward",
-        "-n",
-        bbt["beibootNamespace"],
-        "svc/kubeapi",
-        f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
-    ]
+    command.extend(
+        [
+            "kubectl",
+            "port-forward",
+            "-n",
+            bbt["beibootNamespace"],
+            "svc/kubeapi",
+            f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
+        ]
     )
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE

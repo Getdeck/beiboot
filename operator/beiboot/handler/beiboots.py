@@ -107,7 +107,9 @@ async def beiboot_created(body, logger, **kwargs):
             node_token = generate_token()
             cgroup = "".join(e for e in name if e.isalnum())
             server_workloads = [
-                create_k3s_server_workload(namespace, node_token, cgroup, cluster_config)
+                create_k3s_server_workload(
+                    namespace, node_token, cgroup, cluster_config
+                )
             ]
             node_workloads = [
                 create_k3s_agent_workload(
