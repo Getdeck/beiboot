@@ -2,11 +2,12 @@ import base64
 import logging
 import os
 import pathlib
-from typing import List
+from typing import List, Optional
 
 import docker.errors
 import kubernetes as k8s
 from beiboot.configuration import ClientConfiguration
+from docker.models.containers import Container
 
 logger = logging.getLogger("getdeck.beiboot")
 
@@ -64,32 +65,36 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         version="v1",
     )
     forwarded_ports = bbt.get("ports")
-    command = []
+    forwards = []
     for idx, port in enumerate(forwarded_ports):
-        if idx != 0:
-            command.extend(["&"])
-        command.extend(
+        forwards.append(
+            (
+                port.split(":")[0],
+                [
+                    "kubectl",
+                    "port-forward",
+                    "-n",
+                    bbt["beibootNamespace"],
+                    f"svc/port-{port.split(':')[1]}",
+                    port,
+                    "--address='0.0.0.0'",
+                ],
+            )
+        )
+
+    forwards.append(
+        (
+            config.BEIBOOT_API_PORT,
             [
-                "(while true; do " "kubectl",
+                "kubectl",
                 "port-forward",
                 "-n",
                 bbt["beibootNamespace"],
-                f"svc/port-{port.split(':')[1]}",
-                port,
-                "; done)",
-            ]
+                "svc/kubeapi",
+                f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
+                "--address='0.0.0.0'",
+            ],
         )
-    if forwarded_ports:
-        command.extend(["&"])
-    command.extend(
-        [
-            "kubectl",
-            "port-forward",
-            "-n",
-            bbt["beibootNamespace"],
-            "svc/kubeapi",
-            f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
-        ]
     )
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
@@ -97,23 +102,60 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         from kubernetes.config import kube_config
 
         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
-    try:
-        _cmd = ["/bin/sh", "-c", f"{' '.join(command)}"]
-        logger.debug(_cmd)
-        container = config.DOCKER.containers.run(  # noqa
-            image=config.TOOLER_IMAGE,
-            name=_get_tooler_container_name(cluster_name),
-            command=_cmd,
-            restart_policy={"Name": "unless-stopped"},
-            remove=False,
-            detach=True,
-            network_mode="host",
-            environment=["KUBECONFIG=/tmp/.kube/config"],
-            volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
-        )
-    except docker.errors.APIError as e:
-        logger.error(e)
-        raise RuntimeError("Could not create the local proxy for the Kubernetes API")
+    for forward in forwards:
+        try:
+            _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
+            logger.debug(_cmd)
+            container = config.DOCKER.containers.run(  # noqa
+                image=config.TOOLER_IMAGE,
+                name=f"{_get_tooler_container_name(cluster_name)}-{forward[0]}",
+                command=_cmd,
+                restart_policy={"Name": "unless-stopped"},
+                remove=False,
+                detach=True,
+                ports={f"{forward[0]}/tcp": int(forward[0])},
+                environment=["KUBECONFIG=/tmp/.kube/config"],
+                volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
+            )
+        except docker.errors.APIError as e:
+            if e.status_code == 409:
+                try:
+                    _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
+                    # retry
+                    config.DOCKER.containers.get(
+                        f"{_get_tooler_container_name(cluster_name)}-{forward[0]}"
+                    ).remove()
+                    config.DOCKER.containers.run(  # noqa
+                        image=config.TOOLER_IMAGE,
+                        name=f"{_get_tooler_container_name(cluster_name)}-{forward[0]}",
+                        command=_cmd,
+                        restart_policy={"Name": "unless-stopped"},
+                        remove=False,
+                        detach=True,
+                        ports={f"{forward[0]}/tcp": int(forward[0])},
+                        environment=["KUBECONFIG=/tmp/.kube/config"],
+                        volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
+                    )
+                except docker.errors.APIError as e:
+                    raise RuntimeError(
+                        "Finally failed to set up local proxy for the Kubernetes API"
+                    )
+            else:
+                logger.error(e)
+                raise RuntimeError(
+                    "Could not create the local proxy for the Kubernetes API"
+                )
+
+
+def _list_containers_by_prefix(
+    config: ClientConfiguration, prefix: str
+) -> List[Optional[Container]]:
+    containers = config.DOCKER.containers.list()
+    result = []
+    for container in containers:
+        if container.name.startswith(prefix):
+            result.append(container)
+    return result
 
 
 def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
@@ -129,13 +171,17 @@ def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) 
         pass
 
     try:
-        container = config.DOCKER.containers.get(
-            _get_tooler_container_name(cluster_name),
+        containers = _list_containers_by_prefix(
+            config, _get_tooler_container_name(cluster_name)
         )
-        try:
-            container.kill()
-        except:  # noqa
-            pass
-        container.remove()
+        for container in containers:
+            try:
+                container.kill()
+            except:  # noqa
+                pass
+            try:
+                container.remove()
+            except:  # noqa
+                pass
     except docker.errors.APIError as e:
         logger.warning(str(e))
