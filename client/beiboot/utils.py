@@ -66,12 +66,14 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
     )
     forwarded_ports = bbt.get("ports")
     forwards = []
-    for idx, port in enumerate(forwarded_ports):
+    for port in forwarded_ports:
         forwards.append(
             (
                 port.split(":")[0],
                 [
                     "kubectl",
+                    "--context",
+                    config.context,
                     "port-forward",
                     "-n",
                     bbt["beibootNamespace"],
@@ -87,6 +89,8 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
             config.BEIBOOT_API_PORT,
             [
                 "kubectl",
+                "--context",
+                config.context,
                 "port-forward",
                 "-n",
                 bbt["beibootNamespace"],
@@ -136,7 +140,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                         environment=["KUBECONFIG=/tmp/.kube/config"],
                         volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
                     )
-                except docker.errors.APIError as e:
+                except docker.errors.APIError:
                     raise RuntimeError(
                         "Finally failed to set up local proxy for the Kubernetes API"
                     )
