@@ -22,6 +22,7 @@ class ClientConfiguration(object):
         cluster_timeout: int = 60,
         api_port: int = 6443,
         kube_config_file: str = None,
+        kube_context: str = None,
     ):
         self.NAMESPACE = namespace
         self.REGISTRY_URL = (
@@ -49,6 +50,7 @@ class ClientConfiguration(object):
         self.KUBECONFIG_LOCATION = Path.home().joinpath(".getdeck")
         self.KUBECONFIG_LOCATION.mkdir(parents=True, exist_ok=True)
         self.BEIBOOT_API_PORT = api_port
+        self.context = kube_context
 
     def _init_docker(self):
         import docker
@@ -61,7 +63,7 @@ class ClientConfiguration(object):
                 "Docker init error. Docker host not running?"
             )
 
-    def _init_kubeapi(self):
+    def _init_kubeapi(self, context=None):
         from kubernetes.client import (
             CoreV1Api,
             RbacAuthorizationV1Api,
@@ -71,9 +73,9 @@ class ClientConfiguration(object):
         from kubernetes.config import load_kube_config
 
         if self.KUBECONFIG_FILE:
-            load_kube_config(self.KUBECONFIG_FILE)
+            load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
         else:
-            load_kube_config()
+            load_kube_config(context=context or self.context)
         self.K8S_CORE_API = CoreV1Api()
         self.K8S_RBAC_API = RbacAuthorizationV1Api()
         self.K8S_APP_API = AppsV1Api()
