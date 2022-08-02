@@ -72,6 +72,8 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                 port.split(":")[0],
                 [
                     "kubectl",
+                    "--context",
+                    config.context,
                     "port-forward",
                     "-n",
                     bbt["beibootNamespace"],
@@ -87,6 +89,8 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
             config.BEIBOOT_API_PORT,
             [
                 "kubectl",
+                "--context",
+                config.context,
                 "port-forward",
                 "-n",
                 bbt["beibootNamespace"],
