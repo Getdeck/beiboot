@@ -24,7 +24,7 @@ rules:
     resources: ["customresourcedefinitions"]
     verbs: ["create", "patch", "delete", "list", "watch"]
   - apiGroups: ["", "apps", "batch", "extensions", "events.k8s.io"]
-    resources: ["namespaces","configmaps","secrets","deployments","statefulsets","services","pods","pods/exec","events"]
+    resources: ["namespaces", "nodes", "configmaps","secrets","deployments","statefulsets","services","pods","pods/exec","events"]
     verbs: ["*"]
   - apiGroups: ["getdeck.dev"]
     resources: ["beiboots"]
