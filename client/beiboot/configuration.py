@@ -9,7 +9,7 @@ console.setFormatter(formatter)
 logger = logging.getLogger("getdeck.beiboot")
 logger.addHandler(console)
 
-__VERSION__ = "0.6.0"
+__VERSION__ = "0.7.0"
 
 
 class ClientConfiguration(object):
