@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 
 import kopf
 import kubernetes as k8s
@@ -9,8 +10,14 @@ from beiboot.resources.k3s import (
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
 )
-from beiboot.utils import generate_token, check_workload_ready, get_kubeconfig
-from beiboot.resources.services import ports_to_services
+from beiboot.utils import (
+    generate_token,
+    check_workload_ready,
+    get_kubeconfig,
+    get_taken_gefyra_ports,
+    get_external_node_ips,
+)
+from beiboot.resources.services import ports_to_services, gefyra_service
 
 from beiboot.configuration import ClusterConfiguration
 
@@ -131,6 +138,35 @@ async def beiboot_created(body, logger, **kwargs):
         additional_services = ports_to_services(ports, namespace, cluster_config)
         if additional_services:
             services.extend(additional_services)
+        #
+        # Gefyra Nodeport
+        #
+        if hasattr(cluster_config, "gefyra") and cluster_config.gefyra.get("enabled"):
+            try:
+                gefyra_ports = cluster_config.gefyra.get("ports")
+                lower_bound = int(gefyra_ports.split("-")[0])
+                upper_bound = int(gefyra_ports.split("-")[1])
+            except (IndexError, AttributeError, ValueError) as e:
+                logger.error(f"Cannot read Gefyra configuration due to: {e}")
+            else:
+                taken_ports = get_taken_gefyra_ports(custom_api, configuration)
+                try:
+                    gefyra_nodeport = [
+                        port
+                        for port in range(lower_bound, upper_bound + 1)
+                        if port not in taken_ports
+                    ].pop(0)
+                    services.append(
+                        gefyra_service(gefyra_nodeport, namespace, cluster_config)
+                    )
+                    _ips = get_external_node_ips(core_v1_api, configuration)
+                    gefyra_endpoint = _ips[0] if _ips else None
+                except IndexError:
+                    logger.error(
+                        f"No free Gefyra port available for this cluster. "
+                        f"lower bound: {lower_bound}, upper bound: {upper_bound}, "
+                        f"taken ports: {len(taken_ports)}"
+                    )
 
         #
         # Create the workloads
@@ -144,8 +180,10 @@ async def beiboot_created(body, logger, **kwargs):
         # Create the services
         #
         for svc in services:
+            logger.debug("Creating: " + str(svc))
             handle_create_service(logger, svc, namespace)
     except Exception as e:  # noqa
+        logger.error(traceback.format_exc())
         logger.error("Could not create cluster due to the following error: " + str(e))
         custom_api.patch_namespaced_custom_object(
             namespace=configuration.NAMESPACE,
@@ -163,15 +201,35 @@ async def beiboot_created(body, logger, **kwargs):
         aw_api_server_ready = loop.create_task(
             check_workload_ready(server_workloads[0], cluster_config)
         )
-        cluster_ready = loop.create_task(
-            get_kubeconfig(aw_api_server_ready, server_workloads[0], cluster_config)
-        )
-        kubeconfig = await cluster_ready
+
+        if hasattr(cluster_config, "gefyra") and cluster_config.gefyra.get("enabled"):
+            cluster_ready = loop.create_task(
+                get_kubeconfig(
+                    aw_api_server_ready,
+                    server_workloads[0],
+                    cluster_config,
+                    gefyra_endpoint,
+                    gefyra_nodeport,
+                )
+            )
+            kubeconfig = await cluster_ready
+
+            body_patch = {
+                "beibootNamespace": namespace,
+                "kubeconfig": kubeconfig,
+                "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
+            }
+        else:
+            cluster_ready = loop.create_task(
+                get_kubeconfig(aw_api_server_ready, server_workloads[0], cluster_config)
+            )
+            kubeconfig = await cluster_ready
+            body_patch = {"beibootNamespace": namespace, "kubeconfig": kubeconfig}
 
         custom_api.patch_namespaced_custom_object(
             namespace=configuration.NAMESPACE,
             name=body.metadata.name,
-            body={"beibootNamespace": namespace, "kubeconfig": kubeconfig},
+            body=body_patch,
             group="getdeck.dev",
             plural="beiboots",
             version="v1",

@@ -40,7 +40,14 @@ class ClusterConfiguration:
         default_factory=lambda: "/getdeck/kube-config.yaml"
     )
     clusterReadyTimeout: int = field(default_factory=lambda: 30)
-    gefyraPorts: str = field(default_factory=lambda: "31820-31920")
+    # Gefyra integration
+    gefyra: dict = field(
+        default_factory=lambda: {
+            "enabled": True,
+            "ports": "31820-31920",
+            "endpoint": None,
+        }
+    )
     # k3s settings
     k3sImage: str = field(default_factory=lambda: "rancher/k3s")
     k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")

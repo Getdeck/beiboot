@@ -50,7 +50,7 @@ class ClientConfiguration(object):
         self.KUBECONFIG_LOCATION = Path.home().joinpath(".getdeck")
         self.KUBECONFIG_LOCATION.mkdir(parents=True, exist_ok=True)
         self.BEIBOOT_API_PORT = api_port
-        self.context = kube_context or ""
+        self.context = kube_context or None
 
     def _init_docker(self):
         import docker
