@@ -80,6 +80,16 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                     f"svc/port-{port.split(':')[1]}",
                     port,
                     "--address='0.0.0.0'",
+                ]
+                if config.context
+                else [
+                    "kubectl",
+                    "port-forward",
+                    "-n",
+                    bbt["beibootNamespace"],
+                    f"svc/port-{port.split(':')[1]}",
+                    port,
+                    "--address='0.0.0.0'",
                 ],
             )
         )
@@ -97,6 +107,16 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                 "svc/kubeapi",
                 f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
                 "--address='0.0.0.0'",
+            ]
+            if config.context
+            else [
+                "kubectl",
+                "port-forward",
+                "-n",
+                bbt["beibootNamespace"],
+                "svc/kubeapi",
+                f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
+                "--address='0.0.0.0'",
             ],
         )
     )
@@ -106,6 +126,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         from kubernetes.config import kube_config
 
         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
+    print(forwards)
     for forward in forwards:
         try:
             _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
@@ -145,7 +166,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                         "Finally failed to set up local proxy for the Kubernetes API"
                     )
             else:
-                logger.error(e)
+                logger.error(e.explanation)
                 raise RuntimeError(
                     "Could not create the local proxy for the Kubernetes API"
                 )
