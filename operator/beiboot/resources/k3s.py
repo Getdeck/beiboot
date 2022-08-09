@@ -23,7 +23,7 @@ def create_k3s_server_workload(
             "--cluster-dns=10.46.0.10 "
             "--disable-agent "
             "--disable-cloud-controller "
-            "--disable=traefik "
+            "--disable=traefik,metrics-server "
             f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
             f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
             f"--kubelet-arg=--cgroup-root=/{cgroup} "
