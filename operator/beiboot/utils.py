@@ -207,9 +207,9 @@ def get_taken_gefyra_ports(
         )
         return []
     taken_ports = []
-    for beiboot in beiboots.items():
-        if hasattr(beiboot, "gefyra"):
-            port = beiboot.get("gefyra").get("port")
+    for beiboot in beiboots["items"]:
+        if gefyra := beiboot.get("gefyra"):
+            port = gefyra.get("port")
             try:
                 taken_ports.append(int(port))
             except (ValueError, TypeError) as e:

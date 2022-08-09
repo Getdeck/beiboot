@@ -39,7 +39,7 @@ class ClusterConfiguration:
     kubeconfigFromLocation: str = field(
         default_factory=lambda: "/getdeck/kube-config.yaml"
     )
-    clusterReadyTimeout: int = field(default_factory=lambda: 30)
+    clusterReadyTimeout: int = field(default_factory=lambda: 180)
     # Gefyra integration
     gefyra: dict = field(
         default_factory=lambda: {

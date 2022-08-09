@@ -1,5 +1,6 @@
 import asyncio
 import traceback
+import random
 
 import kopf
 import kubernetes as k8s
@@ -151,11 +152,12 @@ async def beiboot_created(body, logger, **kwargs):
             else:
                 taken_ports = get_taken_gefyra_ports(custom_api, configuration)
                 try:
-                    gefyra_nodeport = [
+                    gefyra_nodeport = random.choice([
                         port
                         for port in range(lower_bound, upper_bound + 1)
                         if port not in taken_ports
-                    ].pop(0)
+                    ])
+                    logger.info(f"Requesting Gefyra Nodeport: {gefyra_nodeport}")
                     services.append(
                         gefyra_service(gefyra_nodeport, namespace, cluster_config)
                     )
