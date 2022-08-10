@@ -126,7 +126,7 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
         from kubernetes.config import kube_config
 
         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
-    print(forwards)
+
     for forward in forwards:
         try:
             _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
