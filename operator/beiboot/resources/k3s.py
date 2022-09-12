@@ -59,8 +59,6 @@ def create_k3s_server_workload(
             capabilities=k8s.client.V1Capabilities(add=["NET_ADMIN", "SYS_MODULE"]),
         ),
         volume_mounts=[
-            k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
-            k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
             k8s.client.V1VolumeMount(
                 name="k8s-server-data", mount_path="/getdeck/data"
             ),
@@ -71,20 +69,6 @@ def create_k3s_server_workload(
         metadata=k8s.client.V1ObjectMeta(labels=cluster_config.serverLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
-            volumes=[
-                k8s.client.V1Volume(
-                    name="cgroupfs",
-                    host_path=k8s.client.V1HostPathVolumeSource(
-                        path="/sys/fs/cgroup", type="Directory"
-                    ),
-                ),
-                k8s.client.V1Volume(
-                    name="modules",
-                    host_path=k8s.client.V1HostPathVolumeSource(
-                        path="/lib/modules", type="Directory"
-                    ),
-                ),
-            ],
         ),
     )
 
@@ -166,8 +150,6 @@ def create_k3s_agent_workload(
             limits=cluster_config.nodeResources["limits"],
         ),
         volume_mounts=[
-            k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
-            # k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
             k8s.client.V1VolumeMount(
                 name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"
             ),
@@ -178,20 +160,6 @@ def create_k3s_agent_workload(
         metadata=k8s.client.V1ObjectMeta(labels=cluster_config.nodeLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
-            volumes=[
-                k8s.client.V1Volume(
-                    name="cgroupfs",
-                    host_path=k8s.client.V1HostPathVolumeSource(
-                        path="/sys/fs/cgroup", type="Directory"
-                    ),
-                ),
-                k8s.client.V1Volume(
-                    name="modules",
-                    host_path=k8s.client.V1HostPathVolumeSource(
-                        path="/lib/modules", type="Directory"
-                    ),
-                ),
-            ],
         ),
     )
 
