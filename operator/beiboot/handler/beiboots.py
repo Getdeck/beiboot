@@ -123,7 +123,9 @@ async def beiboot_created(body, logger, **kwargs):
                 create_k3s_agent_workload(
                     namespace, node_token, cgroup, cluster_config, node
                 )
-                for node in range(1, cluster_config.nodes)  # (no +1 ) since the server deployment already runs one node
+                for node in range(
+                    1, cluster_config.nodes
+                )  # (no +1 ) since the server deployment already runs one node
             ]
             services = [create_k3s_kubeapi_service(namespace, cluster_config)]
         else:

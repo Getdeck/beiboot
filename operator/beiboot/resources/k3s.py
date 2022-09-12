@@ -37,22 +37,6 @@ def create_k3s_server_workload(
             "--token=1234"
         ],
         env=[
-            k8s.client.V1EnvVar(name="PEERS", value="1"),
-            k8s.client.V1EnvVar(
-                name="SERVERPORT", value=str(51820)
-            ),
-            k8s.client.V1EnvVar(
-                name="SERVERURL", value="kubeapi-wg"
-            ),
-            k8s.client.V1EnvVar(name="PUID", value="1000"),
-            k8s.client.V1EnvVar(name="PGID", value="1000"),
-            k8s.client.V1EnvVar(name="PEERDNS", value="auto"),
-            k8s.client.V1EnvVar(
-                name="INTERNAL_SUBNET", value="192.168.99.0"
-            ),
-            k8s.client.V1EnvVar(
-                name="ALLOWEDIPS", value="0.0.0.0/0"
-            ),
             k8s.client.V1EnvVar(
                 name="POD_IP",
                 value_from=k8s.client.V1EnvVarSource(
@@ -60,7 +44,7 @@ def create_k3s_server_workload(
                         field_path="status.podIP"
                     )
                 ),
-            )
+            ),
         ],
         ports=[
             k8s.client.V1ContainerPort(container_port=6443),
