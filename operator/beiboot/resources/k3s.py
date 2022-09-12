@@ -12,6 +12,13 @@ def create_k3s_server_workload(
         image_pull_policy=cluster_config.k3sImagePullPolicy,
         command=["/bin/sh", "-c"],
         args=[
+            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
+            f"mkdir /sys/fs/cgroup/memory/{cgroup} ; "
+            f"mkdir /sys/fs/cgroup/pids/{cgroup} ; "
+            f"mkdir /sys/fs/cgroup/systemd/{cgroup}  ; "
+            f"mkdir /sys/fs/cgroup/hugetlb/{cgroup} ; "
+            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
+            f"mkdir /sys/fs/cgroup/cpuset/{cgroup} ; "
             "k3s server "
             "--https-listen-port=6443 "
             "--write-kubeconfig-mode=0644 "
@@ -21,9 +28,8 @@ def create_k3s_server_workload(
             "--cluster-cidr=10.45.0.0/16 "
             "--service-cidr=10.46.0.0/16 "
             "--cluster-dns=10.46.0.10 "
-            "--disable-agent "
             "--disable-cloud-controller "
-            "--disable=traefik,metrics-server "
+            "--disable=traefik "
             f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
             f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
             f"--kubelet-arg=--cgroup-root=/{cgroup} "
@@ -38,7 +44,7 @@ def create_k3s_server_workload(
                         field_path="status.podIP"
                     )
                 ),
-            )
+            ),
         ],
         ports=[
             k8s.client.V1ContainerPort(container_port=6443),
@@ -161,7 +167,7 @@ def create_k3s_agent_workload(
         ),
         volume_mounts=[
             k8s.client.V1VolumeMount(name="cgroupfs", mount_path="/sys/fs/cgroup"),
-            k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
+            # k8s.client.V1VolumeMount(name="modules", mount_path="/lib/modules"),
             k8s.client.V1VolumeMount(
                 name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"
             ),
