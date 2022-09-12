@@ -23,7 +23,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9"
 kubernetes = "^23.3.0"
-docker = "^5.0.3"
+docker = "^6.0.0"
 
 [tool.poetry.dev-dependencies]
 flake8-bugbear = "^22.1.11"
@@ -44,4 +44,5 @@ source = ["beiboot"]
 
 [tool.poetry.scripts]
 create = "testing.exec:create_a_cluster"
+connect = "testing.exec:connect_a_cluster"
 remove = "testing.exec:remove_a_cluster"
