@@ -68,6 +68,7 @@ def handle_create_statefulset(
         logger.info(str(e))
         pass
 
+
 def handle_create_service(
     logger, service: k8s.client.V1Service, namespace: str
 ) -> None:
