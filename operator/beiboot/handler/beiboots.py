@@ -68,6 +68,7 @@ def handle_create_statefulset(
         logger.info(str(e))
         pass
 
+
 def handle_create_service(
     logger, service: k8s.client.V1Service, namespace: str
 ) -> None:
@@ -115,16 +116,11 @@ async def beiboot_created(body, logger, **kwargs):
 
         if provider == "k3s":
             node_token = generate_token()
-            cgroup = "".join(e for e in name if e.isalnum())
             server_workloads = [
-                create_k3s_server_workload(
-                    namespace, node_token, cgroup, cluster_config
-                )
+                create_k3s_server_workload(namespace, node_token, cluster_config)
             ]
             node_workloads = [
-                create_k3s_agent_workload(
-                    namespace, node_token, cgroup, cluster_config, node
-                )
+                create_k3s_agent_workload(namespace, node_token, cluster_config, node)
                 for node in range(
                     1, cluster_config.nodes
                 )  # (no +1 ) since the server deployment already runs one node
