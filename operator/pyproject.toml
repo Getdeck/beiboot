@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "Getdeck Beiboot"
-version = "0.8.0"
+version = "0.8.1"
 description = "Getdeck Beiboot is an Operator to manage logical Kubernetes on top of a Kubernetes host cluster"
 authors = ["Michael Schilonka <michael@blueshoe.de>"]
 
