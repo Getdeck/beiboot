@@ -139,10 +139,14 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                 remove=False,
                 detach=True,
                 ports={f"{forward[0]}/tcp": int(forward[0])},
-                environment=["KUBECONFIG=/tmp/.kube/config"],
+                environment=[
+                    "KUBECONFIG=/tmp/.kube/config",
+                    "AWS_CONFIG_FILE=/tmp/.aws/config",
+                    "AWS_SHARED_CREDENTIALS_FILE=/tmp/.aws/credentials",
+                ],
                 volumes=[
                     f"{kubeconfig_path}:/tmp/.kube/config",
-                    f"{config.AWS_DIR}:/root/.aws",
+                    f"{config.AWS_DIR}:/tmp/.aws",
                 ],
             )
         except docker.errors.APIError as e:
@@ -161,8 +165,15 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                         remove=False,
                         detach=True,
                         ports={f"{forward[0]}/tcp": int(forward[0])},
-                        environment=["KUBECONFIG=/tmp/.kube/config"],
-                        volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
+                        environment=[
+                            "KUBECONFIG=/tmp/.kube/config",
+                            "AWS_CONFIG_FILE=/tmp/.aws/config",
+                            "AWS_SHARED_CREDENTIALS_FILE=/tmp/.aws/credentials",
+                        ],
+                        volumes=[
+                            f"{kubeconfig_path}:/tmp/.kube/config",
+                            f"{config.AWS_DIR}:/tmp/.aws",
+                        ],
                     )
                 except docker.errors.APIError:
                     raise RuntimeError(
