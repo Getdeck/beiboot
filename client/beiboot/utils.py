@@ -140,7 +140,10 @@ def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str)
                 detach=True,
                 ports={f"{forward[0]}/tcp": int(forward[0])},
                 environment=["KUBECONFIG=/tmp/.kube/config"],
-                volumes=[f"{kubeconfig_path}:/tmp/.kube/config"],
+                volumes=[
+                    f"{kubeconfig_path}:/tmp/.kube/config",
+                    f"{config.AWS_DIR}:/root/.aws",
+                ],
             )
         except docker.errors.APIError as e:
             if e.status_code == 409:
