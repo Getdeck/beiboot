@@ -17,7 +17,11 @@ class ClusterConfiguration:
         default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true"}
     )
     serverLabels: dict = field(
-        default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}
+        default_factory=lambda: {
+            "app": "beiboot",
+            "beiboot.dev/is-node": "true",
+            "beiboot.dev/is-server": "true",
+        }
     )
     serverResources: dict = field(
         default_factory=lambda: {
