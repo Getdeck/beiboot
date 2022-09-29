@@ -12,12 +12,16 @@ logger = logging.getLogger("beiboot")
 
 @dataclass
 class ClusterConfiguration:
-    nodes: int = field(default_factory=lambda: 1)
+    nodes: int = field(default_factory=lambda: 2)
     nodeLabels: dict = field(
-        default_factory=lambda: {"app": "beiboot", "beiboot": "node"}
+        default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true"}
     )
     serverLabels: dict = field(
-        default_factory=lambda: {"app": "beiboot", "beiboot": "server"}
+        default_factory=lambda: {
+            "app": "beiboot",
+            "beiboot.dev/is-node": "true",
+            "beiboot.dev/is-server": "true",
+        }
     )
     serverResources: dict = field(
         default_factory=lambda: {
