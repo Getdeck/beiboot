@@ -1,4 +1,5 @@
 import sys
+import os
 import logging
 from pathlib import Path
 
@@ -23,6 +24,7 @@ class ClientConfiguration(object):
         api_port: int = 6443,
         kube_config_file: str = None,
         kube_context: str = None,
+        aws_dir: str = None,
     ):
         self.NAMESPACE = namespace
         self.REGISTRY_URL = (
@@ -44,6 +46,7 @@ class ClientConfiguration(object):
             self.DOCKER = docker_client
 
         self.KUBECONFIG_FILE = kube_config_file
+        self.AWS_DIR = aws_dir or os.path.expanduser("~/.aws")
         self.CLUSTER_CREATION_TIMEOUT = (
             cluster_timeout  # cluster timeout for the kubeconfig
         )
