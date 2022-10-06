@@ -21,6 +21,7 @@ class ClientConfiguration(object):
         registry_url: str = None,
         tooler_image: str = None,
         cluster_timeout: int = 180,
+        api_connection_timeout: int = 30,
         api_port: int = 6443,
         kube_config_file: str = None,
         kube_context: str = None,
@@ -49,6 +50,9 @@ class ClientConfiguration(object):
         self.AWS_DIR = aws_dir or os.path.expanduser("~/.aws")
         self.CLUSTER_CREATION_TIMEOUT = (
             cluster_timeout  # cluster timeout for the kubeconfig
+        )
+        self.CONNECTION_TIMEOUT = (
+            api_connection_timeout  # timeout for the API connection
         )
         self.KUBECONFIG_LOCATION = Path.home().joinpath(".getdeck")
         self.KUBECONFIG_LOCATION.mkdir(parents=True, exist_ok=True)

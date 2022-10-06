@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import pathlib
+from time import sleep
 from typing import List, Optional
 
 import docker.errors
@@ -56,7 +57,9 @@ def _get_tooler_container_name(cluster_name: str):
     return f"getdeck-proxy-{cluster_name}"
 
 
-def start_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str):
+def start_kubeapi_portforwarding(
+    config: ClientConfiguration, cluster_name: str, probe_connection: bool = True
+):
     bbt = config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
         namespace=config.NAMESPACE,
         name=cluster_name,
@@ -224,3 +227,32 @@ def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) 
                 pass
     except docker.errors.APIError as e:
         logger.warning(str(e))
+
+
+def probe_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
+    i = 0
+    ready = set()
+    while config.CONNECTION_TIMEOUT > i:
+        containers = _list_containers_by_prefix(
+            config, _get_tooler_container_name(cluster_name)
+        )
+        for container in containers:
+            if container.status == "running":
+                if "Forwarding" in container.logs().decode():
+                    ready.add(container.name)
+                else:
+                    pass
+        if len(ready) == len(containers):
+            # all containers are ready, so we are breaking
+            break
+        else:
+            logger.debug(
+                f"Waiting for the connection to become ready {i}/{config.CONNECTION_TIMEOUT}"
+            )
+            i = i + 1
+            sleep(1)
+            continue
+    else:
+        raise TimeoutError(
+            f"The connection to the cluster could not be established in time (timeout: {config.CONNECTION_TIMEOUT} s)"
+        )
