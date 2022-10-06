@@ -11,6 +11,7 @@ from beiboot.utils import (
     decode_kubeconfig,
     save_kubeconfig_to_file,
     delete_kubeconfig_file,
+    probe_portforwarding,
 )
 
 from beiboot.utils import (
@@ -25,6 +26,7 @@ def create_cluster(
     cluster_name: str,
     ports: List[str] = None,
     connect: bool = True,
+    probe_connection: bool = True,
     configuration: ClientConfiguration = default_configuration,
 ) -> None:
     #
@@ -60,7 +62,7 @@ def create_cluster(
         logger.info(
             "Now connecting to the cluster; this may take a while to complete. "
         )
-        establish_connection(cluster_name, configuration)
+        establish_connection(cluster_name, probe_connection, configuration)
 
 
 def remove_cluster(
@@ -117,6 +119,10 @@ def get_connection(
             )
             i = i + 1
             sleep(1)
+    else:
+        raise TimeoutError(
+            f"The cluster could not be created in time (timeout: {configuration.CLUSTER_CREATION_TIMEOUT} s)"
+        )
     #
     # 2. store the kubeconfig to a well-known place
     #
@@ -128,7 +134,9 @@ def get_connection(
 
 
 def establish_connection(
-    cluster_name: str, configuration: ClientConfiguration = default_configuration
+    cluster_name: str,
+    probe_connection: bool = True,
+    configuration: ClientConfiguration = default_configuration,
 ) -> None:
 
     kubeconfig_location = get_connection(cluster_name, configuration)
@@ -138,6 +146,9 @@ def establish_connection(
             f"KUBECONFIG for cluster {cluster_name} not found. Cannot establish a connection."
         )
     start_kubeapi_portforwarding(configuration, cluster_name)
+    if probe_connection:
+        probe_portforwarding(configuration, cluster_name)
+
     logger.info(
         f"You can now set 'export KUBECONFIG={kubeconfig_location}' and work with the cluster."
     )
