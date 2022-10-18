@@ -15,16 +15,22 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
     name: "getdeck:beiboot:operator"
-    namespace: getdeck
 rules:
+  # Kopf Framework: knowing which other operators are running (i.e. peering).
   - apiGroups: ["kopf.dev"]
     resources: ["clusterkopfpeerings"]
-    verbs: ["create", "patch"]
+    verbs: ["list", "watch", "patch", "get"]
+  # Kopf Framework: runtime observation of namespaces & CRDs (addition/deletion).
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create", "patch", "delete", "list", "watch"]
+  # Kopf Framework: admission webhook configuration management.
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["create", "patch"]
+  # Beiboot operator: access for watching cluster-wide.
   - apiGroups: ["", "apps", "batch", "extensions", "events.k8s.io"]
-    resources: ["namespaces", "nodes", "configmaps","secrets","deployments","statefulsets","services","pods","pods/exec","events"]
+    resources: ["namespaces", "nodes", "configmaps", "secrets", "deployments", "statefulsets", "services", "pods", "pods/exec", "events"]
     verbs: ["*"]
   - apiGroups: ["getdeck.dev"]
     resources: ["beiboots"]
@@ -44,6 +50,75 @@ subjects:
     - kind: ServiceAccount
       name: "beiboot-operator"
       namespace: getdeck
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beiboot-admission
+  namespace: getdeck
+spec:
+  selector:
+    app: beiboot-operator
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 9443
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: beiboot.getdeck.dev
+webhooks:
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    caBundle: |
+      LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURXekNDQWtPZ0F3SUJBZ0lVUUovMXdUZjBl
+      RkR3NFJDUU1UdGhKRC80Z09zd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0tERW1NQ1FHQTFVRUF3d2RZ
+      bVZwWW05dmRDMWhaRzFwYzNOcGIyNHVaMlYwWkdWamF5NXpkbU13SGhjTgpNakl4TURFNE1qRXhN
+      ekU1V2hjTk1qSXhNVEUzTWpFeE16RTVXakFvTVNZd0pBWURWUVFEREIxaVpXbGliMjkwCkxXRmti
+      V2x6YzJsdmJpNW5aWFJrWldOckxuTjJZekNDQVNJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dFUEFE
+      Q0MKQVFvQ2dnRUJBS2xSdm1uYkpOVXdKMUNydnpKYU0zWU5FdHpXWEVmS3pwZzZ5UVV3eFd5THRQ
+      OFl5UndqendCSwpBQThkNkNaMlU0UldWQ216VGJoTmxpK0JrOWdhQTNDSi9KTE1tL3ZRWHFNU1NZ
+      TXQzQ0hiNDVoUWVQOG01QVNOCm1POVFuTWw1R29aNkk2bXVMNldBTjg0MmE0amcybWtxd0p3N2ti
+      ZjlPVXlBVWZ2SHUxV1VkOUlHeFdnS2dHUjIKekFTVW0zS2xHRHFOVDlsU0c0TEl3ejgvMmRuNUZL
+      cERodVkvUW43Q2VpNEJEM0Y5YjFUTlhMT2tPU1RqNFhuNgp6d250bnJmR1NkalFhSVpBbXpJbTZo
+      dUMra0dOOHU2K3Frd29IRnBJR1h6TW9VZjM2em94bUtTb2Q1SEczcVZwCjRjdStydFh3WjhhV2E0
+      RUVyMHlaYnY2RVM5dXRpMzhDQXdFQUFhTjlNSHN3SFFZRFZSME9CQllFRklFYVNvcS8KRmhJZ2h2
+      Q2N0SGRmUS9naVVsZkhNQjhHQTFVZEl3UVlNQmFBRklFYVNvcS9GaElnaHZDY3RIZGZRL2dpVWxm
+      SApNQThHQTFVZEV3RUIvd1FGTUFNQkFmOHdLQVlEVlIwUkJDRXdINElkWW1WcFltOXZkQzFoWkcx
+      cGMzTnBiMjR1CloyVjBaR1ZqYXk1emRtTXdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBS2lIeGlF
+      MnB3Z2h0dS9GYkpoYzhoZkkKV2ZaaDNSU3pES29yZDJOVE5xdVd3aWpZdjNSTEZkZ21sQzhsaEY1
+      NitYY3dIZFVMbnpVcFNmRTVKa2orNm9MUwpybERMeHJvV0dYTHIwVm5obG5QYTBaajhwVGJDQUtG
+      ZVBLS214cTJKWUx6MGpYQUF5alR5M05PZ1dtOUJDaEs2CktmNTcyY2hRd2hzUC9Ea3RiMm82U2Rq
+      YjV5WkROMzB2cjE1UzdwOUlVWGhITUtiUzZ2clQ3Z1RKbTVHcllBb0kKVDVsNFRoQzEzNVJDQ0Ix
+      ZmxMOFg4MTdxQldndm9kZXV3b0pycm5NK2cwTTNieEJSVFFrYUt6QlpONHJaVEtnVwpvZUFhbUJs
+      TmdFeHJZOFRDZGp4WmxDQ2xXT2tjVGU0MXVJOXBIQVJyQ0RIMnRwcnViMDYvZElBMitvbFhYelU9
+      Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    service:
+      name: beiboot-admission
+      namespace: getdeck
+      path: "/check-namespace-ready"
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: check-namespace-ready.beiboot.getdeck.dev
+  namespaceSelector: {}
+  objectSelector: {}
+  rules:
+  - apiGroups:
+    - getdeck.dev
+    apiVersions:
+    - v1
+    operations:
+    - '*'
+    resources:
+    - beiboots
+    scope: '*'
+  sideEffects: None
+  timeoutSeconds: 30
 
 ---
 apiVersion: apps/v1
@@ -68,5 +143,7 @@ spec:
       serviceAccountName: beiboot-operator
       containers:
         - name: beiboot
-          image: quay.io/getdeck/beiboot:0.11.1
+          image: quay.io/getdeck/beiboot:val
           imagePullPolicy: Always
+          ports:
+            - containerPort: 9443

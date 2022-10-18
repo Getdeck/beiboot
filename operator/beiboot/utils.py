@@ -219,3 +219,8 @@ def get_taken_gefyra_ports(
         else:
             continue
     return taken_ports
+
+
+def get_namespace_name(name: str, cluster_config: ClusterConfiguration) -> str:
+    namespace = f"{cluster_config.namespacePrefix}-{name}"
+    return namespace

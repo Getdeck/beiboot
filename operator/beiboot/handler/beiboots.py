@@ -17,6 +17,7 @@ from beiboot.utils import (
     get_kubeconfig,
     get_taken_gefyra_ports,
     get_external_node_ips,
+    get_namespace_name,
 )
 from beiboot.resources.services import ports_to_services, gefyra_service
 
@@ -29,7 +30,7 @@ custom_api = k8s.client.CustomObjectsApi()
 
 
 def handle_create_namespace(logger, name, cluster_config: ClusterConfiguration) -> str:
-    namespace = f"{cluster_config.namespacePrefix}-{name}"
+    namespace = get_namespace_name(name, cluster_config)
     try:
         core_v1_api.create_namespace(
             body=k8s.client.V1Namespace(
@@ -107,7 +108,6 @@ async def beiboot_created(body, logger, **kwargs):
     ports = body.get("ports")
 
     cluster_config = configuration.refresh_k8s_config()
-    namespace = cluster_config.namespacePrefix
     #
     # Create the target namespace
     #
@@ -201,6 +201,7 @@ async def beiboot_created(body, logger, **kwargs):
             group="getdeck.dev",
             plural="beiboots",
             version="v1",
+            async_req=True,
         )
     else:
         #
@@ -242,6 +243,7 @@ async def beiboot_created(body, logger, **kwargs):
             group="getdeck.dev",
             plural="beiboots",
             version="v1",
+            async_req=True,
         )
 
         kopf.info(
