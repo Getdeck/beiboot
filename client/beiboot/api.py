@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from time import sleep
@@ -48,12 +49,16 @@ def create_cluster(
         if e.status == 404:
             raise RuntimeError(
                 "This cluster does probably not support Getdeck Beiboot, or is not ready."
-            )
+            ) from None
         elif e.status == 409:
             # this cluster already exists
             raise RuntimeError(
-                f"The requested cluster name {cluster_name} already exists."
-            )
+                f"The requested Beiboot cluster {cluster_name} already exists."
+            ) from None
+        elif e.status == 500:
+            raise RuntimeError(
+                f"The requested Beiboot cluster {cluster_name} cannot be created: {json.loads(e.body).get('message')}"
+            ) from None
         else:
             # TODO handle that case
             raise
@@ -107,9 +112,9 @@ def get_connection(
             )
         except k8s.client.exceptions.ApiException as e:
             if e.status == 404:
-                raise RuntimeError("This cluster name does not exist")
+                raise RuntimeError(f"This Beiboot cluster {cluster_name} does not exist") from None
             else:
-                raise RuntimeError(f"Error fetching the Beiboot object: {e.reason}")
+                raise RuntimeError(f"Error fetching the Beiboot object: {e.reason}") from None
         if bbt.get("kubeconfig"):
             # if the kubeconfig was added, this cluster is ready
             break

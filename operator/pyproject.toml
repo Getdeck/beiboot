@@ -9,6 +9,7 @@ python = "^3.9"
 kopf = "^1.35.0"
 kubernetes = "^22.6.0"
 python-decouple = "^3.5"
+certbuilder = "^0.14.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
