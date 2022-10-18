@@ -132,7 +132,7 @@ async def beiboot_created(body, logger, **kwargs):
             ]
             services = [create_k3s_kubeapi_service(namespace, cluster_config)]
         else:
-            raise RuntimeError(
+            raise kopf.PermanentError(
                 f"Cannot create Beiboot wit provider {provider}: not supported."
             )
 
@@ -218,7 +218,7 @@ async def beiboot_created(body, logger, **kwargs):
                     aw_api_server_ready,
                     server_workloads[0],
                     cluster_config,
-                    gefyra_endpoint,
+                    cluster_config.gefyra["endpoint"] or gefyra_endpoint,
                     gefyra_nodeport,
                 )
             )
