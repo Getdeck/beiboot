@@ -9,12 +9,13 @@ core_v1_api = k8s.client.CoreV1Api()
 
 @kopf.on.validate("beiboot.getdeck.dev", id="check-namespace-ready")
 def check_namespace_ready(body, logger, operation, **_):
-    cluster_config = configuration.refresh_k8s_config()
-    name = body.get("metadata").get("name")
-    namespace = get_namespace_name(name, cluster_config)
     logger.info(f"Validating namespace for operation {operation}")
 
     if operation == "CREATE":
+        cluster_config = configuration.refresh_k8s_config()
+        name = body.get("metadata").get("name")
+        namespace = get_namespace_name(name, cluster_config)
+
         try:
             ns = core_v1_api.read_namespace(namespace)
             logger.warn(f"Namespace {ns.metadata.name} exists")

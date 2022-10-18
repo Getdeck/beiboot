@@ -25,15 +25,15 @@ class ClusterConfiguration:
     )
     serverResources: dict = field(
         default_factory=lambda: {
-            "requests": {"cpu": "1", "memory": "512Mi"},
+            "requests": {"cpu": "1", "memory": "1Gi"},
             "limits": {},
         }
     )
-    serverStorageRequests: str = field(default_factory=lambda: "2Gi")
+    serverStorageRequests: str = field(default_factory=lambda: "10Gi")
     nodeResources: dict = field(
         default_factory=lambda: {
-            "requests": {"cpu": "0.5", "memory": "512Mi"},
-            "limits": {"cpu": "1", "memory": "1024Mi"},
+            "requests": {"cpu": "1", "memory": "1Gi"},
+            "limits": {},
         }
     )
     nodeStorageRequests: str = field(default_factory=lambda: "10Gi")
@@ -60,7 +60,12 @@ class ClusterConfiguration:
     def encode_cluster_configuration(self) -> dict:
         _s = {}
         for _field in fields(self):
-            _s[str(_field.name)] = json.dumps(getattr(self, _field.name))
+            if type(getattr(self, _field.name)) in [int, float]:
+                _s[str(_field.name)] = str(getattr(self, _field.name))
+            if type(getattr(self, _field.name)) is str:
+                _s[str(_field.name)] = getattr(self, _field.name)
+            else:
+                _s[str(_field.name)] = json.dumps(getattr(self, _field.name))
         return _s
 
     @classmethod
@@ -74,7 +79,7 @@ class ClusterConfiguration:
                 try:
                     setattr(_s, k, json.loads(v))
                 except JSONDecodeError:
-                    logger.warning(f"The configuration value for '{k}' is not valid.")
+                    setattr(_s, k, v)
         return _s
 
 
@@ -100,6 +105,7 @@ class BeibootConfiguration:
                         namespace=self.NAMESPACE, body=configmap
                     )
                 except k8s.client.exceptions.ApiException as e:
+                    logger.error(e)
                     logger.error(f"Cannot create configmap for Beiboot: {e.reason}")
             else:
                 raise e
