@@ -61,7 +61,7 @@ def _get_tooler_container_name(cluster_name: str):
 def _check_port_free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
-            s.bind(("0.0.0.0", port))
+            s.bind(("localhost", port))
         except OSError:
             raise RuntimeError(
                 f"Can not establish requested connection: localhost:{port} is busy."
