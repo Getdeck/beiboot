@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import pathlib
+import socket
 from time import sleep
 from typing import List, Optional
 
@@ -57,6 +58,19 @@ def _get_tooler_container_name(cluster_name: str):
     return f"getdeck-proxy-{cluster_name}"
 
 
+def _is_port_free(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("0.0.0.0", port))
+        except OSError:
+            raise RuntimeError(
+                f"Can not establish requested connection: localhost:{port} is busy."
+            ) from None
+        else:
+            s.close()
+    return True
+
+
 def start_kubeapi_portforwarding(
     config: ClientConfiguration, cluster_name: str, probe_connection: bool = True
 ):
@@ -69,6 +83,7 @@ def start_kubeapi_portforwarding(
     )
     forwarded_ports = bbt.get("ports")
     forwards = []
+
     for port in forwarded_ports:
         forwards.append(
             (
@@ -123,6 +138,11 @@ def start_kubeapi_portforwarding(
             ],
         )
     )
+
+    # check if ports are actually free on the local machine
+    for forward in forwards:
+        _is_port_free(int(forward[0]))
+
     if config.KUBECONFIG_FILE:
         kubeconfig_path = config.KUBECONFIG_FILE
     else:
