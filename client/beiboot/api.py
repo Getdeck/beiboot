@@ -112,9 +112,13 @@ def get_connection(
             )
         except k8s.client.exceptions.ApiException as e:
             if e.status == 404:
-                raise RuntimeError(f"This Beiboot cluster {cluster_name} does not exist") from None
+                raise RuntimeError(
+                    f"This Beiboot cluster {cluster_name} does not exist"
+                ) from None
             else:
-                raise RuntimeError(f"Error fetching the Beiboot object: {e.reason}") from None
+                raise RuntimeError(
+                    f"Error fetching the Beiboot object: {e.reason}"
+                ) from None
         if bbt.get("kubeconfig"):
             # if the kubeconfig was added, this cluster is ready
             break
