@@ -30,13 +30,29 @@ def create_cluster(
     probe_connection: bool = True,
     configuration: ClientConfiguration = default_configuration,
 ) -> None:
+
+    if ports is None:
+        ports = []
+    obj = create_beiboot_custom_ressource(configuration, cluster_name, ports)
+    try:
+        _ = configuration.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
+            group="getdeck.dev",
+            version="v1",
+            namespace=configuration.NAMESPACE,
+            plural="beiboots",
+            name=cluster_name,
+        )
+        raise RuntimeError(
+            f"The requested Beiboot cluster {cluster_name} already exists."
+        )
+    except k8s.client.exceptions.ApiException:
+        # that is ok
+        pass
+
     #
     # 1. create the CR object for Beiboot; apply it
     #
     logger.info(f"Now creating Beiboot {cluster_name}")
-    if ports is None:
-        ports = []
-    obj = create_beiboot_custom_ressource(configuration, cluster_name, ports)
     try:
         configuration.K8S_CUSTOM_OBJECT_API.create_namespaced_custom_object(
             namespace=configuration.NAMESPACE,
