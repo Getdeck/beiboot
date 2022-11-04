@@ -1,14 +1,26 @@
 import base64
+import inspect
 import logging
 import string
 import random
 from asyncio import sleep
-from typing import List, Awaitable, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 import kubernetes as k8s
 import yaml
+from statemachine.exceptions import MultipleTransitionCallbacksFound
+from statemachine.statemachine import (
+    StateMachineMetaclass,
+    BaseStateMachine,
+    Transition,
+    State,
+)
+
 
 from beiboot.configuration import ClusterConfiguration, BeibootConfiguration
+
+if TYPE_CHECKING:
+    from beiboot.clusterstate import BeibootCluster
 
 logger = logging.getLogger("beiboot")
 
@@ -66,92 +78,52 @@ def exec_command_pod(
     return resp
 
 
-async def check_workload_ready(
-    statefulset: k8s.client.V1StatefulSet, cluster_config: ClusterConfiguration
-):
-    app = k8s.client.AppsV1Api()
-    core_v1_api = k8s.client.CoreV1Api()
-
+async def check_workload_ready(cluster: "BeibootCluster") -> bool:
     i = 0
-    dep = app.read_namespaced_stateful_set(
-        name=statefulset.metadata.name, namespace=statefulset.metadata.namespace
-    )
     # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
     logger.info("Waiting for workload to become ready...")
-    while i <= cluster_config.clusterReadyTimeout:
-        s = dep.status
-        if (
-            s.updated_replicas == dep.spec.replicas
-            and s.replicas == dep.spec.replicas  # noqa
-            and s.available_replicas == dep.spec.replicas  # noqa
-            and s.observed_generation >= dep.metadata.generation  # noqa
-        ):
-            selector = ",".join(
-                [
-                    "{0}={1}".format(*label)
-                    for label in list(statefulset.spec.selector["matchLabels"].items())
-                ]
-            )
-            api_pod = core_v1_api.list_namespaced_pod(
-                statefulset.metadata.namespace,
-                label_selector=selector,
-            )
-            if len(api_pod.items) != 1:
-                logger.warning(
-                    f"API pod not yet ready, Pods: {len(api_pod.items)} which is != 1"
-                )
-                await sleep(1)
-                continue
-            api_pod_name = api_pod.items[0].metadata.name
-            logger.info(f"API Pod ready: {api_pod_name}")
+    while i <= cluster.parameters.clusterReadyTimeout:
+        if cluster.provider.ready():
+            logger.info("Cluster is now running")
             return True
         else:
-            logger.debug("Waiting for API Pod to become ready")
             await sleep(1)
-        i += 1
-        dep = app.read_namespaced_stateful_set(
-            name=statefulset.metadata.name, namespace=statefulset.metadata.namespace
-        )
+            i += 1
+            continue
     # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
-    logger.error("API Pod did not become ready")
+    logger.error("Cluster did not become ready")
     return False
 
 
 async def get_kubeconfig(
-    aw_workload_ready: Awaitable,
-    statefulset: k8s.client.V1StatefulSet,
-    cluster_config: ClusterConfiguration,
+    cluster: "BeibootCluster",
     gefyra_endpoint: str = None,
     gefyra_nodeport: int = None,
 ) -> dict:
-    api_ready = await aw_workload_ready
-    if not api_ready:
-        # this is a critical error; probably remove the complete cluster
-        return {}
     core_v1_api = k8s.client.CoreV1Api()
 
     selector = ",".join(
         [
             "{0}={1}".format(*label)
-            for label in list(statefulset.spec.selector["matchLabels"].items())
+            for label in list(cluster.parameters.serverLabels.items())
         ]
     )
 
     api_pod = core_v1_api.list_namespaced_pod(
-        statefulset.metadata.namespace, label_selector=selector
+        cluster.namespace, label_selector=selector
     )
     if len(api_pod.items) != 1:
         logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
     api_pod_name = api_pod.items[0].metadata.name
     # busywait for Kubeconfig to become available
     i = 0
-    while i <= cluster_config.clusterReadyTimeout:
+    while i <= cluster.parameters.clusterReadyTimeout:
         kubeconfig = exec_command_pod(
             core_v1_api,
             api_pod_name,
-            statefulset.metadata.namespace,
-            cluster_config.apiServerContainerName,
-            ["cat", cluster_config.kubeconfigFromLocation],
+            cluster.namespace,
+            cluster.parameters.apiServerContainerName,
+            ["cat", cluster.parameters.kubeconfigFromLocation],
         )
         if "No such file or directory" in kubeconfig:
             await sleep(1)
@@ -169,9 +141,7 @@ async def get_kubeconfig(
     return {"source": base64.b64encode(kubeconfig.encode("utf-8")).decode("utf-8")}
 
 
-def get_external_node_ips(
-    api_instance: k8s.client.CoreV1Api, config: BeibootConfiguration
-) -> List[Optional[str]]:
+def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
     ips = []
     try:
         nodes = api_instance.list_node()
@@ -224,3 +194,76 @@ def get_taken_gefyra_ports(
 def get_namespace_name(name: str, cluster_config: ClusterConfiguration) -> str:
     namespace = f"{cluster_config.namespacePrefix}-{name}"
     return namespace
+
+
+class AsyncTransition(Transition):
+    async def _run(self, machine, *args, **kwargs):
+        self._verify_can_run(machine)
+        self._validate(*args, **kwargs)
+        return await machine._activate(self, *args, **kwargs)
+
+
+class AsyncState(State):
+    def _to_(self, *states):
+        transition = AsyncTransition(self, *states)
+        self.transitions.append(transition)
+        return transition
+
+    def _from_(self, *states):
+        combined = None
+        for origin in states:
+            transition = AsyncTransition(origin, self)
+            origin.transitions.append(transition)
+            if combined is None:
+                combined = transition
+            else:
+                combined |= transition
+        return combined
+
+
+class AsyncStateMachine(BaseStateMachine):
+    async def _activate(self, transition, *args, **kwargs):
+        bounded_on_event = getattr(self, "on_{}".format(transition.identifier), None)
+        on_event = transition.on_execute
+
+        if bounded_on_event and on_event and bounded_on_event != on_event:
+            raise MultipleTransitionCallbacksFound(transition)
+
+        result = None
+        if inspect.iscoroutinefunction(bounded_on_event):
+            result = await bounded_on_event(*args, **kwargs)
+        elif callable(bounded_on_event):
+            result = bounded_on_event(*args, **kwargs)
+        elif callable(on_event):
+            result = on_event(self, *args, **kwargs)
+
+        result, destination = transition._get_destination(result)
+
+        bounded_on_exit_state_event = getattr(self, "on_exit_state", None)
+        if callable(bounded_on_exit_state_event):
+            bounded_on_exit_state_event(self.current_state)
+
+        bounded_on_exit_specific_state_event = getattr(
+            self, "on_exit_{}".format(self.current_state.identifier), None
+        )
+        if callable(bounded_on_exit_specific_state_event):
+            bounded_on_exit_specific_state_event()
+
+        self.current_state = destination
+
+        bounded_on_enter_state_event = getattr(self, "on_enter_state", None)
+        if callable(bounded_on_enter_state_event):
+            bounded_on_enter_state_event(destination)
+
+        bounded_on_enter_specific_state_event = getattr(
+            self, "on_enter_{}".format(destination.identifier), None
+        )
+        if inspect.iscoroutinefunction(bounded_on_enter_specific_state_event):
+            await bounded_on_enter_specific_state_event(*args, **kwargs)
+        elif callable(bounded_on_enter_specific_state_event):
+            bounded_on_enter_specific_state_event()
+
+        return result
+
+
+StateMachine = StateMachineMetaclass("StateMachine", (AsyncStateMachine,), {})

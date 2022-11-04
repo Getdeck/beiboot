@@ -139,6 +139,7 @@ def get_connection(
             # if the kubeconfig was added, this cluster is ready
             break
         else:
+            print(bbt)
             logger.debug(
                 f"Waiting for the cluster to become ready {i}/{configuration.CLUSTER_CREATION_TIMEOUT}"
             )

@@ -461,6 +461,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "python-statemachine"
+version = "0.8.0"
+description = "Python Finite State Machines made easy."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pyyaml"
 version = "6.0"
 description = "YAML parser and emitter for Python"
@@ -593,7 +601,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "0b97b8384aa214b8ed77a240e3670068236c15c18614cd346510e1d360a78de9"
+content-hash = "2542cd31f4f0fbe461a0668f2601c64ddc728033b7b493ff29abad57ee569efe"
 
 [metadata.files]
 aiohttp = []
@@ -637,6 +645,7 @@ pytest = []
 python-dateutil = []
 python-decouple = []
 python-json-logger = []
+python-statemachine = []
 pyyaml = []
 requests = []
 requests-oauthlib = []
