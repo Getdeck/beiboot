@@ -1,5 +1,6 @@
 from typing import List
 
+import kopf
 import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
@@ -31,10 +32,36 @@ class K3s(AbstractClusterProvider):
         self.parameters = cluster_parameter
         self.logger = logger
 
-    def get_kubeconfig(self) -> bool:
-        raise NotImplementedError
+    async def get_kubeconfig(self) -> str:
+        from beiboot.utils import exec_command_pod
 
-    def create(self) -> bool:
+        core_api = k8s.client.CoreV1Api()
+
+        selector = ",".join(
+            [
+                "{0}={1}".format(*label)
+                for label in list(self.parameters.serverLabels.items())
+            ]
+        )
+        api_pod = core_api.list_namespaced_pod(
+            self.namespace, label_selector=selector
+        )
+        if len(api_pod.items) != 1:
+            self.logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
+
+        kubeconfig = exec_command_pod(
+            core_api,
+            api_pod.items[0].metadata.name,
+            self.namespace,
+            self.parameters.apiServerContainerName,
+            ["cat", self.parameters.kubeconfigFromLocation],
+        )
+        if "No such file or directory" in kubeconfig:
+            raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
+        else:
+            return kubeconfig
+
+    async def create(self) -> bool:
         from beiboot.utils import generate_token
         from beiboot.resources.utils import (
             handle_create_statefulset,
@@ -74,18 +101,18 @@ class K3s(AbstractClusterProvider):
             handle_create_service(self.logger, svc, self.namespace)
         return True
 
-    def delete(self) -> bool:
+    async def delete(self) -> bool:
         # Todo force delete pvc, pods
         pass
 
-    def exists(self) -> bool:
+    async def exists(self) -> bool:
         raise NotImplementedError
 
-    def ready(self) -> bool:
-        app = k8s.client.AppsV1Api()
+    async def running(self) -> bool:
+        app_api = k8s.client.AppsV1Api()
 
         # waiting for all StatefulSets to become ready
-        stss = app.list_namespaced_stateful_set(self.namespace, async_req=True)
+        stss = app_api.list_namespaced_stateful_set(self.namespace, async_req=True)
         for sts in stss.get().items:
             if (
                 sts.status.updated_replicas == sts.spec.replicas
@@ -98,6 +125,10 @@ class K3s(AbstractClusterProvider):
                 return False
         else:
             return True
+
+    async def ready(self) -> bool:
+        raise NotImplementedError
+
 
     def api_version(self) -> str:
         """

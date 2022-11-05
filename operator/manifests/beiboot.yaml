@@ -113,7 +113,7 @@ webhooks:
     apiVersions:
     - v1
     operations:
-    - '*'
+    - 'CREATE'
     resources:
     - beiboots
     scope: '*'

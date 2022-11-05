@@ -11,23 +11,27 @@ class AbstractClusterProvider(ABC):
         self.ports = ports
 
     @abstractmethod
-    def get_kubeconfig(self) -> bool:
+    async def get_kubeconfig(self) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def create(self) -> bool:
+    async def create(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self) -> bool:
+    async def delete(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def exists(self) -> bool:
+    async def exists(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def ready(self) -> bool:
+    async def running(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def ready(self) -> bool:
         raise NotImplementedError
 
     @abstractmethod

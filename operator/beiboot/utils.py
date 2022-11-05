@@ -83,7 +83,7 @@ async def check_workload_ready(cluster: "BeibootCluster") -> bool:
     # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
     logger.info("Waiting for workload to become ready...")
     while i <= cluster.parameters.clusterReadyTimeout:
-        if cluster.provider.ready():
+        if await cluster.provider.running():
             logger.info("Cluster is now running")
             return True
         else:

@@ -1,12 +1,15 @@
 import asyncio
+import base64
 import random
 from asyncio import sleep
 
 import kubernetes as k8s
 import kopf
+import yaml
 from statemachine import State
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
+from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
 from beiboot.resources.services import ports_to_services, gefyra_service
 from beiboot.resources.utils import handle_create_namespace, handle_create_service
@@ -23,15 +26,17 @@ class BeibootCluster(StateMachine):
     creating = AsyncState("Cluster creating", value="CREATING")
     pending = AsyncState("Cluster pending", value="PENDING")
     running = AsyncState("Cluster running", value="RUNNING")
+    ready = AsyncState("Cluster running", value="READY")
     error = AsyncState("Cluster error", value="ERROR")
     terminating = AsyncState("Cluster terminating", value="TERMINATING")
 
     create = requested.to(creating)
-    watch = creating.to(pending)
+    boot = creating.to(pending)
     operate = pending.to(running)
+    reconcile = running.to(ready) | ready.to.itself()
     recover = error.to(running)
     impair = error.from_(running, pending, creating)
-    terminate = terminating.from_(running, error)
+    terminate = terminating.from_(creating, running, error)
 
     def __init__(
         self,
@@ -50,11 +55,11 @@ class BeibootCluster(StateMachine):
         self.core_api = k8s.client.CoreV1Api()
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.model.metadata.name
 
     @property
-    def namespace(self):
+    def namespace(self) -> str:
         # if the namespace was already persisted to the CRD object, take it from there
         if namespace := self.model.get("beibootNamespace"):
             return namespace
@@ -65,7 +70,7 @@ class BeibootCluster(StateMachine):
             return get_namespace_name(self.name, self.parameters)
 
     @property
-    def provider(self):
+    def provider(self) -> AbstractClusterProvider:
         provider = cluster_factory.get(
             ProviderType(self.model.get("provider")),
             self.configuration,
@@ -80,6 +85,17 @@ class BeibootCluster(StateMachine):
                 f"Cannot create Beiboot with provider {self.model.get('provider')}: not supported."
             )
         return provider
+
+    @property
+    async def kubeconfig(self) -> str:
+        if source := self.model.get("kubeconfig"):
+            if enc_kubeconfig := source.get("source"):
+                kubeconfig = base64.b64decode(enc_kubeconfig).decode("utf-8")
+            else:
+                kubeconfig = await self.provider.get_kubeconfig()
+        else:
+            kubeconfig = await self.provider.get_kubeconfig()
+        return kubeconfig
 
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
@@ -103,7 +119,7 @@ class BeibootCluster(StateMachine):
         handle_create_namespace(self.logger, self.namespace)
 
         # create the workloads for this cluster provider
-        self.provider.create()
+        await self.provider.create()
 
         # add additional services
         services = []
@@ -120,35 +136,28 @@ class BeibootCluster(StateMachine):
         # todo create service account
         await sleep(1)
 
-    def on_watch(self):
+    def on_boot(self):
         self._write_object_info(
             self.pending.value, "Now waiting for the cluster to become ready"
         )
 
     async def on_enter_pending(self):
-        loop = asyncio.get_event_loop_policy().get_event_loop()
         from beiboot.utils import check_workload_ready
 
-        cluster_ready = loop.create_task(check_workload_ready(self))
-
-        cluster_ready = await cluster_ready
+        cluster_ready = await check_workload_ready(self)
         if not cluster_ready:
             raise kopf.PermanentError(
                 f"The cluster did not become ready in time (timeout: {self.parameters.clusterReadyTimeout}s"
             )
 
-    def on_operate(self):
-        self._write_object_info(self.running.value, "The cluster is now running")
-
     async def on_enter_running(self):
-        loop = asyncio.get_event_loop_policy().get_event_loop()
-        from beiboot.utils import get_kubeconfig
+        raw_kubeconfig = await self.kubeconfig
+        body_patch = {"kubeconfig": {"source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode("utf-8")}}
 
         # handle Gefyra integration
         if hasattr(self.parameters, "gefyra") and self.parameters.gefyra.get("enabled"):
             from beiboot.utils import get_external_node_ips
             from beiboot.utils import get_taken_gefyra_ports
-
             try:
                 gefyra_ports = self.parameters.gefyra.get("ports")
                 lower_bound = int(gefyra_ports.split("-")[0])
@@ -156,7 +165,6 @@ class BeibootCluster(StateMachine):
                 taken_ports = get_taken_gefyra_ports(
                     self.custom_api, self.configuration
                 )
-
                 gefyra_nodeport = random.choice(
                     [
                         port
@@ -172,32 +180,20 @@ class BeibootCluster(StateMachine):
                 )
                 _ips = get_external_node_ips(self.core_api)
                 gefyra_endpoint = _ips[0] if _ips else None
-
-                kubeconfig = loop.create_task(
-                    get_kubeconfig(
-                        self,
-                        self.parameters.gefyra["endpoint"] or gefyra_endpoint,
-                        gefyra_nodeport,
-                    )
-                )
-                kubeconfig = await kubeconfig
+                # return a dict with the source generated by the K8s provider
+                # add gefyra connection params to kubeconfig
+                if gefyra_endpoint and gefyra_nodeport:
+                    data = yaml.safe_load(raw_kubeconfig)
+                    for ctx in data["contexts"]:
+                        if ctx["name"] == "default":
+                            ctx["gefyra"] = f"{gefyra_endpoint}:{gefyra_nodeport}"
+                    raw_kubeconfig = yaml.dump(data)
                 body_patch = {
-                    "beibootNamespace": self.namespace,
                     "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
-                    "kubeconfig": kubeconfig,
+                    "kubeconfig": {"source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode("utf-8")}
                 }
             except Exception as e:
                 self.logger.error(f"Could not set up Gefyra: {str(e)}")
-                kubeconfig = loop.create_task(get_kubeconfig(self))
-                kubeconfig = await kubeconfig
-                body_patch = {
-                    "beibootNamespace": self.namespace,
-                    "kubeconfig": kubeconfig,
-                }
-        else:
-            kubeconfig = loop.create_task(get_kubeconfig(self))
-            kubeconfig = await kubeconfig
-            body_patch = {"beibootNamespace": self.namespace, "kubeconfig": kubeconfig}
 
         self.custom_api.patch_namespaced_custom_object(
             namespace=self.configuration.NAMESPACE,
@@ -208,14 +204,20 @@ class BeibootCluster(StateMachine):
             version="v1",
             async_req=True,
         )
+        self._write_object_info(self.running.value, "The cluster is now running")
+
+        # dynamically register a handler for all pods of this namespace
+        from beiboot.handler import handle_cluster_pod_events
+        kopf.on.delete("pods")(handle_cluster_pod_events)
+
+    def on_reconcile(self):
+        # check if cluster nodes are ready
+        pass
 
     def on_impair(self, reason: str):
         self._write_object_info(
             self.error.value, f"The cluster has become defective: {reason}"
         )
-
-    def on_enter_error(self):
-        pass
 
     def on_enter_state(self, *args, **kwargs):
         self._write_state()
