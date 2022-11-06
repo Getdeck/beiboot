@@ -35,8 +35,8 @@ class BeibootCluster(StateMachine):
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself()
     recover = error.to(running)
-    impair = error.from_(running, pending, creating)
-    terminate = terminating.from_(creating, running, error)
+    impair = error.from_(ready, running, pending, creating)
+    terminate = terminating.from_(creating, running, ready, error)
 
     def __init__(
         self,
@@ -56,7 +56,7 @@ class BeibootCluster(StateMachine):
 
     @property
     def name(self) -> str:
-        return self.model.metadata.name
+        return self.model["metadata"]["name"]
 
     @property
     def namespace(self) -> str:
@@ -206,13 +206,18 @@ class BeibootCluster(StateMachine):
         )
         self._write_object_info(self.running.value, "The cluster is now running")
 
-        # dynamically register a handler for all pods of this namespace
-        from beiboot.handler import handle_cluster_pod_events
-        kopf.on.delete("pods")(handle_cluster_pod_events)
+    async def on_reconcile(self):
+        from beiboot.utils import check_workload_ready
 
-    def on_reconcile(self):
-        # check if cluster nodes are ready
-        pass
+        cluster_ready = await check_workload_ready(self, silent=True)
+        if not cluster_ready:
+            raise kopf.PermanentError(
+                f"The cluster infrastructure is not ready/running (timeout: {self.parameters.clusterReadyTimeout}s"
+            )
+        if not await self.provider.ready():
+            raise kopf.TemporaryError(
+                f"The cluster is currently not in ready state"
+            )
 
     def on_impair(self, reason: str):
         self._write_object_info(

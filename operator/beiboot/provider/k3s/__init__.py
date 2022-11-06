@@ -127,8 +127,38 @@ class K3s(AbstractClusterProvider):
             return True
 
     async def ready(self) -> bool:
-        raise NotImplementedError
+        if not await self.running():
+            return False
 
+        from beiboot.utils import exec_command_pod
+
+        core_api = k8s.client.CoreV1Api()
+
+
+        selector = ",".join(
+            [
+                "{0}={1}".format(*label)
+                for label in list(self.parameters.serverLabels.items())
+            ]
+        )
+        api_pod = core_api.list_namespaced_pod(
+            self.namespace, label_selector=selector
+        )
+        if len(api_pod.items) != 1:
+            self.logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
+
+
+
+        output = exec_command_pod(
+            core_api,
+            api_pod.items[0].metadata.name,
+            self.namespace,
+            self.parameters.apiServerContainerName,
+            ["kubectl", "get", "node"],
+        )
+        if "No resources found" in output:
+            return False
+        return True
 
     def api_version(self) -> str:
         """

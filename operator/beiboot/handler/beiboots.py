@@ -23,6 +23,8 @@ async def beiboot_created(body, logger, **kwargs):
             await cluster.boot()
         if cluster.is_pending:
             await cluster.operate()
+        if cluster.is_running:
+            await cluster.reconcile()
     except kopf.PermanentError as e:
         await cluster.impair(str(e))
         raise e
