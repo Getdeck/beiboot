@@ -2,6 +2,7 @@ import asyncio
 import base64
 import random
 from asyncio import sleep
+from datetime import datetime
 
 import kubernetes as k8s
 import kopf
@@ -33,9 +34,9 @@ class BeibootCluster(StateMachine):
     create = requested.to(creating)
     boot = creating.to(pending)
     operate = pending.to(running)
-    reconcile = running.to(ready) | ready.to.itself()
+    reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, creating)
+    impair = error.from_(ready, running, pending, creating, requested)
     terminate = terminating.from_(creating, running, ready, error)
 
     def __init__(
@@ -53,6 +54,7 @@ class BeibootCluster(StateMachine):
         self.parameters = parameters
         self.custom_api = k8s.client.CustomObjectsApi()
         self.core_api = k8s.client.CoreV1Api()
+        self.events_api = k8s.client.EventsV1Api()
 
     @property
     def name(self) -> str:
@@ -136,7 +138,7 @@ class BeibootCluster(StateMachine):
         # todo create service account
         await sleep(1)
 
-    def on_boot(self):
+    async def on_boot(self):
         self._write_object_info(
             self.pending.value, "Now waiting for the cluster to become ready"
         )
@@ -147,7 +149,7 @@ class BeibootCluster(StateMachine):
         cluster_ready = await check_workload_ready(self)
         if not cluster_ready:
             raise kopf.PermanentError(
-                f"The cluster did not become ready in time (timeout: {self.parameters.clusterReadyTimeout}s"
+                f"The cluster did not become ready in time (timeout: {self.parameters.clusterReadyTimeout}s)"
             )
 
     async def on_enter_running(self):
@@ -212,14 +214,14 @@ class BeibootCluster(StateMachine):
         cluster_ready = await check_workload_ready(self, silent=True)
         if not cluster_ready:
             raise kopf.PermanentError(
-                f"The cluster infrastructure is not ready/running (timeout: {self.parameters.clusterReadyTimeout}s"
+                f"The cluster infrastructure is not ready/running (timeout: {self.parameters.clusterReadyTimeout}s)"
             )
         if not await self.provider.ready():
             raise kopf.TemporaryError(
-                f"The cluster is currently not in ready state"
+                f"The cluster is currently not in ready state", delay=5
             )
 
-    def on_impair(self, reason: str):
+    async def on_impair(self, reason: str):
         self._write_object_info(
             self.error.value, f"The cluster has become defective: {reason}"
         )
@@ -227,12 +229,35 @@ class BeibootCluster(StateMachine):
     def on_enter_state(self, *args, **kwargs):
         self._write_state()
 
+    def _get_now(self) -> str:
+        return f"{datetime.now().isoformat()}+00:00"
+
     def _write_object_info(self, value: str, message: str):
-        kopf.info(
-            self.model,
-            reason=value.capitalize(),
-            message=message,
+
+        now = self._get_now()
+        event = k8s.client.EventsV1Event(
+            metadata=k8s.client.V1ObjectMeta(
+                name="beiboot-operator-state", namespace=self.configuration.NAMESPACE
+            ),
+            reason="value",
+            note=message,
+            event_time=now,
+            action="Beiboot-State",
+            type="Normal",
+            reporting_instance="beiboot-operator",
+            reporting_controller="beiboot-operator",
+            regarding=k8s.client.V1ObjectReference(
+                kind="beiboot", name=self.name, namespace=self.configuration.NAMESPACE
+            ),
         )
+
+        self.events_api.create_namespaced_event(namespace=self.configuration.NAMESPACE, body=event, async_req=True)
+
+        # kopf.info(
+        #     self.model,
+        #     reason=value.capitalize(),
+        #     message=message,
+        # )
 
     def _write_state(self):
         self.custom_api.patch_namespaced_custom_object(

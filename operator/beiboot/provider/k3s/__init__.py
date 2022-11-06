@@ -1,3 +1,5 @@
+import re
+from datetime import timedelta
 from typing import List
 
 import kopf
@@ -5,13 +7,15 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-
+from beiboot.utils import exec_command_pod
 
 from .utils import (
     create_k3s_server_workload,
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
 )
+
+core_api = k8s.client.CoreV1Api()
 
 
 class K3s(AbstractClusterProvider):
@@ -32,10 +36,45 @@ class K3s(AbstractClusterProvider):
         self.parameters = cluster_parameter
         self.logger = logger
 
-    async def get_kubeconfig(self) -> str:
-        from beiboot.utils import exec_command_pod
+    def _parse_kubectl_nodes_output(self, string: str) -> dict:
 
-        core_api = k8s.client.CoreV1Api()
+        regex = re.compile(r'((?P<hours>\d+?)hr)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?')
+        def parse_time(time_str):
+            parts = regex.match(time_str)
+            if not parts:
+                return
+            parts = parts.groupdict()
+            time_params = {}
+            for name, param in parts.items():
+                if param:
+                    time_params[name] = int(param)
+            return timedelta(**time_params)
+
+        result = {}
+        for idx, line in enumerate(string.split("\n")):
+            if idx == 0 or line == "":
+                continue
+            name, status, roles, age, version = line.split()
+            result[name] = {
+                "status": status,
+                "roles": roles,
+                "age": parse_time(age),
+                "version": version
+            }
+        return result
+
+    def _remove_cluster_node(self, api_pod_name: str,  node_name: str):
+        exec_command_pod(
+            core_api,
+            api_pod_name,
+            self.namespace,
+            self.parameters.apiServerContainerName,
+            ["kubectl", "delete", "node", node_name],
+        )
+
+
+
+    async def get_kubeconfig(self) -> str:
 
         selector = ",".join(
             [
@@ -130,11 +169,6 @@ class K3s(AbstractClusterProvider):
         if not await self.running():
             return False
 
-        from beiboot.utils import exec_command_pod
-
-        core_api = k8s.client.CoreV1Api()
-
-
         selector = ",".join(
             [
                 "{0}={1}".format(*label)
@@ -147,8 +181,6 @@ class K3s(AbstractClusterProvider):
         if len(api_pod.items) != 1:
             self.logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
 
-
-
         output = exec_command_pod(
             core_api,
             api_pod.items[0].metadata.name,
@@ -158,7 +190,30 @@ class K3s(AbstractClusterProvider):
         )
         if "No resources found" in output:
             return False
-        return True
+        else:
+            node_data = self._parse_kubectl_nodes_output(output)
+            _ready = []
+            for node in node_data.values():
+                _ready.append(node["status"] == "Ready")
+            if all(_ready):
+                return True
+            else:
+                # there are unready nodes
+                for name, node in node_data.items():
+                    if node["status"] == "Ready":
+                        continue
+                    else:
+                        # wait for a node to become ready within 30 seconds
+                        if node["age"].seconds > 30:
+                            self._remove_cluster_node(api_pod.items[0].metadata.name, name)
+            return True
+
+
+
+
+
+
+            return True
 
     def api_version(self) -> str:
         """

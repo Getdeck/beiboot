@@ -7,6 +7,8 @@ import kopf
 def configure(settings: kopf.OperatorSettings, **_):
     settings.peering.standalone = True
     settings.posting.level = logging.INFO
+    settings.posting.enabled = False
+    settings.execution.max_workers = 10
     settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
         prefix="getdeck.dev",
         key="last-handled-configuration",

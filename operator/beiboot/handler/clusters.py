@@ -47,14 +47,19 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
         return
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=beiboot, logger=logger)
+    # drop events that have been prior to last state change of cluster
+
     if cluster.current_state == BeibootCluster.running or cluster.current_state == BeibootCluster.ready:
         try:
             await cluster.reconcile()
         except (kopf.PermanentError, kopf.TemporaryError) as e:
+            print(e)
             await cluster.on_impair(str(e))
+            print("blubb")
+            raise e
     elif cluster.current_state == BeibootCluster.creating:
         # this cluster is just booting up
         if reason := event["object"].get("reason"):
             kopf.info(beiboot, reason=reason, message=event["object"].get("message", ""))
     elif cluster.current_state == BeibootCluster.error:
-        pass
+        await cluster.reconcile()

@@ -13,9 +13,9 @@ async def beiboot_created(body, logger, **kwargs):
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
-    if cluster.is_running and await cluster.kubeconfig:
+    if cluster.is_running or cluster.is_ready and await cluster.kubeconfig:
         # if this cluster is already running, we continue
-        return
+        await cluster.reconcile()
     try:
         if cluster.is_requested:
             await cluster.create()
@@ -23,8 +23,6 @@ async def beiboot_created(body, logger, **kwargs):
             await cluster.boot()
         if cluster.is_pending:
             await cluster.operate()
-        if cluster.is_running:
-            await cluster.reconcile()
     except kopf.PermanentError as e:
         await cluster.impair(str(e))
         raise e
@@ -32,6 +30,26 @@ async def beiboot_created(body, logger, **kwargs):
         logger.error(traceback.format_exc())
         logger.error("Could not create cluster due to the following error: " + str(e))
         await cluster.impair(str(e))
+
+    if cluster.is_running or cluster.is_error:
+        try:
+            await cluster.reconcile()
+        except (kopf.PermanentError, kopf.TemporaryError) as e:
+            await cluster.on_impair(str(e))
+            raise e
+
+
+@kopf.timer('beiboot', interval=30)
+async def reconcile_beiboot(body, logger, **kwargs):
+    parameters = configuration.refresh_k8s_config()
+    cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
+
+    if cluster.is_running or cluster.is_ready:
+        try:
+            await cluster.reconcile()
+        except (kopf.PermanentError, kopf.TemporaryError) as e:
+            await cluster.on_impair(str(e))
+            raise e
 
 
 @kopf.on.delete("beiboot")
