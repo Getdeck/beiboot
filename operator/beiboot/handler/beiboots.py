@@ -39,7 +39,7 @@ async def beiboot_created(body, logger, **kwargs):
             raise e
 
 
-@kopf.timer('beiboot', interval=30)
+@kopf.timer("beiboot", interval=30)
 async def reconcile_beiboot(body, logger, **kwargs):
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)

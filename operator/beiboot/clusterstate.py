@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import random
 import uuid
@@ -102,9 +101,7 @@ class BeibootCluster(StateMachine):
 
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
-        self.post_event(
-            self.requested.value, "The cluster request has been accepted"
-        )
+        self.post_event(self.requested.value, "The cluster request has been accepted")
 
     def on_create(self):
         self.post_event(self.creating.value, "The cluster is now being created")
@@ -155,12 +152,19 @@ class BeibootCluster(StateMachine):
 
     async def on_enter_running(self):
         raw_kubeconfig = await self.kubeconfig
-        body_patch = {"kubeconfig": {"source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode("utf-8")}}
+        body_patch = {
+            "kubeconfig": {
+                "source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode(
+                    "utf-8"
+                )
+            }
+        }
 
         # handle Gefyra integration
         if hasattr(self.parameters, "gefyra") and self.parameters.gefyra.get("enabled"):
             from beiboot.utils import get_external_node_ips
             from beiboot.utils import get_taken_gefyra_ports
+
             try:
                 gefyra_ports = self.parameters.gefyra.get("ports")
                 lower_bound = int(gefyra_ports.split("-")[0])
@@ -193,7 +197,11 @@ class BeibootCluster(StateMachine):
                     raw_kubeconfig = yaml.dump(data)
                 body_patch = {
                     "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
-                    "kubeconfig": {"source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode("utf-8")}
+                    "kubeconfig": {
+                        "source": base64.b64encode(
+                            raw_kubeconfig.encode("utf-8")
+                        ).decode("utf-8")
+                    },
                 }
             except Exception as e:
                 self.logger.error(f"Could not set up Gefyra: {str(e)}")
@@ -219,17 +227,13 @@ class BeibootCluster(StateMachine):
             )
         if not await self.provider.ready():
             raise kopf.TemporaryError(
-                f"The cluster is currently not in ready state", delay=5
+                "The cluster is currently not in ready state", delay=5
             )
         if self.is_running:
-            self.post_event(
-                self.ready.value, f"The cluster is now ready"
-            )
+            self.post_event(self.ready.value, "The cluster is now ready")
 
     async def on_impair(self, reason: str):
-        self.post_event(
-            self.error.value, f"The cluster has become defective: {reason}"
-        )
+        self.post_event(self.error.value, f"The cluster has become defective: {reason}")
 
     def on_enter_state(self, *args, **kwargs):
         self._write_state()
@@ -237,11 +241,12 @@ class BeibootCluster(StateMachine):
     def _get_now(self) -> str:
         return datetime.utcnow().isoformat(timespec="microseconds") + "Z"
 
-    def post_event(self, reason: str, message: str, _type: str="Normal"):
+    def post_event(self, reason: str, message: str, _type: str = "Normal"):
         now = self._get_now()
         event = k8s.client.EventsV1Event(
             metadata=k8s.client.V1ObjectMeta(
-                name=f"{self.name}-{uuid.uuid4()}", namespace=self.configuration.NAMESPACE
+                name=f"{self.name}-{uuid.uuid4()}",
+                namespace=self.configuration.NAMESPACE,
             ),
             reason=reason.capitalize(),
             note=message,
@@ -251,10 +256,15 @@ class BeibootCluster(StateMachine):
             reporting_instance="beiboot-operator",
             reporting_controller="beiboot-operator",
             regarding=k8s.client.V1ObjectReference(
-                kind="beiboot", name=self.name, namespace=self.configuration.NAMESPACE, uid=self.model.metadata["uid"]
+                kind="beiboot",
+                name=self.name,
+                namespace=self.configuration.NAMESPACE,
+                uid=self.model.metadata["uid"],
             ),
         )
-        self.events_api.create_namespaced_event(namespace=self.configuration.NAMESPACE, body=event)
+        self.events_api.create_namespaced_event(
+            namespace=self.configuration.NAMESPACE, body=event
+        )
 
     def _write_state(self):
         self.custom_api.patch_namespaced_custom_object(

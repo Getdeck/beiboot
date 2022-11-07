@@ -1,4 +1,3 @@
-import base64
 import inspect
 import logging
 import string
@@ -7,7 +6,6 @@ from asyncio import sleep
 from typing import List, Optional, TYPE_CHECKING
 
 import kubernetes as k8s
-import yaml
 from statemachine.exceptions import MultipleTransitionCallbacksFound
 from statemachine.statemachine import (
     StateMachineMetaclass,
@@ -95,6 +93,7 @@ async def check_workload_ready(cluster: "BeibootCluster", silent=False) -> bool:
     # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
     logger.error("Cluster did not become ready")
     return False
+
 
 def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
     ips = []

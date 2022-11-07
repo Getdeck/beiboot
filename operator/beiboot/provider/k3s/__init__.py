@@ -38,7 +38,10 @@ class K3s(AbstractClusterProvider):
 
     def _parse_kubectl_nodes_output(self, string: str) -> dict:
 
-        regex = re.compile(r'((?P<hours>\d+?)hr)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?')
+        regex = re.compile(
+            r"((?P<hours>\d+?)hr)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
+        )
+
         def parse_time(time_str):
             parts = regex.match(time_str)
             if not parts:
@@ -59,11 +62,11 @@ class K3s(AbstractClusterProvider):
                 "status": status,
                 "roles": roles,
                 "age": parse_time(age),
-                "version": version
+                "version": version,
             }
         return result
 
-    def _remove_cluster_node(self, api_pod_name: str,  node_name: str):
+    def _remove_cluster_node(self, api_pod_name: str, node_name: str):
         exec_command_pod(
             core_api,
             api_pod_name,
@@ -71,8 +74,6 @@ class K3s(AbstractClusterProvider):
             self.parameters.apiServerContainerName,
             ["kubectl", "delete", "node", node_name],
         )
-
-
 
     async def get_kubeconfig(self) -> str:
 
@@ -82,11 +83,11 @@ class K3s(AbstractClusterProvider):
                 for label in list(self.parameters.serverLabels.items())
             ]
         )
-        api_pod = core_api.list_namespaced_pod(
-            self.namespace, label_selector=selector
-        )
+        api_pod = core_api.list_namespaced_pod(self.namespace, label_selector=selector)
         if len(api_pod.items) != 1:
-            self.logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
+            self.logger.warning(
+                f"There is more then one API Pod, it is {len(api_pod.items)}"
+            )
 
         kubeconfig = exec_command_pod(
             core_api,
@@ -175,11 +176,11 @@ class K3s(AbstractClusterProvider):
                 for label in list(self.parameters.serverLabels.items())
             ]
         )
-        api_pod = core_api.list_namespaced_pod(
-            self.namespace, label_selector=selector
-        )
+        api_pod = core_api.list_namespaced_pod(self.namespace, label_selector=selector)
         if len(api_pod.items) != 1:
-            self.logger.warning(f"There is more then one API Pod, it is {len(api_pod.items)}")
+            self.logger.warning(
+                f"There is more then one API Pod, it is {len(api_pod.items)}"
+            )
 
         output = exec_command_pod(
             core_api,
@@ -205,13 +206,10 @@ class K3s(AbstractClusterProvider):
                     else:
                         # wait for a node to become ready within 30 seconds
                         if node["age"].seconds > 30:
-                            self._remove_cluster_node(api_pod.items[0].metadata.name, name)
+                            self._remove_cluster_node(
+                                api_pod.items[0].metadata.name, name
+                            )
             return True
-
-
-
-
-
 
             return True
 

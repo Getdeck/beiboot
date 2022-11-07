@@ -16,7 +16,10 @@ def in_any_beiboot_namespace(event, namespace, **_):
         plural="beiboots",
     )
     namespaces = set(bbt.get("beibootNamespace") for bbt in beiboots["items"])
-    return namespace in namespaces and event["object"]["involvedObject"]["kind"] in ["StatefulSet", "Deployment"]
+    return namespace in namespaces and event["object"]["involvedObject"]["kind"] in [
+        "StatefulSet",
+        "Deployment",
+    ]
 
 
 def get_beiboot_for_namespace(namespace: str):
@@ -49,7 +52,10 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     cluster = BeibootCluster(configuration, parameters, model=beiboot, logger=logger)
     # drop events that have been prior to last state change of cluster
 
-    if cluster.current_state == BeibootCluster.running or cluster.current_state == BeibootCluster.ready:
+    if (
+        cluster.current_state == BeibootCluster.running
+        or cluster.current_state == BeibootCluster.ready
+    ):
         if reason := event["object"].get("reason"):
             cluster.post_event(reason, message=event["object"].get("message", ""))
         try:
