@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import random
+import uuid
 from asyncio import sleep
 from datetime import datetime
 
@@ -37,7 +38,7 @@ class BeibootCluster(StateMachine):
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
     impair = error.from_(ready, running, pending, creating, requested)
-    terminate = terminating.from_(creating, running, ready, error)
+    terminate = terminating.from_(requested, creating, running, ready, error)
 
     def __init__(
         self,
@@ -101,12 +102,12 @@ class BeibootCluster(StateMachine):
 
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
-        self._write_object_info(
+        self.post_event(
             self.requested.value, "The cluster request has been accepted"
         )
 
     def on_create(self):
-        self._write_object_info(self.creating.value, "The cluster is now being created")
+        self.post_event(self.creating.value, "The cluster is now being created")
         self.custom_api.patch_namespaced_custom_object(
             namespace=self.configuration.NAMESPACE,
             name=self.name,
@@ -139,7 +140,7 @@ class BeibootCluster(StateMachine):
         await sleep(1)
 
     async def on_boot(self):
-        self._write_object_info(
+        self.post_event(
             self.pending.value, "Now waiting for the cluster to become ready"
         )
 
@@ -206,7 +207,7 @@ class BeibootCluster(StateMachine):
             version="v1",
             async_req=True,
         )
-        self._write_object_info(self.running.value, "The cluster is now running")
+        self.post_event(self.running.value, "The cluster is now running")
 
     async def on_reconcile(self):
         from beiboot.utils import check_workload_ready
@@ -220,9 +221,13 @@ class BeibootCluster(StateMachine):
             raise kopf.TemporaryError(
                 f"The cluster is currently not in ready state", delay=5
             )
+        if self.is_running:
+            self.post_event(
+                self.ready.value, f"The cluster is now ready"
+            )
 
     async def on_impair(self, reason: str):
-        self._write_object_info(
+        self.post_event(
             self.error.value, f"The cluster has become defective: {reason}"
         )
 
@@ -230,34 +235,26 @@ class BeibootCluster(StateMachine):
         self._write_state()
 
     def _get_now(self) -> str:
-        return f"{datetime.now().isoformat()}+00:00"
+        return datetime.utcnow().isoformat(timespec="microseconds") + "Z"
 
-    def _write_object_info(self, value: str, message: str):
-
+    def post_event(self, reason: str, message: str, _type: str="Normal"):
         now = self._get_now()
         event = k8s.client.EventsV1Event(
             metadata=k8s.client.V1ObjectMeta(
-                name="beiboot-operator-state", namespace=self.configuration.NAMESPACE
+                name=f"{self.name}-{uuid.uuid4()}", namespace=self.configuration.NAMESPACE
             ),
-            reason="value",
+            reason=reason.capitalize(),
             note=message,
             event_time=now,
             action="Beiboot-State",
-            type="Normal",
+            type=_type,
             reporting_instance="beiboot-operator",
             reporting_controller="beiboot-operator",
             regarding=k8s.client.V1ObjectReference(
-                kind="beiboot", name=self.name, namespace=self.configuration.NAMESPACE
+                kind="beiboot", name=self.name, namespace=self.configuration.NAMESPACE, uid=self.model.metadata["uid"]
             ),
         )
-
-        self.events_api.create_namespaced_event(namespace=self.configuration.NAMESPACE, body=event, async_req=True)
-
-        # kopf.info(
-        #     self.model,
-        #     reason=value.capitalize(),
-        #     message=message,
-        # )
+        self.events_api.create_namespaced_event(namespace=self.configuration.NAMESPACE, body=event)
 
     def _write_state(self):
         self.custom_api.patch_namespaced_custom_object(
@@ -267,5 +264,4 @@ class BeibootCluster(StateMachine):
             group="getdeck.dev",
             plural="beiboots",
             version="v1",
-            async_req=True,
         )

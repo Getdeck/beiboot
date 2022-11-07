@@ -50,6 +50,8 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     # drop events that have been prior to last state change of cluster
 
     if cluster.current_state == BeibootCluster.running or cluster.current_state == BeibootCluster.ready:
+        if reason := event["object"].get("reason"):
+            cluster.post_event(reason, message=event["object"].get("message", ""))
         try:
             await cluster.reconcile()
         except (kopf.PermanentError, kopf.TemporaryError) as e:
@@ -60,6 +62,6 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     elif cluster.current_state == BeibootCluster.creating:
         # this cluster is just booting up
         if reason := event["object"].get("reason"):
-            kopf.info(beiboot, reason=reason, message=event["object"].get("message", ""))
+            cluster.post_event(reason, message=event["object"].get("message", ""))
     elif cluster.current_state == BeibootCluster.error:
         await cluster.reconcile()
