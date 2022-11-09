@@ -37,6 +37,13 @@ async def beiboot_created(body, logger, **kwargs):
     elif cluster.is_running or (cluster.is_ready and await cluster.kubeconfig):
         # if this cluster is already running, we continue
         await cluster.reconcile()
+    elif cluster.is_pending:
+        try:
+            await cluster.operate()
+            await cluster.reconcile()
+        except kopf.TemporaryError as e:
+            await cluster.impair(str(e))
+            raise e from None
     elif cluster.is_error:
         # here are the retries and error state handled from a run before
         # try again if there was an error creating the cluster (which might be a temporary problem)
