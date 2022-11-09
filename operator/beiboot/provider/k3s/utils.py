@@ -4,7 +4,7 @@ from beiboot.configuration import ClusterConfiguration
 
 
 def create_k3s_server_workload(
-    namespace: str, node_token: str, cgroup: str, cluster_config: ClusterConfiguration
+    namespace: str, node_token: str, cluster_config: ClusterConfiguration
 ) -> k8s.client.V1StatefulSet:
     container = k8s.client.V1Container(
         name=cluster_config.apiServerContainerName,
@@ -12,13 +12,6 @@ def create_k3s_server_workload(
         image_pull_policy=cluster_config.k3sImagePullPolicy,
         command=["/bin/sh", "-c"],
         args=[
-            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/memory/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/pids/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/systemd/{cgroup}  ; "
-            f"mkdir /sys/fs/cgroup/hugetlb/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/cpuset/{cgroup} ; "
             "k3s server "
             "--https-listen-port=6443 "
             "--write-kubeconfig-mode=0644 "
@@ -30,9 +23,6 @@ def create_k3s_server_workload(
             "--cluster-dns=10.46.0.10 "
             "--disable-cloud-controller "
             "--disable=traefik "
-            f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
-            f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
-            f"--kubelet-arg=--cgroup-root=/{cgroup} "
             f"--agent-token={node_token} "
             "--token=1234"
         ],
@@ -109,7 +99,6 @@ def create_k3s_server_workload(
 def create_k3s_agent_workload(
     namespace: str,
     node_token: str,
-    cgroup: str,
     cluster_config: ClusterConfiguration,
     node_index: int = 1,
 ) -> k8s.client.V1StatefulSet:
@@ -119,19 +108,9 @@ def create_k3s_agent_workload(
         image_pull_policy=cluster_config.k3sImagePullPolicy,
         command=["/bin/sh", "-c"],
         args=[
-            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/memory/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/pids/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/systemd/{cgroup}  ; "
-            f"mkdir /sys/fs/cgroup/hugetlb/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/cpu,cpuacct/{cgroup} ; "
-            f"mkdir /sys/fs/cgroup/cpuset/{cgroup} ; "
             "k3s agent "
             "-s=https://kubeapi:6443 "
             f"--token={node_token} "
-            f"--kubelet-arg=--runtime-cgroups=/{cgroup} "
-            f"--kubelet-arg=--kubelet-cgroups=/{cgroup} "
-            f"--kubelet-arg=--cgroup-root=/{cgroup} "
             f"--with-node-id "
         ],
         env=[

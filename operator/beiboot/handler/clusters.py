@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import kubernetes as k8s
 import kopf
 
@@ -8,7 +10,7 @@ core_api = k8s.client.CoreV1Api()
 objects_api = k8s.client.CustomObjectsApi()
 
 
-def in_any_beiboot_namespace(event, namespace, **_):
+def _in_any_beiboot_namespace(event, namespace, kind: list, **_):
     beiboots = objects_api.list_namespaced_custom_object(
         group="getdeck.dev",
         version="v1",
@@ -16,10 +18,13 @@ def in_any_beiboot_namespace(event, namespace, **_):
         plural="beiboots",
     )
     namespaces = set(bbt.get("beibootNamespace") for bbt in beiboots["items"])
-    return namespace in namespaces and event["object"]["involvedObject"]["kind"] in [
-        "StatefulSet",
-        "Deployment",
-    ]
+    return namespace in namespaces and event["object"]["involvedObject"]["kind"] in kind
+
+
+def workloads_in_beiboot_namespace(event, namespace, **_):
+    return _in_any_beiboot_namespace(
+        event, namespace, kind=["StatefulSet", "Deployment", "Pod"]
+    )
 
 
 def get_beiboot_for_namespace(namespace: str):
@@ -42,7 +47,12 @@ def get_beiboot_for_namespace(namespace: str):
         return None
 
 
-@kopf.on.event("event", when=in_any_beiboot_namespace)
+@kopf.on.event(
+    "event",
+    when=kopf.all_(
+        [lambda event, **_: event["type"] is not None, workloads_in_beiboot_namespace]
+    ),
+)
 async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     beiboot = get_beiboot_for_namespace(namespace)
     if beiboot is None:
@@ -51,6 +61,22 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=beiboot, logger=logger)
     # drop events that have been prior to last state change of cluster
+    if creationTimestamp := event["object"]["metadata"].get("creationTimestamp"):
+        event_timestamp = datetime.fromisoformat(creationTimestamp.strip("Z"))
+        if ready_timestamp := cluster.completed_transition(BeibootCluster.ready.value):
+            if event_timestamp < datetime.fromisoformat(ready_timestamp.strip("Z")):
+                logger.debug(
+                    "Dropping event because event timestamp older than ready timestamp of cluster"
+                )
+                return
+        if running_timestamp := cluster.completed_transition(
+            BeibootCluster.running.value
+        ):
+            if event_timestamp < datetime.fromisoformat(running_timestamp.strip("Z")):
+                logger.debug(
+                    "Dropping event because event timestamp older than running timestamp of cluster"
+                )
+                return
 
     if (
         cluster.current_state == BeibootCluster.running
@@ -61,13 +87,14 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
         try:
             await cluster.reconcile()
         except (kopf.PermanentError, kopf.TemporaryError) as e:
-            print(e)
-            await cluster.on_impair(str(e))
-            print("blubb")
+            logger.error(e)
+            await cluster.impair(str(e))
             raise e
     elif cluster.current_state == BeibootCluster.creating:
         # this cluster is just booting up
         if reason := event["object"].get("reason"):
             cluster.post_event(reason, message=event["object"].get("message", ""))
-    elif cluster.current_state == BeibootCluster.error:
-        await cluster.reconcile()
+    elif cluster.current_state == BeibootCluster.error and cluster.completed_transition(
+        BeibootCluster.running.value
+    ):
+        await cluster.recover()

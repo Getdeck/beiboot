@@ -6,7 +6,7 @@ import kopf
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
     settings.peering.standalone = True
-    settings.posting.level = logging.INFO
+    settings.posting.level = logging.WARNING
     settings.posting.enabled = False
     settings.execution.max_workers = 10
     settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(

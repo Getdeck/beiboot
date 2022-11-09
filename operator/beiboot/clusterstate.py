@@ -1,8 +1,11 @@
 import base64
+import json
 import random
 import uuid
 from asyncio import sleep
 from datetime import datetime
+from json import JSONDecodeError
+from typing import Optional
 
 import kubernetes as k8s
 import kopf
@@ -27,17 +30,17 @@ class BeibootCluster(StateMachine):
     creating = AsyncState("Cluster creating", value="CREATING")
     pending = AsyncState("Cluster pending", value="PENDING")
     running = AsyncState("Cluster running", value="RUNNING")
-    ready = AsyncState("Cluster running", value="READY")
+    ready = AsyncState("Cluster ready", value="READY")
     error = AsyncState("Cluster error", value="ERROR")
     terminating = AsyncState("Cluster terminating", value="TERMINATING")
 
-    create = requested.to(creating)
+    create = requested.to(creating) | error.to(creating)
     boot = creating.to(pending)
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, creating, requested)
-    terminate = terminating.from_(requested, creating, running, ready, error)
+    impair = error.from_(ready, running, pending, creating, requested, error)
+    terminate = terminating.from_(requested, pending, creating, running, ready, error)
 
     def __init__(
         self,
@@ -99,6 +102,12 @@ class BeibootCluster(StateMachine):
             kubeconfig = await self.provider.get_kubeconfig()
         return kubeconfig
 
+    def completed_transition(self, state_value: str) -> Optional[str]:
+        if transitions := self.model.get("stateTransitions"):
+            return transitions.get(state_value, None)
+        else:
+            return None
+
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
         self.post_event(self.requested.value, "The cluster request has been accepted")
@@ -116,10 +125,19 @@ class BeibootCluster(StateMachine):
         )
 
     async def on_enter_creating(self):
-        handle_create_namespace(self.logger, self.namespace)
 
         # create the workloads for this cluster provider
-        await self.provider.create()
+        try:
+            handle_create_namespace(self.logger, self.namespace)
+            await self.provider.create()
+        except k8s.client.ApiException as e:
+            try:
+                body = json.loads(e.body)
+            except JSONDecodeError:
+                pass
+            else:
+                raise kopf.TemporaryError(body.get("message"), delay=5)
+            raise kopf.TemporaryError(delay=5)
 
         # add additional services
         services = []
@@ -142,10 +160,10 @@ class BeibootCluster(StateMachine):
         )
 
     async def on_enter_pending(self):
-        from beiboot.utils import check_workload_ready
+        from beiboot.utils import check_workload_running
 
-        cluster_ready = await check_workload_ready(self)
-        if not cluster_ready:
+        cluster_running = await check_workload_running(self)
+        if not cluster_running:
             raise kopf.PermanentError(
                 f"The cluster did not become ready in time (timeout: {self.parameters.clusterReadyTimeout}s)"
             )
@@ -235,6 +253,9 @@ class BeibootCluster(StateMachine):
     async def on_impair(self, reason: str):
         self.post_event(self.error.value, f"The cluster has become defective: {reason}")
 
+    async def on_recover(self):
+        await self.on_reconcile()
+
     def on_enter_state(self, *args, **kwargs):
         self._write_state()
 
@@ -270,7 +291,10 @@ class BeibootCluster(StateMachine):
         self.custom_api.patch_namespaced_custom_object(
             namespace=self.configuration.NAMESPACE,
             name=self.name,
-            body={"state": self.current_state.value},
+            body={
+                "state": self.current_state.value,
+                "stateTransitions": {self.current_state.value: self._get_now()},
+            },
             group="getdeck.dev",
             plural="beiboots",
             version="v1",

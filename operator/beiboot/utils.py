@@ -76,15 +76,34 @@ def exec_command_pod(
     return resp
 
 
+async def check_workload_running(cluster: "BeibootCluster", silent=False) -> bool:
+    i = 0
+    # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
+    if not silent:
+        logger.info("Waiting for workload to become running...")
+    while i <= cluster.parameters.clusterReadyTimeout:
+        if await cluster.provider.running():
+            if not silent:
+                logger.info("Cluster is now running")
+            return True
+        else:
+            await sleep(1)
+            i += 1
+            continue
+    # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
+    logger.error("Cluster did not become running")
+    return False
+
+
 async def check_workload_ready(cluster: "BeibootCluster", silent=False) -> bool:
     i = 0
     # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
     if not silent:
         logger.info("Waiting for workload to become ready...")
     while i <= cluster.parameters.clusterReadyTimeout:
-        if await cluster.provider.running():
+        if await cluster.provider.ready():
             if not silent:
-                logger.info("Cluster is now running")
+                logger.info("Cluster is now ready")
             return True
         else:
             await sleep(1)

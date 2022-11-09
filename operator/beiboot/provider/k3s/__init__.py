@@ -109,16 +109,11 @@ class K3s(AbstractClusterProvider):
         )
 
         node_token = generate_token()
-        cgroup = "".join(e for e in self.name if e.isalnum())
         server_workloads = [
-            create_k3s_server_workload(
-                self.namespace, node_token, cgroup, self.parameters
-            )
+            create_k3s_server_workload(self.namespace, node_token, self.parameters)
         ]
         node_workloads = [
-            create_k3s_agent_workload(
-                self.namespace, node_token, cgroup, self.parameters, node
-            )
+            create_k3s_agent_workload(self.namespace, node_token, self.parameters, node)
             for node in range(
                 1, self.parameters.nodes
             )  # (no +1 ) since the server deployment already runs one node
@@ -177,41 +172,47 @@ class K3s(AbstractClusterProvider):
             ]
         )
         api_pod = core_api.list_namespaced_pod(self.namespace, label_selector=selector)
-        if len(api_pod.items) != 1:
+        if len(api_pod.items) > 1:
             self.logger.warning(
                 f"There is more then one API Pod, it is {len(api_pod.items)}"
             )
-
-        output = exec_command_pod(
-            core_api,
-            api_pod.items[0].metadata.name,
-            self.namespace,
-            self.parameters.apiServerContainerName,
-            ["kubectl", "get", "node"],
-        )
-        if "No resources found" in output:
+        elif len(api_pod.items) == 0:
             return False
         else:
-            node_data = self._parse_kubectl_nodes_output(output)
-            _ready = []
-            for node in node_data.values():
-                _ready.append(node["status"] == "Ready")
-            if all(_ready):
-                return True
-            else:
-                # there are unready nodes
-                for name, node in node_data.items():
-                    if node["status"] == "Ready":
-                        continue
-                    else:
-                        # wait for a node to become ready within 30 seconds
-                        if node["age"].seconds > 30:
-                            self._remove_cluster_node(
-                                api_pod.items[0].metadata.name, name
-                            )
-            return True
+            pass
 
-            return True
+        try:
+            output = exec_command_pod(
+                core_api,
+                api_pod.items[0].metadata.name,
+                self.namespace,
+                self.parameters.apiServerContainerName,
+                ["kubectl", "get", "node"],
+            )
+            if "No resources found" in output:
+                return False
+            else:
+                node_data = self._parse_kubectl_nodes_output(output)
+                _ready = []
+                for node in node_data.values():
+                    _ready.append(node["status"] == "Ready")
+                if all(_ready):
+                    return True
+                else:
+                    # there are unready nodes
+                    for name, node in node_data.items():
+                        if node["status"] == "Ready":
+                            continue
+                        else:
+                            # wait for a node to become ready within 30 seconds
+                            if node["age"].seconds > 30:
+                                self._remove_cluster_node(
+                                    api_pod.items[0].metadata.name, name
+                                )
+                return True
+        except k8s.client.exceptions.ApiException as e:
+            self.logger.error(str(e))
+            return False
 
     def api_version(self) -> str:
         """
