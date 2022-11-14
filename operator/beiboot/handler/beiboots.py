@@ -10,6 +10,12 @@ from beiboot.clusterstate import BeibootCluster
 @kopf.on.resume("beiboot")
 @kopf.on.create("beiboot")
 async def beiboot_created(body, logger, **kwargs):
+    """
+    > If the cluster is not running, try to create it. If it is running, reconcile it
+
+    :param body: The body of the Kubernetes resource that triggered the event
+    :param logger: the logger object
+    """
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
@@ -67,6 +73,12 @@ async def beiboot_created(body, logger, **kwargs):
 
 @kopf.timer("beiboot", interval=60)
 async def reconcile_beiboot(body, logger, **kwargs):
+    """
+    If the cluster is running or ready, it calls the `reconcile` method on it
+
+    :param body: The body of the Kubernetes resource that triggered the handler
+    :param logger: a logger object
+    """
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
@@ -80,6 +92,12 @@ async def reconcile_beiboot(body, logger, **kwargs):
 
 @kopf.on.delete("beiboot")
 async def beiboot_deleted(body, logger, **kwargs):
+    """
+    It deletes the cluster if it's not requested state
+
+    :param body: the body of the request
+    :param logger: a logger object
+    """
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
     if not cluster.is_requested:

@@ -10,6 +10,12 @@ events = k8s.client.EventsV1Api()
 
 
 def handle_crds(logger) -> k8s.client.V1CustomResourceDefinition:
+    """
+    It creates a custom resource definition for the Beiboot resource
+
+    :param logger: a logger object
+    :return: The CRD definition
+    """
     bbt_def = create_beiboot_definition()
     try:
         extension_api.create_custom_resource_definition(body=bbt_def)

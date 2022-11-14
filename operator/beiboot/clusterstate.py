@@ -64,10 +64,18 @@ class BeibootCluster(StateMachine):
 
     @property
     def name(self) -> str:
+        """
+        It returns the name of the cluster
+        :return: The name of the cluster.
+        """
         return self.model["metadata"]["name"]
 
     @property
     def namespace(self) -> str:
+        """
+        If the namespace was already persisted to the CRD object, take it from there, otherwise, generate the name
+        :return: The namespace name.
+        """
         # if the namespace was already persisted to the CRD object, take it from there
         if namespace := self.model.get("beibootNamespace"):
             return namespace
@@ -79,6 +87,10 @@ class BeibootCluster(StateMachine):
 
     @property
     def provider(self) -> AbstractClusterProvider:
+        """
+        It creates a cluster provider object based on the provider type
+        :return: The provider is being returned.
+        """
         provider = cluster_factory.get(
             ProviderType(self.model.get("provider")),
             self.configuration,
@@ -96,6 +108,10 @@ class BeibootCluster(StateMachine):
 
     @property
     async def kubeconfig(self) -> str:
+        """
+        If the CRD already has a kubeconfig, use it, otherwise extract the provider's kubeconfig from the cluster
+        :return: The kubeconfig is being returned.
+        """
         if source := self.model.get("kubeconfig"):
             if enc_kubeconfig := source.get("source"):
                 kubeconfig = base64.b64decode(enc_kubeconfig).decode("utf-8")
@@ -106,12 +122,24 @@ class BeibootCluster(StateMachine):
         return kubeconfig
 
     def completed_transition(self, state_value: str) -> Optional[str]:
+        """
+        Read the stateTransitions attribute, return the value of the stateTransitions timestamp for the given
+        state_value, otherwise return None
+
+        :param state_value: The value of the state value
+        :type state_value: str
+        :return: The value of the stateTransitions key in the model dictionary.
+        """
         if transitions := self.model.get("stateTransitions"):
             return transitions.get(state_value, None)
         else:
             return None
 
-    def get_latest_transition(self):
+    def get_latest_transition(self) -> datetime:
+        """
+        > Get the latest transition time for a cluster
+        :return: The latest transition time.
+        """
         timestamps = [
             self.completed_transition(BeibootCluster.running.value),
             self.completed_transition(BeibootCluster.ready.value),
@@ -121,7 +149,10 @@ class BeibootCluster(StateMachine):
             map(lambda x: datetime.fromisoformat(x.strip("Z") if x else 0), timestamps)
         )
 
-    def on_enter_requested(self):
+    def on_enter_requested(self) -> None:
+        """
+        > The function `on_enter_requested` is called when the state machine enters the `requested` state
+        """
         # post CRD object create hook (validation is already run)
         self.post_event(
             self.requested.value,
@@ -129,6 +160,9 @@ class BeibootCluster(StateMachine):
         )
 
     def on_create(self):
+        """
+        > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
+        """
         self.post_event(
             self.creating.value, f"The cluster '{self.name}' is now being created"
         )
@@ -143,6 +177,9 @@ class BeibootCluster(StateMachine):
         )
 
     async def on_enter_creating(self):
+        """
+        It creates the provider workloads for the cluster, adds additional services, and creates the services
+        """
         # create the workloads for this cluster provider
         try:
             handle_create_namespace(self.logger, self.namespace)
@@ -178,6 +215,10 @@ class BeibootCluster(StateMachine):
         )
 
     async def on_operate(self):
+        """
+        If the cluster is running, post the event and return. If the cluster is pending, check if it's been pending for
+        longer than the timeout. If it has, raise a permanent error. If it hasn't, raise a temporary error
+        """
         if await self.provider.running():
             self.post_event(
                 self.running.value, f"The cluster '{self.name}' is now running"
@@ -205,7 +246,10 @@ class BeibootCluster(StateMachine):
                     f"Waiting for cluster '{self.name}' to enter running state", delay=1
                 )
 
-    async def on_enter_running(self):
+    async def on_enter_running(self) -> None:
+        """
+        It creates the Gefyra service in the namespace of the Beiboot, and adds the endpoint and port to the kubeconfig
+        """
         raw_kubeconfig = await self.kubeconfig
         body_patch = {
             "kubeconfig": {
@@ -271,7 +315,12 @@ class BeibootCluster(StateMachine):
             version="v1",
         )
 
-    async def on_reconcile(self):
+    async def on_reconcile(self) -> None:
+        """
+        If the cluster is ready, return. If the cluster is not ready, check if it's been ready for longer than the
+        timeout. If it has, raise a permanent error. If it hasn't, raise a temporary error
+        :return: The return value of the function is ignored.
+        """
         if await self.provider.ready():
             if self.is_running:
                 self.post_event(
@@ -305,6 +354,9 @@ class BeibootCluster(StateMachine):
         await self.on_reconcile()
 
     async def on_enter_terminating(self):
+        """
+        It deletes the provider and then deletes the namespace
+        """
         try:
             await self.provider.delete()
         except k8s.client.ApiException:
@@ -324,7 +376,17 @@ class BeibootCluster(StateMachine):
     def _get_now(self) -> str:
         return datetime.utcnow().isoformat(timespec="microseconds") + "Z"
 
-    def post_event(self, reason: str, message: str, _type: str = "Normal"):
+    def post_event(self, reason: str, message: str, _type: str = "Normal") -> None:
+        """
+        It creates an event object and posts it to the Kubernetes API
+
+        :param reason: The reason for the event
+        :type reason: str
+        :param message: The message to be displayed in the event
+        :type message: str
+        :param _type: The type of event, defaults to Normal
+        :type _type: str (optional)
+        """
         now = self._get_now()
         event = k8s.client.EventsV1Event(
             metadata=k8s.client.V1ObjectMeta(

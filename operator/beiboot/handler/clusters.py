@@ -54,6 +54,14 @@ def get_beiboot_for_namespace(namespace: str):
     ),
 )
 async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
+    """
+    It handles workload events for a cluster (such as StatefulSet, Deployment, Pod)
+
+    :param event: The event that triggered the handler
+    :param namespace: The namespace of the Beiboot object
+    :param logger: The logger object that you can use to log messages
+    :return: The return value of the handler function is ignored.
+    """
     beiboot = get_beiboot_for_namespace(namespace)
     if beiboot is None:
         logger.warn(f"The Beiboot object for namespace '{namespace}' does not exist")
