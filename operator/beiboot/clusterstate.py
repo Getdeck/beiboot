@@ -111,6 +111,16 @@ class BeibootCluster(StateMachine):
         else:
             return None
 
+    def get_latest_transition(self):
+        timestamps = [
+            self.completed_transition(BeibootCluster.running.value),
+            self.completed_transition(BeibootCluster.ready.value),
+            self.completed_transition(BeibootCluster.error.value),
+        ]
+        return max(
+            map(lambda x: datetime.fromisoformat(x.strip("Z") if x else 0), timestamps)
+        )
+
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
         self.post_event(
@@ -206,6 +216,7 @@ class BeibootCluster(StateMachine):
         }
 
         # handle Gefyra integration
+        # todo check if Gefyra service already exists before creating it again
         if hasattr(self.parameters, "gefyra") and self.parameters.gefyra.get("enabled"):
             from beiboot.utils import get_external_node_ips
             from beiboot.utils import get_taken_gefyra_ports
@@ -269,11 +280,9 @@ class BeibootCluster(StateMachine):
             return
         else:
             # check how long this cluster is not ready
-            if running_timestamp := self.completed_transition(
-                BeibootCluster.running.value
-            ):
-                running_since = datetime.fromisoformat(running_timestamp.strip("Z"))
-                if datetime.utcnow() - running_since > timedelta(
+            timestamp_since = self.get_latest_transition()
+            if timestamp_since:
+                if datetime.utcnow() - timestamp_since > timedelta(
                     seconds=self.parameters.clusterReadyTimeout
                 ):
                     raise kopf.PermanentError(

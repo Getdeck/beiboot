@@ -99,6 +99,10 @@ def create_cluster(
                 logger.warning(
                     f"The Beiboot cluster may not be able to be scheduled: {event.message}"
                 )
+            elif event.reason == "Triggeredscaleup":
+                logger.warning(
+                    f"The host cluster triggered a node scale-up: {event.message}"
+                )
             elif event.reason == "Error":
                 logger.error(event.message)
                 break
@@ -121,7 +125,6 @@ def remove_cluster(
             group="getdeck.dev",
             plural="beiboots",
             version="v1",
-            body=k8s.client.V1DeleteOptions(propagation_policy="Foreground"),
         )
     except k8s.client.exceptions.ApiException as e:
         logger.error(f"Error deleting Beiboot object: {e.reason} ({e.status})")

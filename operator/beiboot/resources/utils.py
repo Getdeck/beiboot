@@ -91,9 +91,7 @@ def handle_create_namespace(logger, namespace: str) -> str:
 
 async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1Status]:
     try:
-        status = core_v1_api.delete_namespace(
-            namespace, body=k8s.client.V1DeleteOptions(propagation_policy="Foreground")
-        )
+        status = core_v1_api.delete_namespace(namespace)
         logger.info(f"Deleted namespace for beiboot: {namespace}")
         return status
     except k8s.client.exceptions.ApiException:
