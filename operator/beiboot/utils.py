@@ -21,6 +21,12 @@ logger = logging.getLogger("beiboot")
 
 
 def generate_token(length=10) -> str:
+    """
+    It generates a random string of length (default 10), consisting of uppercase letters and digits
+
+    :param length: The length of the token to be generated, defaults to 10 (optional)
+    :return: A string of random characters and numbers.
+    """
     return "".join(
         random.choice(string.ascii_uppercase + string.digits) for _ in range(length)
     )
@@ -74,6 +80,13 @@ def exec_command_pod(
 
 
 def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
+    """
+    It gets the external IP addresses of all the nodes in the Kubernetes cluster
+
+    :param api_instance: k8s.client.CoreV1Api
+    :type api_instance: k8s.client.CoreV1Api
+    :return: A list of IP addresses of the Kubernetes nodes.
+    """
     ips = []
     try:
         nodes = api_instance.list_node()
@@ -95,6 +108,15 @@ def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[s
 def get_taken_gefyra_ports(
     api_instance: k8s.client.CustomObjectsApi, config: BeibootConfiguration
 ) -> List[Optional[int]]:
+    """
+    It reads all Beiboot objects from the cluster and returns a list of all Gefyra ports that are already taken
+
+    :param api_instance: The Kubernetes API instance
+    :type api_instance: k8s.client.CustomObjectsApi
+    :param config: BeibootConfiguration
+    :type config: BeibootConfiguration
+    :return: A list of ports that are already taken by other Beiboots.
+    """
     try:
         beiboots = api_instance.list_namespaced_custom_object(
             namespace=config.NAMESPACE,
@@ -124,10 +146,20 @@ def get_taken_gefyra_ports(
 
 
 def get_namespace_name(name: str, cluster_config: ClusterConfiguration) -> str:
+    """
+    It takes a name and a cluster configuration and returns a namespace name
+
+    :param name: The name of the namespace
+    :type name: str
+    :param cluster_config: This is the cluster configuration object that we created earlier
+    :type cluster_config: ClusterConfiguration
+    :return: The namespace name.
+    """
     namespace = f"{cluster_config.namespacePrefix}-{name}"
     return namespace
 
 
+# It's a subclass of the `Transition` class that adds a `run` method that runs the transition asynchronously
 class AsyncTransition(Transition):
     async def _run(self, machine, *args, **kwargs):
         self._verify_can_run(machine)
@@ -135,6 +167,7 @@ class AsyncTransition(Transition):
         return await machine._activate(self, *args, **kwargs)
 
 
+# It's a state that can be used in an asynchronous context
 class AsyncState(State):
     def _to_(self, *states):
         transition = AsyncTransition(self, *states)
@@ -153,6 +186,7 @@ class AsyncState(State):
         return combined
 
 
+# It's a state machine that can be used in an asynchronous context
 class AsyncStateMachine(BaseStateMachine):
     async def _activate(self, transition, *args, **kwargs):
         bounded_on_event = getattr(self, "on_{}".format(transition.identifier), None)
