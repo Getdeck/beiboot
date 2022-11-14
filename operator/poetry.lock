@@ -219,7 +219,7 @@ python-versions = ">=3.6.2,<4.0"
 
 [[package]]
 name = "kopf"
-version = "1.35.5"
+version = "1.36.0"
 description = "Kubernetes Operator Pythonic Framework (Kopf)"
 category = "main"
 optional = false
@@ -236,6 +236,7 @@ typing-extensions = "*"
 [package.extras]
 dev = ["pyngrok", "oscrypto", "certbuilder", "certvalidator"]
 full-auth = ["pykube-ng", "kubernetes"]
+uvloop = ["uvloop"]
 
 [[package]]
 name = "kubernetes"

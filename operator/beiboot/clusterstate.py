@@ -3,20 +3,23 @@ import json
 import random
 import uuid
 from asyncio import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from json import JSONDecodeError
 from typing import Optional
 
 import kubernetes as k8s
 import kopf
 import yaml
-from statemachine import State
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
 from beiboot.resources.services import ports_to_services, gefyra_service
-from beiboot.resources.utils import handle_create_namespace, handle_create_service
+from beiboot.resources.utils import (
+    handle_create_namespace,
+    handle_create_service,
+    handle_delete_namespace,
+)
 from beiboot.utils import StateMachine, AsyncState
 
 
@@ -26,7 +29,7 @@ class BeibootCluster(StateMachine):
     The body of the Beiboot CRD is available as self.model
     """
 
-    requested = State("Cluster requested", initial=True, value="REQUESTED")
+    requested = AsyncState("Cluster requested", initial=True, value="REQUESTED")
     creating = AsyncState("Cluster creating", value="CREATING")
     pending = AsyncState("Cluster pending", value="PENDING")
     running = AsyncState("Cluster running", value="RUNNING")
@@ -40,9 +43,7 @@ class BeibootCluster(StateMachine):
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
     impair = error.from_(ready, running, pending, creating, requested, error)
-    terminate = terminating.from_(
-        requested, pending, creating, running, ready, error, terminating
-    )
+    terminate = terminating.from_(pending, creating, running, ready, error, terminating)
 
     def __init__(
         self,
@@ -112,10 +113,15 @@ class BeibootCluster(StateMachine):
 
     def on_enter_requested(self):
         # post CRD object create hook (validation is already run)
-        self.post_event(self.requested.value, "The cluster request has been accepted")
+        self.post_event(
+            self.requested.value,
+            f"The cluster request for '{self.name}' has been accepted",
+        )
 
     def on_create(self):
-        self.post_event(self.creating.value, "The cluster is now being created")
+        self.post_event(
+            self.creating.value, f"The cluster '{self.name}' is now being created"
+        )
         self.custom_api.patch_namespaced_custom_object(
             namespace=self.configuration.NAMESPACE,
             name=self.name,
@@ -127,7 +133,6 @@ class BeibootCluster(StateMachine):
         )
 
     async def on_enter_creating(self):
-
         # create the workloads for this cluster provider
         try:
             handle_create_namespace(self.logger, self.namespace)
@@ -158,17 +163,37 @@ class BeibootCluster(StateMachine):
 
     async def on_boot(self):
         self.post_event(
-            self.pending.value, "Now waiting for the cluster to become ready"
+            self.pending.value,
+            f"Now waiting for the cluster '{self.name}' to enter ready state",
         )
 
-    async def on_enter_pending(self):
-        from beiboot.utils import check_workload_running
-
-        cluster_running = await check_workload_running(self)
-        if not cluster_running:
-            raise kopf.PermanentError(
-                f"The cluster did not become ready in time (timeout: {self.parameters.clusterReadyTimeout}s)"
+    async def on_operate(self):
+        if await self.provider.running():
+            self.post_event(
+                self.running.value, f"The cluster '{self.name}' is now running"
             )
+        else:
+            # check how long this cluster is pending
+            if pending_timestamp := self.completed_transition(
+                BeibootCluster.pending.value
+            ):
+                pending_since = datetime.fromisoformat(pending_timestamp.strip("Z"))
+                if datetime.utcnow() - pending_since > timedelta(
+                    seconds=self.parameters.clusterReadyTimeout
+                ):
+                    raise kopf.PermanentError(
+                        f"The cluster '{self.name}' did not become running in time "
+                        f"(timeout: {self.parameters.clusterReadyTimeout}s)"
+                    )
+                else:
+                    raise kopf.TemporaryError(
+                        f"Waiting for cluster '{self.name}' to enter running state",
+                        delay=1,
+                    )
+            else:
+                raise kopf.TemporaryError(
+                    f"Waiting for cluster '{self.name}' to enter running state", delay=1
+                )
 
     async def on_enter_running(self):
         raw_kubeconfig = await self.kubeconfig
@@ -233,30 +258,56 @@ class BeibootCluster(StateMachine):
             group="getdeck.dev",
             plural="beiboots",
             version="v1",
-            async_req=True,
         )
-        self.post_event(self.running.value, "The cluster is now running")
 
     async def on_reconcile(self):
-        from beiboot.utils import check_workload_ready
-
-        cluster_ready = await check_workload_ready(self, silent=True)
-        if not cluster_ready:
-            raise kopf.PermanentError(
-                f"The cluster infrastructure is not ready/running (timeout: {self.parameters.clusterReadyTimeout}s)"
-            )
-        if not await self.provider.ready():
-            raise kopf.TemporaryError(
-                "The cluster is currently not in ready state", delay=5
-            )
-        if self.is_running:
-            self.post_event(self.ready.value, "The cluster is now ready")
+        if await self.provider.ready():
+            if self.is_running:
+                self.post_event(
+                    self.ready.value, f"The cluster '{self.name}' is now ready"
+                )
+            return
+        else:
+            # check how long this cluster is not ready
+            if running_timestamp := self.completed_transition(
+                BeibootCluster.running.value
+            ):
+                running_since = datetime.fromisoformat(running_timestamp.strip("Z"))
+                if datetime.utcnow() - running_since > timedelta(
+                    seconds=self.parameters.clusterReadyTimeout
+                ):
+                    raise kopf.PermanentError(
+                        f"The cluster infrastructure of '{self.name}' is not ready/running "
+                        f"(timeout: {self.parameters.clusterReadyTimeout}s)"
+                    )
+                else:
+                    raise kopf.TemporaryError(
+                        "The cluster is currently not in ready state", delay=5
+                    )
+            else:
+                # this should rarely happen; only if running update has not been processed by K8s
+                # cannot reconcile cluster that was never in running state
+                raise kopf.TemporaryError(delay=1)
 
     async def on_impair(self, reason: str):
         self.post_event(self.error.value, f"The cluster has become defective: {reason}")
 
     async def on_recover(self):
         await self.on_reconcile()
+
+    async def on_enter_terminating(self):
+        try:
+            await self.provider.delete()
+        except k8s.client.ApiException:
+            pass
+        try:
+            status = await handle_delete_namespace(self.logger, self.namespace)
+            if status.status == "Terminating":
+                raise kopf.TemporaryError(
+                    f"Namespace {self.namespace} still terminating"
+                )
+        except k8s.client.ApiException:
+            pass
 
     def on_enter_state(self, *args, **kwargs):
         self._write_state()
@@ -272,7 +323,7 @@ class BeibootCluster(StateMachine):
                 namespace=self.configuration.NAMESPACE,
             ),
             reason=reason.capitalize(),
-            note=message,
+            note=message[:1024],  # maximum message length
             event_time=now,
             action="Beiboot-State",
             type=_type,

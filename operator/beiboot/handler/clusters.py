@@ -78,10 +78,7 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
                 )
                 return
 
-    if (
-        cluster.current_state == BeibootCluster.running
-        or cluster.current_state == BeibootCluster.ready
-    ):
+    if cluster.is_running or cluster.is_ready:
         if reason := event["object"].get("reason"):
             cluster.post_event(reason, message=event["object"].get("message", ""))
         try:
@@ -90,11 +87,11 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
             logger.error(e)
             await cluster.impair(str(e))
             raise e
-    elif cluster.current_state == BeibootCluster.creating:
+    elif cluster.is_creating or cluster.is_pending:
         # this cluster is just booting up
         if reason := event["object"].get("reason"):
             cluster.post_event(reason, message=event["object"].get("message", ""))
-    elif cluster.current_state == BeibootCluster.error and cluster.completed_transition(
+    elif cluster.is_error and cluster.completed_transition(
         BeibootCluster.running.value
     ):
         await cluster.recover()

@@ -14,8 +14,10 @@ from .utils import (
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
 )
+from ...resources.utils import handle_delete_statefulset, handle_delete_service
 
 core_api = k8s.client.CoreV1Api()
+app_api = k8s.client.AppsV1Api()
 
 
 class K3s(AbstractClusterProvider):
@@ -137,15 +139,42 @@ class K3s(AbstractClusterProvider):
         return True
 
     async def delete(self) -> bool:
-        # Todo force delete pvc, pods
-        pass
+        stss = app_api.list_namespaced_stateful_set(self.namespace, async_req=True)
+        for sts in stss.get().items:
+            handle_delete_statefulset(
+                logger=self.logger, name=sts.metadata.name, namespace=self.namespace
+            )
+
+        volume_claims = core_api.list_namespaced_persistent_volume_claim(
+            self.namespace, async_req=True
+        )
+        for pvc in volume_claims.get().items:
+            try:
+                if pvc.spec.volume_name:
+                    core_api.delete_persistent_volume(
+                        name=pvc.spec.volume_name, grace_period_seconds=0
+                    )
+                core_api.delete_namespaced_persistent_volume_claim(
+                    name=pvc.metadata.name,
+                    namespace=self.namespace,
+                    grace_period_seconds=0,
+                )
+            except k8s.client.exceptions.ApiException as e:
+                if e.status == 404:
+                    continue
+                else:
+                    raise e
+
+        service = create_k3s_kubeapi_service(self.namespace, self.parameters)
+        handle_delete_service(
+            self.logger, name=service.metadata.name, namespace=self.namespace
+        )
+        return True
 
     async def exists(self) -> bool:
         raise NotImplementedError
 
     async def running(self) -> bool:
-        app_api = k8s.client.AppsV1Api()
-
         # waiting for all StatefulSets to become ready
         stss = app_api.list_namespaced_stateful_set(self.namespace, async_req=True)
         for sts in stss.get().items:

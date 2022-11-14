@@ -1,10 +1,10 @@
 import traceback
+from asyncio import sleep
 
 import kopf
 
 from beiboot.configuration import configuration
 from beiboot.clusterstate import BeibootCluster
-from beiboot.resources.utils import handle_delete_namespace
 
 
 @kopf.on.resume("beiboot")
@@ -13,18 +13,14 @@ async def beiboot_created(body, logger, **kwargs):
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
-    if cluster.is_requested:
+    if cluster.is_requested or cluster.is_creating:
         # this is the initial process for a Beiboot
         try:
-            await cluster.create()
+            if cluster.is_requested:
+                await cluster.create()
             if cluster.is_creating:
                 await cluster.boot()
-            if cluster.is_pending:
-                await cluster.operate()
         except kopf.PermanentError as e:
-            await cluster.impair(str(e))
-            raise e from None
-        except kopf.TemporaryError as e:
             await cluster.impair(str(e))
             raise e from None
         except Exception as e:  # noqa
@@ -34,16 +30,17 @@ async def beiboot_created(body, logger, **kwargs):
             )
             await cluster.impair(str(e))
             raise kopf.PermanentError(str(e))
-    elif cluster.is_running or (cluster.is_ready and await cluster.kubeconfig):
-        # if this cluster is already running, we continue
-        await cluster.reconcile()
-    elif cluster.is_pending:
+
+    if cluster.is_pending:
         try:
-            await cluster.operate()
-            await cluster.reconcile()
-        except kopf.TemporaryError as e:
+            await cluster.operate()  # become running
+            await sleep(1)
+        except kopf.PermanentError as e:
             await cluster.impair(str(e))
             raise e from None
+    if cluster.is_running or (cluster.is_ready and await cluster.kubeconfig):
+        # if this cluster is already running, we continue
+        await cluster.reconcile()
     elif cluster.is_error:
         # here are the retries and error state handled from a run before
         # try again if there was an error creating the cluster (which might be a temporary problem)
@@ -85,5 +82,5 @@ async def reconcile_beiboot(body, logger, **kwargs):
 async def beiboot_deleted(body, logger, **kwargs):
     parameters = configuration.refresh_k8s_config()
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
-    await cluster.terminate()
-    handle_delete_namespace(logger, cluster.namespace)
+    if not cluster.is_requested:
+        await cluster.terminate()

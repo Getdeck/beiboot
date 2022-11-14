@@ -1,3 +1,5 @@
+from typing import Optional
+
 import kubernetes as k8s
 
 
@@ -28,6 +30,19 @@ def handle_create_statefulset(
         pass
 
 
+def handle_delete_statefulset(logger, name: str, namespace: str) -> None:
+    try:
+        app_v1_api.delete_namespaced_stateful_set(name=name, namespace=namespace)
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            pass
+        else:
+            raise e
+    except ValueError as e:
+        logger.info(str(e))
+        pass
+
+
 def handle_create_service(
     logger, service: k8s.client.V1Service, namespace: str
 ) -> None:
@@ -35,8 +50,6 @@ def handle_create_service(
         core_v1_api.create_namespaced_service(body=service, namespace=namespace)
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
-            # the Stowaway service already exist
-            # status == 422 is nodeport already allocated
             logger.warn(
                 f"Service {service.metadata.name} already available, now patching it with current configuration"
             )
@@ -46,6 +59,16 @@ def handle_create_service(
                 namespace=namespace,
             )
             logger.info(f"Service {service.metadata.name} patched")
+        else:
+            raise e
+
+
+def handle_delete_service(logger, name: str, namespace: str) -> None:
+    try:
+        core_v1_api.delete_namespaced_service(name=name, namespace=namespace)
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            pass
         else:
             raise e
 
@@ -66,9 +89,12 @@ def handle_create_namespace(logger, namespace: str) -> str:
     return namespace
 
 
-def handle_delete_namespace(logger, namespace) -> None:
+async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1Status]:
     try:
-        core_v1_api.delete_namespace(namespace)
+        status = core_v1_api.delete_namespace(
+            namespace, body=k8s.client.V1DeleteOptions(propagation_policy="Foreground")
+        )
         logger.info(f"Deleted namespace for beiboot: {namespace}")
+        return status
     except k8s.client.exceptions.ApiException:
         pass

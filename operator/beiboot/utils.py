@@ -2,8 +2,7 @@ import inspect
 import logging
 import string
 import random
-from asyncio import sleep
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 
 import kubernetes as k8s
 from statemachine.exceptions import MultipleTransitionCallbacksFound
@@ -17,8 +16,6 @@ from statemachine.statemachine import (
 
 from beiboot.configuration import ClusterConfiguration, BeibootConfiguration
 
-if TYPE_CHECKING:
-    from beiboot.clusterstate import BeibootCluster
 
 logger = logging.getLogger("beiboot")
 
@@ -74,44 +71,6 @@ def exec_command_pod(
     if not run_async:
         logger.debug("Response: " + resp)
     return resp
-
-
-async def check_workload_running(cluster: "BeibootCluster", silent=False) -> bool:
-    i = 0
-    # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
-    if not silent:
-        logger.info("Waiting for workload to become running...")
-    while i <= cluster.parameters.clusterReadyTimeout:
-        if await cluster.provider.running():
-            if not silent:
-                logger.info("Cluster is now running")
-            return True
-        else:
-            await sleep(1)
-            i += 1
-            continue
-    # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
-    logger.error("Cluster did not become running")
-    return False
-
-
-async def check_workload_ready(cluster: "BeibootCluster", silent=False) -> bool:
-    i = 0
-    # a primitive timeout of configuration.API_SERVER_STARTUP_TIMEOUT in seconds
-    if not silent:
-        logger.info("Waiting for workload to become ready...")
-    while i <= cluster.parameters.clusterReadyTimeout:
-        if await cluster.provider.ready():
-            if not silent:
-                logger.info("Cluster is now ready")
-            return True
-        else:
-            await sleep(1)
-            i += 1
-            continue
-    # reached this in an error case a) timout (build took too long) or b) build could not be successfully executed
-    logger.error("Cluster did not become ready")
-    return False
 
 
 def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
