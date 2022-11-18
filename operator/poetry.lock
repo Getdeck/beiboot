@@ -1,6 +1,6 @@
 [[package]]
 name = "aiohttp"
-version = "3.8.1"
+version = "3.8.3"
 description = "Async http client/server framework (asyncio)"
 category = "main"
 optional = false
@@ -20,11 +20,11 @@ speedups = ["aiodns", "brotli", "cchardet"]
 
 [[package]]
 name = "aiosignal"
-version = "1.2.0"
+version = "1.3.1"
 description = "aiosignal: a list of registered asynchronous callbacks"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 frozenlist = ">=1.1.0"
@@ -55,25 +55,25 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
 name = "attrs"
-version = "21.4.0"
+version = "22.1.0"
 description = "Classes Without Boilerplate"
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+python-versions = ">=3.5"
 
 [package.extras]
-dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit", "cloudpickle"]
+dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "zope.interface", "furo", "sphinx", "sphinx-notfound-page", "pre-commit", "cloudpickle"]
 docs = ["furo", "sphinx", "zope.interface", "sphinx-notfound-page"]
-tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "zope.interface", "cloudpickle"]
-tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "mypy", "pytest-mypy-plugins", "cloudpickle"]
+tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "zope.interface", "cloudpickle"]
+tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "mypy (>=0.900,!=0.940)", "pytest-mypy-plugins", "cloudpickle"]
 
 [[package]]
 name = "black"
-version = "22.6.0"
+version = "22.10.0"
 description = "The uncompromising code formatter."
 category = "dev"
 optional = false
-python-versions = ">=3.6.2"
+python-versions = ">=3.7"
 
 [package.dependencies]
 click = ">=8.0.0"
@@ -111,7 +111,7 @@ oscrypto = ">=0.16.1"
 
 [[package]]
 name = "certifi"
-version = "2022.6.15"
+version = "2022.9.24"
 description = "Python package for providing Mozilla's CA Bundle."
 category = "main"
 optional = false
@@ -119,7 +119,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "charset-normalizer"
-version = "2.1.0"
+version = "2.1.1"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
 category = "main"
 optional = false
@@ -141,11 +141,11 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "colorama"
-version = "0.4.5"
+version = "0.4.6"
 description = "Cross-platform colored terminal text."
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 
 [[package]]
 name = "flake8"
@@ -175,7 +175,7 @@ toml = "*"
 
 [[package]]
 name = "frozenlist"
-version = "1.3.0"
+version = "1.3.3"
 description = "A list-like structure which implements collections.abc.MutableSequence"
 category = "main"
 optional = false
@@ -183,7 +183,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "google-auth"
-version = "2.9.1"
+version = "2.14.1"
 description = "Google Authentication Library"
 category = "main"
 optional = false
@@ -198,12 +198,12 @@ six = ">=1.9.0"
 [package.extras]
 aiohttp = ["requests (>=2.20.0,<3.0.0dev)", "aiohttp (>=3.6.2,<4.0.0dev)"]
 enterprise_cert = ["cryptography (==36.0.2)", "pyopenssl (==22.0.0)"]
-pyopenssl = ["pyopenssl (>=20.0.0)"]
+pyopenssl = ["pyopenssl (>=20.0.0)", "cryptography (>=38.0.3)"]
 reauth = ["pyu2f (>=0.1.5)"]
 
 [[package]]
 name = "idna"
-version = "3.3"
+version = "3.4"
 description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
@@ -211,7 +211,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "iso8601"
-version = "1.0.2"
+version = "1.1.0"
 description = "Simple module to parse ISO 8601 dates"
 category = "main"
 optional = false
@@ -219,7 +219,7 @@ python-versions = ">=3.6.2,<4.0"
 
 [[package]]
 name = "kopf"
-version = "1.35.5"
+version = "1.36.0"
 description = "Kubernetes Operator Pythonic Framework (Kopf)"
 category = "main"
 optional = false
@@ -236,6 +236,7 @@ typing-extensions = "*"
 [package.extras]
 dev = ["pyngrok", "oscrypto", "certbuilder", "certvalidator"]
 full-auth = ["pykube-ng", "kubernetes"]
+uvloop = ["uvloop"]
 
 [[package]]
 name = "kubernetes"
@@ -269,11 +270,11 @@ python-versions = "*"
 
 [[package]]
 name = "more-itertools"
-version = "8.13.0"
+version = "9.0.0"
 description = "More routines for operating on iterables, beyond itertools"
 category = "dev"
 optional = false
-python-versions = ">=3.5"
+python-versions = ">=3.7"
 
 [[package]]
 name = "multidict"
@@ -293,7 +294,7 @@ python-versions = "*"
 
 [[package]]
 name = "oauthlib"
-version = "3.2.1"
+version = "3.2.2"
 description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
 category = "main"
 optional = false
@@ -328,23 +329,23 @@ pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
 
 [[package]]
 name = "pathspec"
-version = "0.9.0"
+version = "0.10.2"
 description = "Utility library for gitignore style pattern matching of file paths."
 category = "dev"
 optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+python-versions = ">=3.7"
 
 [[package]]
 name = "platformdirs"
-version = "2.5.2"
-description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
+version = "2.5.4"
+description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 
 [package.extras]
-docs = ["furo (>=2021.7.5b38)", "proselint (>=0.10.2)", "sphinx-autodoc-typehints (>=1.12)", "sphinx (>=4)"]
-test = ["appdirs (==1.4.4)", "pytest-cov (>=2.7)", "pytest-mock (>=3.6)", "pytest (>=6)"]
+docs = ["furo (>=2022.9.29)", "proselint (>=0.13)", "sphinx-autodoc-typehints (>=1.19.4)", "sphinx (>=5.3)"]
+test = ["appdirs (==1.4.4)", "pytest-cov (>=4)", "pytest-mock (>=3.10)", "pytest (>=7.2)"]
 
 [[package]]
 name = "pluggy"
@@ -461,6 +462,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "python-statemachine"
+version = "0.8.0"
+description = "Python Finite State Machines made easy."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pyyaml"
 version = "6.0"
 description = "YAML parser and emitter for Python"
@@ -538,7 +547,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "typing-extensions"
-version = "4.3.0"
+version = "4.4.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
 category = "main"
 optional = false
@@ -546,7 +555,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "urllib3"
-version = "1.26.10"
+version = "1.26.12"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "main"
 optional = false
@@ -554,7 +563,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, 
 
 [package.extras]
 brotli = ["brotlicffi (>=0.8.0)", "brotli (>=1.0.9)", "brotlipy (>=0.6.0)"]
-secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
+secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "urllib3-secure-extra", "ipaddress"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
@@ -567,7 +576,7 @@ python-versions = "*"
 
 [[package]]
 name = "websocket-client"
-version = "1.3.3"
+version = "1.4.2"
 description = "WebSocket client for Python with low level API options"
 category = "main"
 optional = false
@@ -580,11 +589,11 @@ test = ["websockets"]
 
 [[package]]
 name = "yarl"
-version = "1.7.2"
+version = "1.8.1"
 description = "Yet another URL library"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 idna = ">=2.0"
@@ -593,7 +602,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "0b97b8384aa214b8ed77a240e3670068236c15c18614cd346510e1d360a78de9"
+content-hash = "2542cd31f4f0fbe461a0668f2601c64ddc728033b7b493ff29abad57ee569efe"
 
 [metadata.files]
 aiohttp = []
@@ -637,6 +646,7 @@ pytest = []
 python-dateutil = []
 python-decouple = []
 python-json-logger = []
+python-statemachine = []
 pyyaml = []
 requests = []
 requests-oauthlib = []

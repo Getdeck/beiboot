@@ -9,6 +9,14 @@ core_v1_api = k8s.client.CoreV1Api()
 
 @kopf.on.validate("beiboot.getdeck.dev", id="check-namespace-ready")
 def check_namespace_ready(body, logger, operation, **_):
+    """
+    If the operation is a CREATE, check if the namespace exists. If it does, raise an error. If it doesn't, return True
+
+    :param body: The body of the request
+    :param logger: A logger object that can be used to log messages
+    :param operation: The operation that is being performed on the resource
+    :return: True
+    """
     logger.info(f"Validating namespace for operation {operation}")
 
     if operation == "CREATE":

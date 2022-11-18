@@ -92,7 +92,7 @@ class BeibootConfiguration:
             configmap = core_v1_api.read_namespaced_config_map(
                 name=self.CONFIGMAP_NAME, namespace=self.NAMESPACE
             )
-            logger.info("Beiboot configmap exists; loading it")
+            logger.debug("Beiboot configmap exists; loading it")
         except k8s.client.exceptions.ApiException as e:
             if e.status == 404:
                 logger.info("Beiboot configmap does not exist; creating it now")

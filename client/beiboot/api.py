@@ -54,7 +54,7 @@ def create_cluster(
     #
     logger.info(f"Now creating Beiboot {cluster_name}")
     try:
-        configuration.K8S_CUSTOM_OBJECT_API.create_namespaced_custom_object(
+        bbt = configuration.K8S_CUSTOM_OBJECT_API.create_namespaced_custom_object(
             namespace=configuration.NAMESPACE,
             body=obj,
             group="getdeck.dev",
@@ -79,11 +79,39 @@ def create_cluster(
             # TODO handle that case
             raise
 
-    if connect:
-        logger.info(
-            "Now connecting to the cluster; this may take a while to complete. "
-        )
-        establish_connection(cluster_name, probe_connection, configuration)
+    w = k8s.watch.Watch()
+
+    # wait for cluster events side is ready
+    for _object in w.stream(
+        configuration.K8S_CORE_API.list_namespaced_event,
+        namespace=configuration.NAMESPACE,
+    ):
+        event = _object.get("object")
+        if (
+            event.involved_object.kind == "beiboot"
+            and event.involved_object.uid == bbt["metadata"]["uid"]
+        ):
+            logger.debug(f"{event.reason} -> {event.message}")
+            if event.reason == "Ready":
+                logger.info(f"The Beiboot cluster {cluster_name} is ready")
+                break
+            elif event.reason == "Failedscheduling":
+                logger.warning(
+                    f"The Beiboot cluster may not be able to be scheduled: {event.message}"
+                )
+            elif event.reason == "Triggeredscaleup":
+                logger.warning(
+                    f"The host cluster triggered a node scale-up: {event.message}"
+                )
+            elif event.reason == "Error":
+                logger.error(event.message)
+                break
+
+    # if connect:
+    #     logger.info(
+    #         "Now connecting to the cluster; this may take a while to complete. "
+    #     )
+    #     establish_connection(cluster_name, probe_connection, configuration)
 
 
 def remove_cluster(
@@ -135,8 +163,7 @@ def get_connection(
                 raise RuntimeError(
                     f"Error fetching the Beiboot object: {e.reason}"
                 ) from None
-        if bbt.get("kubeconfig"):
-            # if the kubeconfig was added, this cluster is ready
+        if bbt.get("state") == "READY":
             break
         else:
             logger.debug(
