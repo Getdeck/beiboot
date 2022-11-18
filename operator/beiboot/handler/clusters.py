@@ -5,6 +5,7 @@ import kopf
 
 from beiboot.clusterstate import BeibootCluster
 from beiboot.configuration import configuration
+from beiboot.utils import get_beiboot_for_namespace
 
 core_api = k8s.client.CoreV1Api()
 objects_api = k8s.client.CustomObjectsApi()
@@ -21,37 +22,19 @@ def _in_any_beiboot_namespace(event, namespace, kind: list, **_):
     return namespace in namespaces and event["object"]["involvedObject"]["kind"] in kind
 
 
-def workloads_in_beiboot_namespace(event, namespace, **_):
+def _workloads_in_beiboot_namespace(event, namespace, **_):
     return _in_any_beiboot_namespace(
         event, namespace, kind=["StatefulSet", "Deployment", "Pod"]
     )
 
 
-def get_beiboot_for_namespace(namespace: str):
-    class AttrDict(dict):
-        def __init__(self, *args, **kwargs):
-            super(AttrDict, self).__init__(*args, **kwargs)
-            self.__dict__ = self
-
-    beiboots = objects_api.list_namespaced_custom_object(
-        group="getdeck.dev",
-        version="v1",
-        namespace=configuration.NAMESPACE,
-        plural="beiboots",
-    )
-    for bbt in beiboots["items"]:
-        if bbt["beibootNamespace"] == namespace:
-            # need to wrap this for correct later use
-            return AttrDict(bbt)
-    else:
-        return None
+def _event_type_not_none(event, **_):
+    return "type" in event and event["type"] is not None
 
 
 @kopf.on.event(
     "event",
-    when=kopf.all_(
-        [lambda event, **_: event["type"] is not None, workloads_in_beiboot_namespace]
-    ),
+    when=kopf.all_([_event_type_not_none, _workloads_in_beiboot_namespace]),
 )
 async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     """
@@ -62,7 +45,7 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     :param logger: The logger object that you can use to log messages
     :return: The return value of the handler function is ignored.
     """
-    beiboot = get_beiboot_for_namespace(namespace)
+    beiboot = get_beiboot_for_namespace(namespace, objects_api, configuration)
     if beiboot is None:
         logger.warn(f"The Beiboot object for namespace '{namespace}' does not exist")
         return

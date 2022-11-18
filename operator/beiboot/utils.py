@@ -159,6 +159,47 @@ def get_namespace_name(name: str, cluster_config: ClusterConfiguration) -> str:
     return namespace
 
 
+def get_beiboot_for_namespace(
+    namespace: str,
+    api_instance: k8s.client.CustomObjectsApi,
+    configuration: BeibootConfiguration,
+):
+    """
+    It returns the Beiboot object for a given namespace
+
+    :param namespace: the namespace to look for a beiboot in
+    :type namespace: str
+    :param api_instance: the kubernetes client
+    :type api_instance: k8s.client.CustomObjectsApi
+    :param configuration: BeibootConfiguration
+    :type configuration: BeibootConfiguration
+    :return: A dict with the following keys:
+        api_version
+        kind
+        metadata
+        spec
+        status
+    """
+
+    class AttrDict(dict):
+        def __init__(self, *args, **kwargs):
+            super(AttrDict, self).__init__(*args, **kwargs)
+            self.__dict__ = self
+
+    beiboots = api_instance.list_namespaced_custom_object(
+        group="getdeck.dev",
+        version="v1",
+        namespace=configuration.NAMESPACE,
+        plural="beiboots",
+    )
+    for bbt in beiboots["items"]:
+        if bbt["beibootNamespace"] == namespace:
+            # need to wrap this for correct later use
+            return AttrDict(bbt)
+    else:
+        return None
+
+
 # It's a subclass of the `Transition` class that adds a `run` method that runs the transition asynchronously
 class AsyncTransition(Transition):
     async def _run(self, machine, *args, **kwargs):
