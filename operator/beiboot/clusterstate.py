@@ -222,7 +222,7 @@ class BeibootCluster(StateMachine):
         try:
             await handle_ghostunnel_components(
                 self.logger,
-                port_mappings={"localhost:6443": "kubeapi:6443"},
+                port_mappings={"0.0.0.0:6443": "kubeapi:6443"},
                 namespace=self.namespace,
                 configuration=self.configuration,
             )

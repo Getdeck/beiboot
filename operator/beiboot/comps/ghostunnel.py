@@ -5,6 +5,7 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration
 from beiboot.resources.utils import handle_create_statefulset
+from beiboot.utils import get_external_node_ips
 
 logger = logging.getLogger("beiboot.gefyra")
 app_api = k8s.client.AppsV1Api()
@@ -20,16 +21,17 @@ def create_ghostunnel_workload(
         name="certstrap-init",
         image=configuration.CERTSTRAP_IMAGE,
         image_pull_policy="IfNotPresent",
-        args=["init", "--common-name", namespace, "--passphrase", "", "--depot-path", "/out"],
+        args=["--depot-path", "/out", "init", "--common-name", namespace, "--passphrase", ""],
         volume_mounts=[
             k8s.client.V1VolumeMount(name="pki-data", mount_path="/out"),
         ],
     )
+    _ips = get_external_node_ips(core_api)
     certstrap_request_server = k8s.client.V1Container(
         name="certstrap-server-request",
         image=configuration.CERTSTRAP_IMAGE,
         image_pull_policy="IfNotPresent",
-        args=["request-cert", "server", "--common-name", "server", "--passphrase", "", "--depot-path", "/out"],
+        args=["--depot-path", "/out", "request-cert", "server", "--common-name", "server", "--passphrase", "", "-ip", f"{','.join(_ips)}"],
         volume_mounts=[
             k8s.client.V1VolumeMount(name="pki-data", mount_path="/out"),
         ],
@@ -38,7 +40,7 @@ def create_ghostunnel_workload(
         name="certstrap-client-request",
         image=configuration.CERTSTRAP_IMAGE,
         image_pull_policy="IfNotPresent",
-        args=["request-cert", "client", "--common-name", "client", "--passphrase", "", "--depot-path", "/out"],
+        args=["--depot-path", "/out", "request-cert", "client", "--common-name", "client", "--passphrase", ""],
         volume_mounts=[
             k8s.client.V1VolumeMount(name="pki-data", mount_path="/out"),
         ],
@@ -47,7 +49,7 @@ def create_ghostunnel_workload(
         name="certstrap-server-sign",
         image=configuration.CERTSTRAP_IMAGE,
         image_pull_policy="IfNotPresent",
-        args=["sign", "server", "--CA", namespace, "--depot-path", "/out"],
+        args=["--depot-path", "/out", "sign", "server", "--CA", namespace],
         volume_mounts=[
             k8s.client.V1VolumeMount(name="pki-data", mount_path="/out"),
         ],
@@ -56,7 +58,7 @@ def create_ghostunnel_workload(
         name="certstrap-client-sign",
         image=configuration.CERTSTRAP_IMAGE,
         image_pull_policy="IfNotPresent",
-        args=["sign", "client", "--CA", namespace, "--depot-path", "/out"],
+        args=["--depot-path", "/out", "sign", "client", "--CA", namespace],
         volume_mounts=[
             k8s.client.V1VolumeMount(name="pki-data", mount_path="/out"),
         ],
