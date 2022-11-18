@@ -1,7 +1,6 @@
 import base64
 import json
 import uuid
-from asyncio import sleep
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 from typing import Optional
@@ -18,7 +17,6 @@ from beiboot.resources.utils import (
     handle_create_namespace,
     handle_create_service,
     handle_delete_namespace,
-    handle_create_beiboot_serviceaccount,
 )
 from beiboot.utils import StateMachine, AsyncState
 
@@ -218,7 +216,7 @@ class BeibootCluster(StateMachine):
             handle_create_service(self.logger, svc, self.namespace)
 
         # also create the tunnel service
-        ports = self.provider.get_ports()
+        # ports = self.provider.get_ports()
         try:
             await handle_ghostunnel_components(
                 self.logger,
@@ -234,7 +232,6 @@ class BeibootCluster(StateMachine):
             self.pending.value,
             f"Now waiting for the cluster '{self.name}' to enter ready state",
         )
-
 
     async def on_operate(self):
         """
