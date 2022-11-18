@@ -1,6 +1,5 @@
 from typing import Optional
 
-import kopf
 import kubernetes as k8s
 
 
@@ -177,15 +176,16 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
                     k8s.client.V1Subject(kind="ServiceAccount", name=sa.metadata.name)
                 ],
                 role_ref=k8s.client.V1RoleRef(
-                        kind="Role",
-                        name=role.metadata.name,
-                        api_group="rbac.authorization.k8s.io",
-                    ),
+                    kind="Role",
+                    name=role.metadata.name,
+                    api_group="rbac.authorization.k8s.io",
+                ),
             ),
         )
         logger.info(f"Created serviceaccount and permissions for beiboot: {name}")
     except k8s.client.exceptions.ApiException as e:
         raise e
+
 
 #
 # async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
@@ -225,7 +225,6 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
 #       user:
 #         token: {data['token']}
 #     """
-
 
 
 async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1Status]:

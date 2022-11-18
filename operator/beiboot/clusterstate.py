@@ -1,6 +1,5 @@
 import base64
 import json
-import random
 import uuid
 from asyncio import sleep
 from datetime import datetime, timedelta
@@ -9,17 +8,17 @@ from typing import Optional
 
 import kubernetes as k8s
 import kopf
-import yaml
 
+from beiboot.comps.ghostunnel import handle_ghostunnel_components
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
-from beiboot.resources.services import ports_to_services, gefyra_service
+from beiboot.resources.services import ports_to_services
 from beiboot.resources.utils import (
     handle_create_namespace,
     handle_create_service,
     handle_delete_namespace,
-    handle_create_beiboot_serviceaccount, get_serviceaccount_data,
+    handle_create_beiboot_serviceaccount,
 )
 from beiboot.utils import StateMachine, AsyncState
 
@@ -108,7 +107,7 @@ class BeibootCluster(StateMachine):
         return provider
 
     @property
-    async def kubeconfig(self) -> str:
+    async def kubeconfig(self) -> Optional[str]:
         """
         If the CRD already has a kubeconfig, use it, otherwise extract the provider's kubeconfig from the cluster
         :return: The kubeconfig is being returned.
@@ -136,19 +135,30 @@ class BeibootCluster(StateMachine):
         else:
             return None
 
-    def get_latest_transition(self) -> datetime:
+    def get_latest_transition(self) -> Optional[datetime]:
         """
         > Get the latest transition time for a cluster
-        :return: The latest transition time.s
+        :return: The latest transition times
         """
-        timestamps = [
-            self.completed_transition(BeibootCluster.running.value),
-            self.completed_transition(BeibootCluster.ready.value),
-            self.completed_transition(BeibootCluster.error.value),
-        ]
-        return max(
-            map(lambda x: datetime.fromisoformat(x.strip("Z")) if type(x) == str else 0, timestamps)
+        timestamps = list(
+            filter(
+                lambda k: k is not None,
+                [
+                    self.completed_transition(BeibootCluster.running.value),
+                    self.completed_transition(BeibootCluster.ready.value),
+                    self.completed_transition(BeibootCluster.error.value),
+                ],
+            )
         )
+        if timestamps:
+            return max(
+                map(
+                    lambda x: datetime.fromisoformat(x.strip("Z")),
+                    timestamps,
+                )
+            )
+        else:
+            return None
 
     def on_enter_requested(self) -> None:
         """
@@ -207,17 +217,24 @@ class BeibootCluster(StateMachine):
             self.logger.debug("Creating: " + str(svc))
             handle_create_service(self.logger, svc, self.namespace)
 
-        # create a service account for portforwarding
-        handle_create_beiboot_serviceaccount(
-            self.logger, name=self.name, namespace=self.namespace
-        )
-        await sleep(1)
+        # also create the tunnel service
+        ports = self.provider.get_ports()
+        try:
+            await handle_ghostunnel_components(
+                self.logger,
+                port_mappings={"localhost:6443": "kubeapi:6443"},
+                namespace=self.namespace,
+                configuration=self.configuration,
+            )
+        except Exception as e:
+            self.logger.error(str(e))
 
     async def on_boot(self):
         self.post_event(
             self.pending.value,
             f"Now waiting for the cluster '{self.name}' to enter ready state",
         )
+
 
     async def on_operate(self):
         """
@@ -228,6 +245,7 @@ class BeibootCluster(StateMachine):
             self.post_event(
                 self.running.value, f"The cluster '{self.name}' is now running"
             )
+
         else:
             # check how long this cluster is pending
             if pending_timestamp := self.completed_transition(
@@ -265,41 +283,20 @@ class BeibootCluster(StateMachine):
         }
 
         # handle Gefyra integration
-        # todo check if Gefyra service already exists before creating it again
         if hasattr(self.parameters, "gefyra") and self.parameters.gefyra.get("enabled"):
-            from beiboot.utils import get_external_node_ips
-            from beiboot.utils import get_taken_gefyra_ports
+            from beiboot.comps.gefyra import handle_gefyra_components
 
             try:
-                gefyra_ports = self.parameters.gefyra.get("ports")
-                lower_bound = int(gefyra_ports.split("-")[0])
-                upper_bound = int(gefyra_ports.split("-")[1])
-                taken_ports = get_taken_gefyra_ports(
-                    self.custom_api, self.configuration
+                (
+                    gefyra_nodeport,
+                    gefyra_endpoint,
+                    raw_kubeconfig,
+                ) = await handle_gefyra_components(
+                    kubeconfig=raw_kubeconfig,
+                    namespace=self.namespace,
+                    configuration=self.configuration,
+                    cluster_config=self.parameters,
                 )
-                gefyra_nodeport = random.choice(
-                    [
-                        port
-                        for port in range(lower_bound, upper_bound + 1)
-                        if port not in taken_ports
-                    ]
-                )
-                self.logger.info(f"Requesting Gefyra Nodeport: {gefyra_nodeport}")
-                handle_create_service(
-                    self.logger,
-                    gefyra_service(gefyra_nodeport, self.namespace, self.parameters),
-                    self.namespace,
-                )
-                _ips = get_external_node_ips(self.core_api)
-                gefyra_endpoint = _ips[0] if _ips else None
-                # return a dict with the source generated by the K8s provider
-                # add gefyra connection params to kubeconfig
-                if gefyra_endpoint and gefyra_nodeport:
-                    data = yaml.safe_load(raw_kubeconfig)
-                    for ctx in data["contexts"]:
-                        if ctx["name"] == "default":
-                            ctx["gefyra"] = f"{gefyra_endpoint}:{gefyra_nodeport}"
-                    raw_kubeconfig = yaml.dump(data)
                 body_patch = {
                     "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
                     "kubeconfig": {
@@ -327,10 +324,6 @@ class BeibootCluster(StateMachine):
         :return: The return value of the function is ignored.
         """
         if await self.provider.ready():
-            # update service account token
-            data = await get_serviceaccount_data(self.name, self.namespace)
-
-
             if not self.is_ready:
                 self.post_event(
                     self.ready.value, f"The cluster '{self.name}' is now ready"

@@ -114,6 +114,8 @@ class BeibootConfiguration:
     def __init__(self):
         self.NAMESPACE = config("BEIBOOT_NAMESPACE", default="getdeck")
         self.CONFIGMAP_NAME = config("BEIBOOT_CONFIGMAP", default="beiboot-config")
+        self.GHOSTUNNEL_IMAGE = "ghostunnel/ghostunnel"
+        self.CERTSTRAP_IMAGE = "squareup/certstrap"
         self._cluster_config = None
 
     def to_dict(self):

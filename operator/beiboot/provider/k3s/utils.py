@@ -89,7 +89,9 @@ def create_k3s_server_workload(
 
     workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
-        metadata=k8s.client.V1ObjectMeta(name="server", namespace=namespace),
+        metadata=k8s.client.V1ObjectMeta(
+            name="server", namespace=namespace, labels=cluster_config.serverLabels
+        ),
         spec=spec,
     )
 
@@ -170,7 +172,9 @@ def create_k3s_agent_workload(
     workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
         metadata=k8s.client.V1ObjectMeta(
-            name=f"agent-{node_index}", namespace=namespace
+            name=f"agent-{node_index}",
+            namespace=namespace,
+            labels=cluster_config.nodeLabels,
         ),
         spec=spec,
     )
