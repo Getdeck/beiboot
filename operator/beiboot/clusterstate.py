@@ -19,6 +19,7 @@ from beiboot.resources.utils import (
     handle_create_namespace,
     handle_create_service,
     handle_delete_namespace,
+    handle_create_beiboot_serviceaccount, get_serviceaccount_data,
 )
 from beiboot.utils import StateMachine, AsyncState
 
@@ -138,7 +139,7 @@ class BeibootCluster(StateMachine):
     def get_latest_transition(self) -> datetime:
         """
         > Get the latest transition time for a cluster
-        :return: The latest transition time.
+        :return: The latest transition time.s
         """
         timestamps = [
             self.completed_transition(BeibootCluster.running.value),
@@ -146,7 +147,7 @@ class BeibootCluster(StateMachine):
             self.completed_transition(BeibootCluster.error.value),
         ]
         return max(
-            map(lambda x: datetime.fromisoformat(x.strip("Z") if x else 0), timestamps)
+            map(lambda x: datetime.fromisoformat(x.strip("Z")) if type(x) == str else 0, timestamps)
         )
 
     def on_enter_requested(self) -> None:
@@ -205,7 +206,11 @@ class BeibootCluster(StateMachine):
         for svc in services:
             self.logger.debug("Creating: " + str(svc))
             handle_create_service(self.logger, svc, self.namespace)
-        # todo create service account
+
+        # create a service account for portforwarding
+        handle_create_beiboot_serviceaccount(
+            self.logger, name=self.name, namespace=self.namespace
+        )
         await sleep(1)
 
     async def on_boot(self):
@@ -322,7 +327,11 @@ class BeibootCluster(StateMachine):
         :return: The return value of the function is ignored.
         """
         if await self.provider.ready():
-            if self.is_running:
+            # update service account token
+            data = await get_serviceaccount_data(self.name, self.namespace)
+
+
+            if not self.is_ready:
                 self.post_event(
                     self.ready.value, f"The cluster '{self.name}' is now ready"
                 )
