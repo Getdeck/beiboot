@@ -160,6 +160,10 @@ def get_beiboot_for_namespace(
         return None
 
 
+def get_label_selector(labels: dict[str, str]) -> str:
+    return ",".join(["{0}={1}".format(*label) for label in list(labels.items())])
+
+
 # It's a subclass of the `Transition` class that adds a `run` method that runs the transition asynchronously
 class AsyncTransition(Transition):
     async def _run(self, machine, *args, **kwargs):

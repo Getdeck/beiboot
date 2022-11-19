@@ -22,6 +22,9 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             "kubeconfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
+            "tunnel": k8s.client.V1JSONSchemaProps(
+                type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
             "gefyra": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),

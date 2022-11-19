@@ -8,7 +8,11 @@ from typing import Optional
 import kubernetes as k8s
 import kopf
 
-from beiboot.comps.ghostunnel import handle_ghostunnel_components
+from beiboot.comps.ghostunnel import (
+    handle_ghostunnel_components,
+    ghostunnel_ready,
+    extract_client_tls,
+)
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
@@ -175,15 +179,7 @@ class BeibootCluster(StateMachine):
         self.post_event(
             self.creating.value, f"The cluster '{self.name}' is now being created"
         )
-        self.custom_api.patch_namespaced_custom_object(
-            namespace=self.configuration.NAMESPACE,
-            name=self.name,
-            body={"beibootNamespace": self.namespace},
-            group="getdeck.dev",
-            plural="beiboots",
-            version="v1",
-            async_req=True,
-        )
+        self._patch_object({"beibootNamespace": self.namespace})
 
     async def on_enter_creating(self):
         """
@@ -219,7 +215,6 @@ class BeibootCluster(StateMachine):
         # ports = self.provider.get_ports()
         try:
             await handle_ghostunnel_components(
-                self.logger,
                 port_mappings={"0.0.0.0:6443": "kubeapi:6443"},
                 namespace=self.namespace,
                 configuration=self.configuration,
@@ -238,11 +233,17 @@ class BeibootCluster(StateMachine):
         If the cluster is running, post the event and return. If the cluster is pending, check if it's been pending for
         longer than the timeout. If it has, raise a permanent error. If it hasn't, raise a temporary error
         """
-        if await self.provider.running():
+        if await self.provider.running() and await ghostunnel_ready(self.namespace):
+            tls_data = await extract_client_tls(self.namespace)
+            # base64 encode tls data
+            tls_data = dict(
+                (k, base64.b64encode(v.encode("utf-8")).decode())
+                for k, v in tls_data.items()
+            )
+            self._patch_object({"tunnel": tls_data})
             self.post_event(
                 self.running.value, f"The cluster '{self.name}' is now running"
             )
-
         else:
             # check how long this cluster is pending
             if pending_timestamp := self.completed_transition(
@@ -305,14 +306,7 @@ class BeibootCluster(StateMachine):
             except Exception as e:
                 self.logger.error(f"Could not set up Gefyra: {str(e)}")
 
-        self.custom_api.patch_namespaced_custom_object(
-            namespace=self.configuration.NAMESPACE,
-            name=self.name,
-            body=body_patch,
-            group="getdeck.dev",
-            plural="beiboots",
-            version="v1",
-        )
+        self._patch_object(body_patch)
 
     async def on_reconcile(self) -> None:
         """
@@ -418,6 +412,16 @@ class BeibootCluster(StateMachine):
                 "state": self.current_state.value,
                 "stateTransitions": {self.current_state.value: self._get_now()},
             },
+            group="getdeck.dev",
+            plural="beiboots",
+            version="v1",
+        )
+
+    def _patch_object(self, data: dict):
+        self.custom_api.patch_namespaced_custom_object(
+            namespace=self.configuration.NAMESPACE,
+            name=self.name,
+            body=data,
             group="getdeck.dev",
             plural="beiboots",
             version="v1",

@@ -22,19 +22,40 @@ def _in_any_beiboot_namespace(event, namespace, kind: list, **_):
     return namespace in namespaces and event["object"]["involvedObject"]["kind"] in kind
 
 
-def _workloads_in_beiboot_namespace(event, namespace, **_):
+def _workloads_in_beiboot_namespace(event, namespace, **_) -> bool:
     return _in_any_beiboot_namespace(
         event, namespace, kind=["StatefulSet", "Deployment", "Pod"]
     )
 
 
-def _event_type_not_none(event, **_):
+def _event_type_not_none(event, **_) -> bool:
     return "type" in event and event["type"] is not None
+
+
+def _event_reason_not_in(event, **_) -> bool:
+    if "object" in event:
+        if reason := event["object"].get("reason"):
+            # filter out these event reasons
+            if reason in [
+                "Pulled",
+                "Created",
+                "SuccessfulAttachVolume",
+                "SuccessfulCreate",
+            ]:
+                return False
+            else:
+                return True
+        else:
+            return False
+    else:
+        return False
 
 
 @kopf.on.event(
     "event",
-    when=kopf.all_([_event_type_not_none, _workloads_in_beiboot_namespace]),
+    when=kopf.all_(
+        [_event_type_not_none, _workloads_in_beiboot_namespace, _event_reason_not_in]
+    ),
 )
 async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     """

@@ -7,7 +7,7 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod
+from beiboot.utils import exec_command_pod, get_label_selector
 
 from .utils import (
     create_k3s_server_workload,
@@ -77,14 +77,11 @@ class K3s(AbstractClusterProvider):
             ["kubectl", "delete", "node", node_name],
         )
 
-    def _get_label_selector(self, labels: dict):
-        return ",".join(["{0}={1}".format(*label) for label in list(labels.items())])
-
     async def get_kubeconfig(self) -> str:
         try:
             api_pod = core_api.list_namespaced_pod(
                 self.namespace,
-                label_selector=self._get_label_selector(self.parameters.serverLabels),
+                label_selector=get_label_selector(self.parameters.serverLabels),
             )
             if len(api_pod.items) != 1:
                 self.logger.warning(
@@ -146,7 +143,7 @@ class K3s(AbstractClusterProvider):
             stss = app_api.list_namespaced_stateful_set(
                 self.namespace,
                 async_req=True,
-                label_selector=self._get_label_selector(self.parameters.nodeLabels),
+                label_selector=get_label_selector(self.parameters.nodeLabels),
             )
             for sts in stss.get().items:
                 handle_delete_statefulset(
@@ -189,8 +186,10 @@ class K3s(AbstractClusterProvider):
         try:
             stss = app_api.list_namespaced_stateful_set(
                 self.namespace,
-                label_selector=self._get_label_selector(self.parameters.nodeLabels),
+                label_selector=get_label_selector(self.parameters.nodeLabels),
             )
+            if len(stss.items) == 0:
+                return False
             for sts in stss.items:
                 if (
                     sts.status.updated_replicas == sts.spec.replicas
@@ -214,7 +213,7 @@ class K3s(AbstractClusterProvider):
 
         api_pod = core_api.list_namespaced_pod(
             self.namespace,
-            label_selector=self._get_label_selector(self.parameters.serverLabels),
+            label_selector=get_label_selector(self.parameters.serverLabels),
         )
         if len(api_pod.items) > 1:
             self.logger.warning(
