@@ -1,5 +1,6 @@
 from typing import Optional
 
+import kopf
 import kubernetes as k8s
 
 
@@ -64,7 +65,7 @@ def handle_delete_statefulset(logger, name: str, namespace: str) -> None:
 
 def handle_create_service(
     logger, service: k8s.client.V1Service, namespace: str
-) -> None:
+) -> k8s.client.V1Service:
     """
     If the service already exists, patch it with the current configuration
 
@@ -73,15 +74,18 @@ def handle_create_service(
     :type service: k8s.client.V1Service
     :param namespace: The namespace in which the service should be created
     :type namespace: str
+    :return: The service object
     """
     try:
-        core_v1_api.create_namespaced_service(body=service, namespace=namespace)
+        service = core_v1_api.create_namespaced_service(
+            body=service, namespace=namespace
+        )
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
             logger.warn(
                 f"Service {service.metadata.name} already available, now patching it with current configuration"
             )
-            core_v1_api.patch_namespaced_service(
+            service = core_v1_api.patch_namespaced_service(
                 name=service.metadata.name,
                 body=service,
                 namespace=namespace,
@@ -89,6 +93,7 @@ def handle_create_service(
             logger.info(f"Service {service.metadata.name} patched")
         else:
             raise e
+    return service
 
 
 def handle_delete_service(logger, name: str, namespace: str) -> None:
@@ -148,3 +153,68 @@ async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1St
         return status
     except k8s.client.exceptions.ApiException:
         pass
+
+
+def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> None:
+    """
+    It creates a service account, a role, and a role binding to allow the service account to port forward
+    :param logger: a logger object
+    :param name: The name of the service account to create
+    :type name: str
+    :param namespace: The namespace to create the service account in
+    :type namespace: str
+    """
+    try:
+        role = rbac_v1_api.create_namespaced_role(
+            namespace=namespace,
+            body=k8s.client.V1Role(
+                metadata=k8s.client.V1ObjectMeta(
+                    name="beiboot-allow-port-forward", namespace=namespace
+                ),
+                rules=[
+                    k8s.client.V1PolicyRule(
+                        api_groups=[""],
+                        resources=["pods/portforward"],
+                        verbs=["get", "list", "create"],
+                    )
+                ],
+            ),
+        )
+        sa = core_v1_api.create_namespaced_service_account(
+            namespace=namespace,
+            body=k8s.client.V1ServiceAccount(
+                metadata=k8s.client.V1ObjectMeta(name=name, namespace=namespace)
+            ),
+        )
+        rbac_v1_api.create_namespaced_role_binding(
+            namespace=namespace,
+            body=k8s.client.V1RoleBinding(
+                metadata=k8s.client.V1ObjectMeta(
+                    name="beiboot-allow-port-forward", namespace=namespace
+                ),
+                subjects=[
+                    k8s.client.V1Subject(kind="ServiceAccount", name=sa.metadata.name)
+                ],
+                role_ref=k8s.client.V1RoleRef(
+                    kind="Role",
+                    name=role.metadata.name,
+                    api_group="rbac.authorization.k8s.io",
+                ),
+            ),
+        )
+        logger.info(f"Created serviceaccount and permissions for beiboot: {name}")
+    except k8s.client.exceptions.ApiException as e:
+        raise e
+
+
+async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
+    try:
+        sa = core_v1_api.read_namespaced_service_account(name=name, namespace=namespace)
+        secrets = sa.secrets
+        token_secret_name = secrets[0].name
+        token_secret = core_v1_api.read_namespaced_secret(
+            name=token_secret_name, namespace=namespace
+        )
+        return token_secret.data
+    except k8s.client.exceptions.ApiException as e:
+        raise kopf.TemporaryError(str(e))

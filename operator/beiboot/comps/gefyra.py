@@ -1,12 +1,11 @@
 import logging
-import random
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import yaml
 
 import kubernetes as k8s
 
-from beiboot.configuration import ClusterConfiguration, BeibootConfiguration
+from beiboot.configuration import ClusterConfiguration
 from beiboot.resources.utils import handle_create_service
 from beiboot.utils import get_external_node_ips
 
@@ -17,67 +16,16 @@ core_api = k8s.client.CoreV1Api()
 GEFYRA_SERVICE_NAME = "gefyra-nodeport"
 
 
-def get_taken_gefyra_ports(
-    api_instance: k8s.client.CustomObjectsApi, config: BeibootConfiguration
-) -> List[Optional[int]]:
-    """
-    It reads all Beiboot objects from the cluster and returns a list of all Gefyra ports that are already taken
-
-    :param api_instance: The Kubernetes API instance
-    :type api_instance: k8s.client.CustomObjectsApi
-    :param config: BeibootConfiguration
-    :type config: BeibootConfiguration
-    :return: A list of ports that are already taken by other Beiboots.
-    """
-    try:
-        beiboots = api_instance.list_namespaced_custom_object(
-            namespace=config.NAMESPACE,
-            group="getdeck.dev",
-            plural="beiboots",
-            version="v1",
-        )
-    except Exception as e:  # noqa
-        logger.error(
-            "Could not read Beiboot objects from the cluster due to the following error: "
-            + str(e)
-        )
-        return []
-    taken_ports = []
-    for beiboot in beiboots["items"]:
-        if gefyra := beiboot.get("gefyra"):
-            port = gefyra.get("port")
-            try:
-                taken_ports.append(int(port))
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"Cannot read Gefyra ports from {beiboot.metadata.name} due to: {e}"
-                )
-        else:
-            continue
-    return taken_ports
-
-
 def gefyra_service(
-    port: int, namespace: str, cluster_config: ClusterConfiguration
+    namespace: str, parameters: ClusterConfiguration
 ) -> k8s.client.V1Service:
-    """
-    It creates a service that exposes the gefyra port on all nodes in the cluster
 
-    :param port: The port number that the service will be exposed on
-    :type port: int
-    :param namespace: The namespace to deploy the service in
-    :type namespace: str
-    :param cluster_config: ClusterConfiguration
-    :type cluster_config: ClusterConfiguration
-    :return: A service object
-    """
     spec = k8s.client.V1ServiceSpec(
         type="NodePort",
-        selector=cluster_config.nodeLabels,
+        selector=parameters.nodeLabels,
         ports=[
             k8s.client.V1ServicePort(
-                name=f"{port}-gefyra",
-                node_port=port,
+                name="gefyra",
                 target_port=31820,
                 port=31820,
                 protocol="UDP",
@@ -95,37 +43,26 @@ def gefyra_service(
 
 async def create_gefyra_components(
     namespace: str,
-    configuration: BeibootConfiguration,
-    cluster_config: ClusterConfiguration,
+    parameters: ClusterConfiguration,
 ) -> Optional[Tuple[int, str]]:
-    gefyra_ports = cluster_config.gefyra.get("ports")
-    lower_bound = int(gefyra_ports.split("-")[0])
-    upper_bound = int(gefyra_ports.split("-")[1])
-    taken_ports = get_taken_gefyra_ports(custom_api, configuration)
-    gefyra_nodeport = random.choice(
-        [
-            port
-            for port in range(lower_bound, upper_bound + 1)
-            if port not in taken_ports
-        ]
-    )
-    logger.info(f"Requesting Gefyra Nodeport: {gefyra_nodeport}")
-    handle_create_service(
+    svc = handle_create_service(
         logger,
-        gefyra_service(gefyra_nodeport, namespace, cluster_config),
+        gefyra_service(namespace, parameters),
         namespace,
     )
-    _ips = get_external_node_ips(core_api)
-    gefyra_endpoint = _ips[0] if _ips else None
+    gefyra_nodeport = svc.spec.ports[0].node_port
+    gefyra_endpoint = parameters.gefyra.get("endpoint")
+    if bool(gefyra_endpoint) is False:
+        _ips = get_external_node_ips(core_api)
+        gefyra_endpoint = _ips[0] if _ips else None
     return gefyra_nodeport, gefyra_endpoint
 
 
 async def handle_gefyra_components(
     kubeconfig: str,
     namespace: str,
-    configuration: BeibootConfiguration,
-    cluster_config: ClusterConfiguration,
-):
+    parameters: ClusterConfiguration,
+) -> Tuple[str, str, str]:
     try:
         gefyra_service = core_api.read_namespaced_service(
             name=GEFYRA_SERVICE_NAME, namespace=namespace
@@ -135,12 +72,14 @@ async def handle_gefyra_components(
             if len(gefyra_service.spec.ports) > 0
             else None
         )
-        _ips = get_external_node_ips(core_api)
-        gefyra_endpoint = _ips[0] if _ips else None
+        gefyra_endpoint = parameters.gefyra.get("endpoint")
+        if bool(gefyra_endpoint) is False:
+            _ips = get_external_node_ips(core_api)
+            gefyra_endpoint = _ips[0] if _ips else None
     except k8s.client.ApiException as e:
         if e.status == 404:
             gefyra_nodeport, gefyra_endpoint = await create_gefyra_components(
-                namespace, configuration, cluster_config
+                namespace, parameters
             )
         else:
             raise e

@@ -1,10 +1,10 @@
 import logging
-from typing import Dict
+from typing import Optional, Tuple
 
 import kopf
 import kubernetes as k8s
 
-from beiboot.configuration import BeibootConfiguration
+from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.resources.utils import handle_create_statefulset, handle_create_service
 from beiboot.utils import get_external_node_ips, get_label_selector, exec_command_pod
 
@@ -16,6 +16,11 @@ GHOSTUNNEL_NAME = "beiboot-tunnel"
 GHOSTUNNEL_LABELS = {"beiboot.dev": "tunnel"}
 GHOSTUNNEL_PROBE_PORT = 61535
 GHOSTUNNEL_DEPOT = "/pki"
+
+
+def _ghostunnel_service_mapping(svc: k8s.client.V1Service) -> Tuple[str, str]:
+    port = svc.spec.ports[0].port
+    return f"0.0.0.0:{port}", f"{svc.metadata.name}:{port}"
 
 
 def ghostunnel_service(port: int, namespace: str) -> k8s.client.V1Service:
@@ -45,7 +50,10 @@ def ghostunnel_service(port: int, namespace: str) -> k8s.client.V1Service:
 
 
 def create_ghostunnel_workload(
-    port_mappings: Dict[str, str], namespace: str, configuration: BeibootConfiguration
+    port_mappings: list[dict[str, str]],
+    namespace: str,
+    configuration: BeibootConfiguration,
+    parameters: ClusterConfiguration,
 ) -> k8s.client.V1StatefulSet:
     certstrap_init = k8s.client.V1Container(
         name="certstrap-init",
@@ -65,6 +73,9 @@ def create_ghostunnel_workload(
         ],
     )
     _ips = get_external_node_ips(core_api)
+    _endpoint = parameters.tunnel.get("endpoint")
+    if _endpoint:
+        _ips.append(_endpoint)
     certstrap_request_server = k8s.client.V1Container(
         name="certstrap-server-request",
         image=configuration.CERTSTRAP_IMAGE,
@@ -124,7 +135,10 @@ def create_ghostunnel_workload(
 
     proxy_containers = []
 
-    for source, target in port_mappings.items():
+    for idx, mapping in enumerate(port_mappings):
+        if idx == 0:
+            continue
+        source, target = mapping
         port = int(source.split(":")[1])
         container = k8s.client.V1Container(
             name=f"ghostunnel-{port}",
@@ -146,11 +160,11 @@ def create_ghostunnel_workload(
                 "--allow-cn",
                 "client",
                 "--status",
-                f"http://0.0.0.0:{GHOSTUNNEL_PROBE_PORT}",
+                f"http://0.0.0.0:{GHOSTUNNEL_PROBE_PORT + idx}",
             ],
             ports=[
                 k8s.client.V1ContainerPort(container_port=port),
-                k8s.client.V1ContainerPort(container_port=GHOSTUNNEL_PROBE_PORT),
+                k8s.client.V1ContainerPort(container_port=GHOSTUNNEL_PROBE_PORT + idx),
             ],
             resources=k8s.client.V1ResourceRequirements(
                 requests={"cpu": "0.1", "memory": "16Mi"},
@@ -158,10 +172,17 @@ def create_ghostunnel_workload(
             ),
             readiness_probe=k8s.client.V1Probe(
                 http_get=k8s.client.V1HTTPGetAction(
-                    port=GHOSTUNNEL_PROBE_PORT, path="/_status"
+                    port=GHOSTUNNEL_PROBE_PORT + idx, path="/_status"
                 ),
-                period_seconds=1,
-                initial_delay_seconds=1,
+                period_seconds=2,
+                initial_delay_seconds=5,
+            ),
+            startup_probe=k8s.client.V1Probe(
+                http_get=k8s.client.V1HTTPGetAction(
+                    port=GHOSTUNNEL_PROBE_PORT + idx, path="/_status"
+                ),
+                period_seconds=2,
+                failure_threshold=10,
             ),
             volume_mounts=[
                 k8s.client.V1VolumeMount(name="pki-data", mount_path=GHOSTUNNEL_DEPOT),
@@ -209,41 +230,52 @@ def create_ghostunnel_workload(
 
 
 async def handle_ghostunnel_components(
-    port_mappings: Dict[str, str],  # source, target
+    expose_services: list[k8s.client.V1Service],
     namespace: str,
     configuration: BeibootConfiguration,
+    parameters: ClusterConfiguration,
 ) -> None:
-    try:
-        app_api.read_namespaced_stateful_set(name=GHOSTUNNEL_NAME, namespace=namespace)
-    except k8s.client.ApiException as e:
-        if e.status == 404:
-            try:
-                logger.info("Creating ghostunnel mTLS")
-                sts = create_ghostunnel_workload(
-                    port_mappings, namespace, configuration
-                )
-                handle_create_statefulset(logger, sts, namespace)
-                nodeport_services = []
-                for source, _ in port_mappings.items():
-                    port = source.split(":")[1]
-                    if int(port) == GHOSTUNNEL_PROBE_PORT:
-                        logger.error(
-                            f"Cannot create port forwarding for port {port} as this one is reserved"
-                        )
-                    else:
-                        nodeport_services.append(
-                            ghostunnel_service(int(port), namespace)
-                        )
-                for nodeport_service in nodeport_services:
-                    logger.info(
-                        f"Requesting tunnel Nodeport: {nodeport_service.metadata.name}"
-                    )
-                    handle_create_service(logger, nodeport_service, namespace)
-            except Exception as e:
-                logger.error(e)
-                raise e
+
+    _mappings = list(map(_ghostunnel_service_mapping, expose_services))
+    logger.info("Creating ghostunnel mTLS")
+    sts = create_ghostunnel_workload(_mappings, namespace, configuration, parameters)
+    handle_create_statefulset(logger, sts, namespace)
+
+    # creating multiple services, must be handled appropriately
+    nodeport_services = []
+    for mapping in _mappings:
+        source, target = mapping
+        port = source.split(":")[1]
+        if int(port) in range(
+            GHOSTUNNEL_PROBE_PORT, GHOSTUNNEL_PROBE_PORT + len(_mappings)
+        ):
+            logger.error(
+                f"Cannot create tunnel service for port {port} as this one is reserved"
+            )
         else:
-            raise e
+            nodeport_services.append(ghostunnel_service(int(port), namespace))
+    for nodeport_service in nodeport_services:
+        logger.info(f"Requesting tunnel Nodeport: {nodeport_service.metadata.name}")
+        handle_create_service(logger, nodeport_service, namespace)
+
+
+async def remove_ghostunnel_components(namespace: str) -> None:
+    try:
+        app_api.delete_namespaced_stateful_set(
+            namespace=namespace, name=GHOSTUNNEL_NAME
+        )
+    except k8s.client.ApiException:
+        pass
+    try:
+        svcs = core_api.list_namespaced_service(
+            namespace=namespace, label_selector=get_label_selector(GHOSTUNNEL_LABELS)
+        )
+        for svc in svcs.items:
+            core_api.delete_namespaced_service(
+                namespace=namespace, name=svc.metadata.name
+            )
+    except k8s.client.ApiException:
+        pass
 
 
 async def ghostunnel_ready(namespace: str) -> bool:
@@ -311,3 +343,28 @@ async def extract_client_tls(namespace: str) -> dict[str, str]:
     except k8s.client.ApiException as e:
         logger.error(e)
         raise kopf.TemporaryError("The beiboot tunnel is not yet ready.", delay=2)
+
+
+async def get_tunnel_nodeports(
+    namespace: str, parameters: ClusterConfiguration
+) -> Optional[list[dict]]:
+    node_mappings = []
+    try:
+        services = core_api.list_namespaced_service(
+            namespace=namespace, label_selector=get_label_selector(GHOSTUNNEL_LABELS)
+        )
+        for service in services.items:
+            tunnel_endpoint = parameters.tunnel.get("endpoint")
+            if bool(tunnel_endpoint) is False:
+                _ips = get_external_node_ips(core_api)
+                tunnel_endpoint = _ips[0] if _ips else None
+            node_mappings.append(
+                {
+                    "endpoint": f"{tunnel_endpoint}:{service.spec.ports[0].node_port}",
+                    "target": service.spec.ports[0].target_port,
+                }
+            )
+    except k8s.client.ApiException as e:
+        logger.error(e)
+        return []
+    return node_mappings

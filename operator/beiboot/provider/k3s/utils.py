@@ -60,6 +60,13 @@ def create_k3s_server_workload(
             period_seconds=1,
             initial_delay_seconds=1,
         ),
+        startup_probe=k8s.client.V1Probe(
+            _exec=k8s.client.V1ExecAction(
+                command=["cat", cluster_config.kubeconfigFromLocation],
+            ),
+            period_seconds=1,
+            failure_threshold=15,
+        ),
     )
 
     template = k8s.client.V1PodTemplateSpec(

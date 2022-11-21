@@ -48,7 +48,12 @@ class ClusterConfiguration:
     gefyra: dict = field(
         default_factory=lambda: {
             "enabled": True,
-            "ports": "31820-31920",
+            "endpoint": None,
+        }
+    )
+    tunnel: dict = field(
+        default_factory=lambda: {
+            "enabled": True,
             "endpoint": None,
         }
     )
@@ -114,7 +119,7 @@ class BeibootConfiguration:
     def __init__(self):
         self.NAMESPACE = config("BEIBOOT_NAMESPACE", default="getdeck")
         self.CONFIGMAP_NAME = config("BEIBOOT_CONFIGMAP", default="beiboot-config")
-        self.GHOSTUNNEL_IMAGE = "ghostunnel/ghostunnel"
+        self.GHOSTUNNEL_IMAGE = "ghostunnel/ghostunnel:v1.7.0"
         self.CERTSTRAP_IMAGE = "squareup/certstrap"
         self._cluster_config = None
 

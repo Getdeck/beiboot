@@ -8,11 +8,7 @@ from typing import Optional
 import kubernetes as k8s
 import kopf
 
-from beiboot.comps.ghostunnel import (
-    handle_ghostunnel_components,
-    ghostunnel_ready,
-    extract_client_tls,
-)
+import beiboot.comps.ghostunnel as ghostunnel
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
@@ -21,6 +17,8 @@ from beiboot.resources.utils import (
     handle_create_namespace,
     handle_create_service,
     handle_delete_namespace,
+    handle_create_beiboot_serviceaccount,
+    get_serviceaccount_data,
 )
 from beiboot.utils import StateMachine, AsyncState
 
@@ -199,25 +197,29 @@ class BeibootCluster(StateMachine):
             raise kopf.TemporaryError(delay=5)
 
         # add additional services
-        services = []
+        requested_services = []
         additional_services = ports_to_services(
             self.provider.get_ports(), self.namespace, self.parameters
         )
         if additional_services:
-            services.extend(additional_services)
+            requested_services.extend(additional_services)
 
         # create the services
-        for svc in services:
+        services = []
+        for svc in requested_services:
             self.logger.debug("Creating: " + str(svc))
-            handle_create_service(self.logger, svc, self.namespace)
+            services.append(handle_create_service(self.logger, svc, self.namespace))
 
-        # also create the tunnel service
-        # ports = self.provider.get_ports()
+        # create a service account for this beiboot cluster
+        handle_create_beiboot_serviceaccount(self.logger, self.name, self.namespace)
+
+        # also create the tunnel exports for services
         try:
-            await handle_ghostunnel_components(
-                port_mappings={"0.0.0.0:6443": "kubeapi:6443"},
+            await ghostunnel.handle_ghostunnel_components(
+                expose_services=services,
                 namespace=self.namespace,
                 configuration=self.configuration,
+                parameters=self.parameters,
             )
         except Exception as e:
             self.logger.error(str(e))
@@ -233,14 +235,25 @@ class BeibootCluster(StateMachine):
         If the cluster is running, post the event and return. If the cluster is pending, check if it's been pending for
         longer than the timeout. If it has, raise a permanent error. If it hasn't, raise a temporary error
         """
-        if await self.provider.running() and await ghostunnel_ready(self.namespace):
-            tls_data = await extract_client_tls(self.namespace)
+        if await self.provider.running() and await ghostunnel.ghostunnel_ready(
+            self.namespace
+        ):
+            tunnel = {}
+            # ghostunnel
+            tls_data = await ghostunnel.extract_client_tls(self.namespace)
+            nodeports = await ghostunnel.get_tunnel_nodeports(
+                self.namespace, self.parameters
+            )
             # base64 encode tls data
             tls_data = dict(
                 (k, base64.b64encode(v.encode("utf-8")).decode())
                 for k, v in tls_data.items()
             )
-            self._patch_object({"tunnel": tls_data})
+            tunnel["ghostunnel"] = {"ports": nodeports, "mtls": tls_data}
+            # service account tokens
+            sa_token = await get_serviceaccount_data(self.name, self.namespace)
+            tunnel["serviceaccount"] = sa_token
+            self._patch_object({"tunnel": tunnel})
             self.post_event(
                 self.running.value, f"The cluster '{self.name}' is now running"
             )
@@ -292,8 +305,7 @@ class BeibootCluster(StateMachine):
                 ) = await handle_gefyra_components(
                     kubeconfig=raw_kubeconfig,
                     namespace=self.namespace,
-                    configuration=self.configuration,
-                    cluster_config=self.parameters,
+                    parameters=self.parameters,
                 )
                 body_patch = {
                     "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
@@ -352,11 +364,12 @@ class BeibootCluster(StateMachine):
         """
         try:
             await self.provider.delete()
+            await ghostunnel.remove_ghostunnel_components(self.namespace)
         except k8s.client.ApiException:
             pass
         try:
             status = await handle_delete_namespace(self.logger, self.namespace)
-            if status.status == "Terminating":
+            if status is not None and status.status == "Terminating":
                 raise kopf.TemporaryError(
                     f"Namespace {self.namespace} still terminating"
                 )

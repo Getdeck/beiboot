@@ -264,6 +264,15 @@ class K3s(AbstractClusterProvider):
         """
         raise NotImplementedError
 
+    def get_ports(self) -> List[str]:
+        """
+        Return the published ports
+        """
+        ports = self.ports
+        # add the kubernetes api port for k3s here
+        ports.append("6443:6443")
+        return ports
+
 
 class K3sBuilder:
     def __init__(self):
