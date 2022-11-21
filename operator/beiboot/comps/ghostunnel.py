@@ -5,7 +5,7 @@ import kopf
 import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
-from beiboot.resources.utils import handle_create_statefulset, handle_create_service
+from beiboot.resources.utils import handle_create_service, handle_create_deployment
 from beiboot.utils import get_external_node_ips, get_label_selector, exec_command_pod
 
 logger = logging.getLogger("beiboot.ghostunnel")
@@ -50,11 +50,11 @@ def ghostunnel_service(port: int, namespace: str) -> k8s.client.V1Service:
 
 
 def create_ghostunnel_workload(
-    port_mappings: list[dict[str, str]],
+    port_mappings: list[Tuple[str, str]],
     namespace: str,
     configuration: BeibootConfiguration,
     parameters: ClusterConfiguration,
-) -> k8s.client.V1StatefulSet:
+) -> k8s.client.V1Deployment:
     certstrap_init = k8s.client.V1Container(
         name="certstrap-init",
         image=configuration.CERTSTRAP_IMAGE,
@@ -136,8 +136,6 @@ def create_ghostunnel_workload(
     proxy_containers = []
 
     for idx, mapping in enumerate(port_mappings):
-        if idx == 0:
-            continue
         source, target = mapping
         port = int(source.split(":")[1])
         container = k8s.client.V1Container(
@@ -160,7 +158,7 @@ def create_ghostunnel_workload(
                 "--allow-cn",
                 "client",
                 "--status",
-                f"http://0.0.0.0:{GHOSTUNNEL_PROBE_PORT + idx}",
+                f"http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}",
             ],
             ports=[
                 k8s.client.V1ContainerPort(container_port=port),
@@ -171,15 +169,15 @@ def create_ghostunnel_workload(
                 limits={"memory": "32Mi"},
             ),
             readiness_probe=k8s.client.V1Probe(
-                http_get=k8s.client.V1HTTPGetAction(
-                    port=GHOSTUNNEL_PROBE_PORT + idx, path="/_status"
+                _exec=k8s.client.V1ExecAction(
+                    command=["sh", "-c", f"curl http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}/_status 2>/dev/null | grep listening"]
                 ),
                 period_seconds=2,
                 initial_delay_seconds=5,
             ),
             startup_probe=k8s.client.V1Probe(
-                http_get=k8s.client.V1HTTPGetAction(
-                    port=GHOSTUNNEL_PROBE_PORT + idx, path="/_status"
+                _exec=k8s.client.V1ExecAction(
+                    command=["sh", "-c", f"curl http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}/_status 2>/dev/null | grep listening"]
                 ),
                 period_seconds=2,
                 failure_threshold=10,
@@ -201,25 +199,21 @@ def create_ghostunnel_workload(
                 certstrap_sign_client,
             ],
             containers=proxy_containers,
+            volumes=[
+                k8s.client.V1Volume(
+                    name="pki-data", empty_dir=k8s.client.V1EmptyDirVolumeSource()
+                )
+            ],
         ),
     )
 
-    volume = k8s.client.V1PersistentVolumeClaimTemplate(
-        metadata=k8s.client.V1ObjectMeta(name="pki-data"),
-        spec=k8s.client.V1PersistentVolumeClaimSpec(
-            access_modes=["ReadWriteOnce"],
-            resources=k8s.client.V1ResourceRequirements(requests={"storage": "1M"}),
-        ),
-    )
-    spec = k8s.client.V1StatefulSetSpec(
+    spec = k8s.client.V1DeploymentSpec(
         replicas=1,
         template=template,
         selector={"matchLabels": GHOSTUNNEL_LABELS},
-        volume_claim_templates=[volume],
-        service_name=GHOSTUNNEL_NAME,
     )
 
-    workload = k8s.client.V1StatefulSet(
+    workload = k8s.client.V1Deployment(
         api_version="apps/v1",
         metadata=k8s.client.V1ObjectMeta(
             name=GHOSTUNNEL_NAME, namespace=namespace, labels=GHOSTUNNEL_LABELS
@@ -238,8 +232,8 @@ async def handle_ghostunnel_components(
 
     _mappings = list(map(_ghostunnel_service_mapping, expose_services))
     logger.info("Creating ghostunnel mTLS")
-    sts = create_ghostunnel_workload(_mappings, namespace, configuration, parameters)
-    handle_create_statefulset(logger, sts, namespace)
+    deploy = create_ghostunnel_workload(_mappings, namespace, configuration, parameters)
+    handle_create_deployment(logger, deploy, namespace)
 
     # creating multiple services, must be handled appropriately
     nodeport_services = []
@@ -281,18 +275,18 @@ async def remove_ghostunnel_components(namespace: str) -> None:
 async def ghostunnel_ready(namespace: str) -> bool:
     labels = get_label_selector(GHOSTUNNEL_LABELS)
     try:
-        stss = app_api.list_namespaced_stateful_set(
+        deploys = app_api.list_namespaced_deployment(
             namespace,
             label_selector=labels,
         )
-        if len(stss.items) == 0:
+        if len(deploys.items) == 0:
             return False
-        for sts in stss.items:
+        for deploy in deploys.items:
             if (
-                sts.status.updated_replicas == sts.spec.replicas
-                and sts.status.replicas == sts.spec.replicas  # noqa
-                and sts.status.available_replicas == sts.spec.replicas  # noqa
-                and sts.status.observed_generation >= sts.metadata.generation  # noqa
+                deploy.status.updated_replicas == deploy.spec.replicas
+                and deploy.status.replicas == deploy.spec.replicas  # noqa
+                and deploy.status.available_replicas == deploy.spec.replicas  # noqa
+                and deploy.status.observed_generation >= deploy.metadata.generation  # noqa
             ):
                 continue
             else:

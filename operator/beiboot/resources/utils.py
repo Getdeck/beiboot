@@ -41,6 +41,29 @@ def handle_create_statefulset(
         pass
 
 
+def handle_create_deployment(
+    logger, deployment: k8s.client.V1Deployment, namespace: str
+) -> None:
+    try:
+        app_v1_api.create_namespaced_deployment(body=deployment, namespace=namespace)
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logger.warn(
+                f"Deployment {deployment.metadata.name} already available, now patching it with current configuration"
+            )
+            app_v1_api.patch_namespaced_deployment(
+                name=deployment.metadata.name,
+                body=deployment,
+                namespace=namespace,
+            )
+            logger.info(f"Deployment {deployment.metadata.name} patched")
+        else:
+            raise e
+    except ValueError as e:
+        logger.info(str(e))
+        pass
+
+
 def handle_delete_statefulset(logger, name: str, namespace: str) -> None:
     """
     It deletes a statefulset

@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta
 from json import JSONDecodeError
@@ -238,26 +239,10 @@ class BeibootCluster(StateMachine):
         if await self.provider.running() and await ghostunnel.ghostunnel_ready(
             self.namespace
         ):
-            tunnel = {}
-            # ghostunnel
-            tls_data = await ghostunnel.extract_client_tls(self.namespace)
-            nodeports = await ghostunnel.get_tunnel_nodeports(
-                self.namespace, self.parameters
-            )
-            # base64 encode tls data
-            tls_data = dict(
-                (k, base64.b64encode(v.encode("utf-8")).decode())
-                for k, v in tls_data.items()
-            )
-            tunnel["ghostunnel"] = {"ports": nodeports, "mtls": tls_data}
-            # service account tokens
-            sa_token = await get_serviceaccount_data(self.name, self.namespace)
-            tunnel["serviceaccount"] = sa_token
-            self._patch_object({"tunnel": tunnel})
-            self.post_event(
-                self.running.value, f"The cluster '{self.name}' is now running"
-            )
+            await self._write_tunnel_data()
         else:
+            self.logger.info(f"Beiboot provider running: {await self.provider.running()} | "
+                         f"ghostunnel running {await ghostunnel.ghostunnel_ready(self.namespace)}")
             # check how long this cluster is pending
             if pending_timestamp := self.completed_transition(
                 BeibootCluster.pending.value
@@ -331,7 +316,7 @@ class BeibootCluster(StateMachine):
                 self.post_event(
                     self.ready.value, f"The cluster '{self.name}' is now ready"
                 )
-            return
+            await self._write_tunnel_data()
         else:
             # check how long this cluster is not ready
             timestamp_since = self.get_latest_transition()
@@ -416,6 +401,24 @@ class BeibootCluster(StateMachine):
         self.events_api.create_namespaced_event(
             namespace=self.configuration.NAMESPACE, body=event
         )
+
+    async def _write_tunnel_data(self):
+        tunnel = {}
+        # ghostunnel
+        tls_data = await ghostunnel.extract_client_tls(self.namespace)
+        nodeports = await ghostunnel.get_tunnel_nodeports(
+            self.namespace, self.parameters
+        )
+        # base64 encode tls data
+        tls_data = dict(
+            (k, base64.b64encode(v.encode("utf-8")).decode())
+            for k, v in tls_data.items()
+        )
+        tunnel["ghostunnel"] = {"ports": nodeports, "mtls": tls_data}
+        # service account tokens
+        sa_token = await get_serviceaccount_data(self.name, self.namespace)
+        tunnel["serviceaccount"] = sa_token
+        self._patch_object({"tunnel": tunnel})
 
     def _write_state(self):
         self.custom_api.patch_namespaced_custom_object(

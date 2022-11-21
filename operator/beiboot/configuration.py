@@ -120,7 +120,7 @@ class BeibootConfiguration:
         self.NAMESPACE = config("BEIBOOT_NAMESPACE", default="getdeck")
         self.CONFIGMAP_NAME = config("BEIBOOT_CONFIGMAP", default="beiboot-config")
         self.GHOSTUNNEL_IMAGE = "ghostunnel/ghostunnel:v1.7.0"
-        self.CERTSTRAP_IMAGE = "squareup/certstrap"
+        self.CERTSTRAP_IMAGE = "squareup/certstrap:1.3.0"
         self._cluster_config = None
 
     def to_dict(self):
