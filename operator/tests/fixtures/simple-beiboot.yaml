@@ -1,0 +1,11 @@
+apiVersion: getdeck.dev/v1
+kind: beiboot
+metadata:
+  name: test-beiboot
+  namespace: getdeck
+provider: k3s
+parameters:
+    ports:
+      - 8080:80
+    nodes: 1
+

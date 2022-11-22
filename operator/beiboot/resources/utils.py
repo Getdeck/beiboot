@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import kopf
@@ -231,13 +232,28 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
 
 
 async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
+    token_secret_name = f"{name}-token"
     try:
-        sa = core_v1_api.read_namespaced_service_account(name=name, namespace=namespace)
-        secrets = sa.secrets
-        token_secret_name = secrets[0].name
         token_secret = core_v1_api.read_namespaced_secret(
             name=token_secret_name, namespace=namespace
         )
         return token_secret.data
     except k8s.client.exceptions.ApiException as e:
-        raise kopf.TemporaryError(str(e))
+        if e.status == 404:
+            try:
+                token_secret = core_v1_api.create_namespaced_secret(
+                    namespace=namespace,
+                    body=k8s.client.V1Secret(
+                        metadata=k8s.client.V1ObjectMeta(
+                            name=token_secret_name,
+                            namespace=namespace,
+                            annotations={"kubernetes.io/service-account.name": name},
+                        ),
+                        type="kubernetes.io/service-account-token",
+                    ),
+                )
+                return token_secret.data
+            except k8s.client.exceptions.ApiException as e:
+                raise kopf.PermanentError(str(e))
+        else:
+            raise kopf.PermanentError(str(e))

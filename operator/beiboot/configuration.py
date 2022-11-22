@@ -6,6 +6,7 @@ from decouple import config
 import json
 import kubernetes as k8s
 
+__VERSION__ = "0.12.0"
 
 logger = logging.getLogger("beiboot")
 
@@ -66,10 +67,23 @@ class ClusterConfiguration:
     k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")
     k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
 
+    @staticmethod
+    def _update_dict(source, merger):
+        for key, value in merger.items():
+            if hasattr(source, key):
+                if value in ["false", "False", "0", "null", "None"]:
+                    setattr(source, key, False)
+                elif value in ["true", "True", "1"]:
+                    setattr(source, key, True)
+                elif type(value) is dict:
+                    setattr(source, key, ClusterConfiguration._update_dict(source[key], value))
+                else:
+                    setattr(source, key, value)
+            else:
+                setattr(source, key, value)
+
     def update(self, new):
-        for key, value in new.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
+        ClusterConfiguration._update_dict(self, new)
 
     def encode_cluster_configuration(self) -> dict:
         _s = {}

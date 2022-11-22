@@ -1,0 +1,15 @@
+apiVersion: getdeck.dev/v1
+kind: beiboot
+metadata:
+  name: test-beiboot-configured
+  namespace: getdeck
+provider: k3s
+parameters:
+    ports:
+      - 8080:80
+      - 8443:443
+    nodes: 2
+    maxLifetime: 10s
+gefyra:
+  enabled: false
+

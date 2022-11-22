@@ -1,0 +1,57 @@
+import json
+from time import sleep
+from typing import Callable
+
+import pytest
+
+
+class TestOperatorBase:
+    beiboot_name = ""
+
+    @staticmethod
+    def _ensure_namespace(kubectl):
+        output = kubectl(["get", "ns"])
+        if "getdeck" in output:
+            return
+        else:
+            kubectl(["create", "ns", "getdeck"])
+
+    def _get_beiboot_data(self, kubectl: Callable) -> dict:
+        output = kubectl(["-n", "getdeck", "get", "bbt", self.beiboot_name, "-o", "json"])
+        try:
+            data = json.loads(output)
+        except json.decoder.JSONDecodeError:
+            raise RuntimeError("This Beiboot object does not exist or is not readable")
+        return data
+
+    def _apply_fixure_file(self, path: str, kubectl: Callable, timeout: int):
+        _i = 0
+        while _i < timeout:
+            output = kubectl(
+                [
+                    "-n",
+                    "getdeck",
+                    "apply",
+                    "-f",
+                    path,
+                ]
+            )
+            if f"beiboot.getdeck.dev/{self.beiboot_name} created" in output:
+                break
+            else:
+                _i = _i + 1
+                sleep(1)
+        else:
+            raise pytest.fail("The Beiboot object could not be created")
+
+    def _wait_for_state(self, state: str, kubectl: Callable, timeout: int):
+        _i = 0
+        while _i < timeout:
+            data = self._get_beiboot_data(kubectl)
+            if data.get("state") == state:
+                break
+            else:
+                _i = _i + 1
+                sleep(1)
+        else:
+            raise pytest.fail(f"The Beiboot never entered {state} state")

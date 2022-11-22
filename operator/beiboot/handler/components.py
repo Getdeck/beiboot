@@ -22,7 +22,7 @@ def handle_crds(logger) -> k8s.client.V1CustomResourceDefinition:
         logger.info("Beiboot CRD created")
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
-            logger.warn("Beiboot CRD already available")
+            logger.warning("Beiboot CRD already available")
         else:
             raise e
     return bbt_def
