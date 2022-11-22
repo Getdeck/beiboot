@@ -70,7 +70,7 @@ async def handle_cluster_workload_events(event, namespace, logger, **kwargs):
     if beiboot is None:
         logger.warn(f"The Beiboot object for namespace '{namespace}' does not exist")
         return
-    parameters = configuration.refresh_k8s_config()
+    parameters = configuration.refresh_k8s_config(beiboot.get("parameters"))
     cluster = BeibootCluster(configuration, parameters, model=beiboot, logger=logger)
     # drop events that have been prior to last state change of cluster
     if creationTimestamp := event["object"]["metadata"].get("creationTimestamp"):

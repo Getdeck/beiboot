@@ -16,7 +16,7 @@ async def beiboot_created(body, logger, **kwargs):
     :param body: The body of the Kubernetes resource that triggered the event
     :param logger: the logger object
     """
-    parameters = configuration.refresh_k8s_config()
+    parameters = configuration.refresh_k8s_config(body.get("parameters"))
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
     if cluster.is_requested or cluster.is_creating:

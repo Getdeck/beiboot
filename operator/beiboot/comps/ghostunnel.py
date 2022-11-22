@@ -138,6 +138,7 @@ def create_ghostunnel_workload(
     for idx, mapping in enumerate(port_mappings):
         source, target = mapping
         port = int(source.split(":")[1])
+        probe_port = GHOSTUNNEL_PROBE_PORT + idx
         container = k8s.client.V1Container(
             name=f"ghostunnel-{port}",
             image=configuration.GHOSTUNNEL_IMAGE,
@@ -158,11 +159,11 @@ def create_ghostunnel_workload(
                 "--allow-cn",
                 "client",
                 "--status",
-                f"http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}",
+                f"http://localhost:{probe_port}",
             ],
             ports=[
                 k8s.client.V1ContainerPort(container_port=port),
-                k8s.client.V1ContainerPort(container_port=GHOSTUNNEL_PROBE_PORT + idx),
+                k8s.client.V1ContainerPort(container_port=probe_port),
             ],
             resources=k8s.client.V1ResourceRequirements(
                 requests={"cpu": "0.1", "memory": "16Mi"},
@@ -170,14 +171,22 @@ def create_ghostunnel_workload(
             ),
             readiness_probe=k8s.client.V1Probe(
                 _exec=k8s.client.V1ExecAction(
-                    command=["sh", "-c", f"curl http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}/_status 2>/dev/null | grep listening"]
+                    command=[
+                        "sh",
+                        "-c",
+                        f"curl http://localhost:{probe_port}/_status 2>/dev/null | grep listening",
+                    ]
                 ),
                 period_seconds=2,
                 initial_delay_seconds=5,
             ),
             startup_probe=k8s.client.V1Probe(
                 _exec=k8s.client.V1ExecAction(
-                    command=["sh", "-c", f"curl http://localhost:{GHOSTUNNEL_PROBE_PORT + idx}/_status 2>/dev/null | grep listening"]
+                    command=[
+                        "sh",
+                        "-c",
+                        f"curl http://localhost:{probe_port}/_status 2>/dev/null | grep listening",
+                    ]
                 ),
                 period_seconds=2,
                 failure_threshold=10,
@@ -286,7 +295,8 @@ async def ghostunnel_ready(namespace: str) -> bool:
                 deploy.status.updated_replicas == deploy.spec.replicas
                 and deploy.status.replicas == deploy.spec.replicas  # noqa
                 and deploy.status.available_replicas == deploy.spec.replicas  # noqa
-                and deploy.status.observed_generation >= deploy.metadata.generation  # noqa
+                and deploy.status.observed_generation
+                >= deploy.metadata.generation  # noqa
             ):
                 continue
             else:

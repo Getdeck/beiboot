@@ -1,6 +1,5 @@
 import base64
 import json
-import logging
 import uuid
 from datetime import datetime, timedelta
 from json import JSONDecodeError
@@ -98,7 +97,7 @@ class BeibootCluster(StateMachine):
             self.parameters,
             self.name,
             self.namespace,
-            self.model.get("ports"),
+            self.parameters.ports,
             self.logger,
         )
         if provider is None:
@@ -241,8 +240,10 @@ class BeibootCluster(StateMachine):
         ):
             await self._write_tunnel_data()
         else:
-            self.logger.info(f"Beiboot provider running: {await self.provider.running()} | "
-                         f"ghostunnel running {await ghostunnel.ghostunnel_ready(self.namespace)}")
+            self.logger.info(
+                f"Beiboot provider running: {await self.provider.running()} | "
+                f"ghostunnel running {await ghostunnel.ghostunnel_ready(self.namespace)}"
+            )
             # check how long this cluster is pending
             if pending_timestamp := self.completed_transition(
                 BeibootCluster.pending.value

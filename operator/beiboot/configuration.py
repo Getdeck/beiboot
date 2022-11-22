@@ -57,10 +57,19 @@ class ClusterConfiguration:
             "endpoint": None,
         }
     )
+    ports: list[str] = field(default_factory=lambda: None)
+    maxLifetime: str = field(default_factory=lambda: None)
+    maxSessionTimeout: str = field(default_factory=lambda: None)
+
     # k3s settings
     k3sImage: str = field(default_factory=lambda: "rancher/k3s")
     k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")
     k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
+
+    def update(self, new):
+        for key, value in new.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
 
     def encode_cluster_configuration(self) -> dict:
         _s = {}
@@ -74,7 +83,9 @@ class ClusterConfiguration:
         return _s
 
     @classmethod
-    def decode_cluster_configuration(cls, configmap: k8s.client.V1ConfigMap):
+    def decode_cluster_configuration(
+        cls, configmap: k8s.client.V1ConfigMap
+    ) -> "ClusterConfiguration":
         _s = cls()
         field_names = [field.name for field in fields(_s)]
         for k, v in configmap.data.items():
@@ -89,7 +100,7 @@ class ClusterConfiguration:
 
 
 class BeibootConfiguration:
-    def refresh_k8s_config(self) -> ClusterConfiguration:
+    def refresh_k8s_config(self, overrides: dict = None) -> ClusterConfiguration:
         from beiboot.resources.configmaps import create_beiboot_configmap
 
         core_v1_api = k8s.client.CoreV1Api()
@@ -114,7 +125,11 @@ class BeibootConfiguration:
                     logger.error(f"Cannot create configmap for Beiboot: {e.reason}")
             else:
                 raise e
-        return ClusterConfiguration.decode_cluster_configuration(configmap)
+        _original = ClusterConfiguration.decode_cluster_configuration(configmap)
+        if overrides:
+            # update the configs coming from the overrides
+            _original.update(overrides)
+        return _original
 
     def __init__(self):
         self.NAMESPACE = config("BEIBOOT_NAMESPACE", default="getdeck")
