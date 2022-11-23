@@ -89,7 +89,7 @@ def test_merged_configuration():
             "ports": ["8080:80", "8443:443"],
         }
     )
-    assert config.maxLifetime is "2h"
+    assert config.maxLifetime == "2h"
     assert config.clusterReadyTimeout == 80
     assert config.ports == ["8080:80", "8443:443"]
     assert config.nodes == 3
@@ -154,7 +154,7 @@ def test_decode_configuration():
     }
     configmap = kubernetes.client.V1ConfigMap(data=serialized)
     config = ClusterConfiguration().decode_cluster_configuration(configmap)
-    assert config.maxLifetime is "2h"
+    assert config.maxLifetime == "2h"
     assert config.clusterReadyTimeout == 80
     assert config.ports == ["8080:80", "8443:443"]
     assert config.nodes == 3

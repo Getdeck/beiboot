@@ -98,22 +98,24 @@ class TestResources:
     @pytest.mark.asyncio
     async def test_delete_namespace(self, kubeconfig):
         from beiboot.resources.utils import handle_delete_namespace
+
         await handle_delete_namespace(logging.getLogger(), "my-namespace")
         await handle_delete_namespace(logging.getLogger(), "my-namespace")
 
     @pytest.mark.asyncio
     async def test_service_account(self, kubeconfig):
-        from beiboot.resources.utils import handle_create_beiboot_serviceaccount, get_serviceaccount_data
+        from beiboot.resources.utils import (
+            handle_create_beiboot_serviceaccount,
+            get_serviceaccount_data,
+        )
 
         handle_create_beiboot_serviceaccount(logging.getLogger(), "beiboot", "default")
         with pytest.raises(kubernetes.client.exceptions.ApiException):
-            handle_create_beiboot_serviceaccount(logging.getLogger(), "beiboot", "default")
+            handle_create_beiboot_serviceaccount(
+                logging.getLogger(), "beiboot", "default"
+            )
         with pytest.raises(kopf.TemporaryError):
             await get_serviceaccount_data("beiboot", "default")
         sleep(2)
         sa = await get_serviceaccount_data("beiboot", "default")
         assert type(sa) == dict
-
-
-
-

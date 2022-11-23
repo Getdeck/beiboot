@@ -1,5 +1,3 @@
-import json
-import logging
 from time import sleep
 
 import pytest
@@ -28,7 +26,10 @@ class TestOperator(TestOperatorBase):
             kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
             sleep(2)
             namespaces = kubectl(["get", "ns"])
-            assert beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
+            assert (
+                beiboot["beibootNamespace"] not in namespaces
+                or "Terminating" in namespaces
+            )
             with pytest.raises(RuntimeError):
                 _ = self._get_beiboot_data(kubectl)
 

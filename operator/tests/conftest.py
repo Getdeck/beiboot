@@ -20,7 +20,7 @@ def kubeconfig(request):
     if k8s_version is None:
         k8s_version = "v1.24.3"
 
-    logging.getLogger().info(f"Setting up Minikube")
+    logging.getLogger().info("Setting up Minikube")
     ps = subprocess.run(
         f"minikube start -p {CLUSTER_NAME} --driver=docker --kubernetes-version={k8s_version}",
         shell=True,
@@ -43,7 +43,7 @@ def kubeconfig(request):
             stdout=subprocess.DEVNULL,
         )
         subprocess.run(
-            f"minikube profile default",
+            "minikube profile default",
             shell=True,
             check=True,
             stdout=subprocess.DEVNULL,
@@ -51,6 +51,7 @@ def kubeconfig(request):
 
     request.addfinalizer(teardown)
     import kubernetes as k8s
+
     k8s.config.load_kube_config()
     return None
 
@@ -58,7 +59,7 @@ def kubeconfig(request):
 @pytest.fixture(scope="session")
 def kubectl(request):
     def _fn(arguments: list[str]):
-        _cmd = f"minikube kubectl -- " + " ".join(arguments)
+        _cmd = "minikube kubectl -- " + " ".join(arguments)
         logging.getLogger().debug(f"Running: {_cmd}")
         ps = subprocess.run(_cmd, shell=True, stdout=subprocess.PIPE)
         return ps.stdout.decode()

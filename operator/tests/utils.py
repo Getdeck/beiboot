@@ -4,13 +4,7 @@ import kubernetes as k8s
 def demo_service():
     return k8s.client.V1Service(
         metadata=k8s.client.V1ObjectMeta(name="web"),
-        spec=k8s.client.V1ServiceSpec(
-            ports=[
-                k8s.client.V1ServicePort(
-                    port=80
-                )
-            ]
-        )
+        spec=k8s.client.V1ServiceSpec(ports=[k8s.client.V1ServicePort(port=80)]),
     )
 
 
@@ -23,9 +17,7 @@ def demo_statefulset():
         spec=k8s.client.V1StatefulSetSpec(
             replicas=1,
             template=k8s.client.V1PodTemplateSpec(
-                metadata=k8s.client.V1ObjectMeta(
-                    labels={"app": "nginx"}
-                ),
+                metadata=k8s.client.V1ObjectMeta(labels={"app": "nginx"}),
                 spec=k8s.client.V1PodSpec(
                     containers=[
                         k8s.client.V1Container(
@@ -71,9 +63,7 @@ def demo_deployment():
         spec=k8s.client.V1DeploymentSpec(
             replicas=1,
             template=k8s.client.V1PodTemplateSpec(
-                metadata=k8s.client.V1ObjectMeta(
-                    labels={"app": "nginx"}
-                ),
+                metadata=k8s.client.V1ObjectMeta(labels={"app": "nginx"}),
                 spec=k8s.client.V1PodSpec(
                     containers=[
                         k8s.client.V1Container(
