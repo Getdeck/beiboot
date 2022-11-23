@@ -24,17 +24,34 @@ def kubeconfig(request):
     ps = subprocess.run(
         f"minikube start -p {CLUSTER_NAME} --driver=docker --kubernetes-version={k8s_version}",
         shell=True,
-        stdout=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
     )
     assert ps.returncode == 0
-    subprocess.run(f"minikube profile {CLUSTER_NAME}", shell=True, check=True)
+    subprocess.run(
+        f"minikube profile {CLUSTER_NAME}",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
 
     def teardown():
         logging.getLogger().info("Removing Minikube")
-        subprocess.run(f"minikube delete -p {CLUSTER_NAME}", shell=True, check=True)
-        subprocess.run(f"minikube profile default", shell=True, check=True)
+        subprocess.run(
+            f"minikube delete -p {CLUSTER_NAME}",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            f"minikube profile default",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
 
     request.addfinalizer(teardown)
+    import kubernetes as k8s
+    k8s.config.load_kube_config()
     return None
 
 
@@ -45,6 +62,7 @@ def kubectl(request):
         logging.getLogger().debug(f"Running: {_cmd}")
         ps = subprocess.run(_cmd, shell=True, stdout=subprocess.PIPE)
         return ps.stdout.decode()
+
     return _fn
 
 

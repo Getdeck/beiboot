@@ -280,7 +280,10 @@ class BeibootCluster(StateMachine):
         }
 
         # handle Gefyra integration
-        if hasattr(self.parameters, "gefyra") and self.parameters.gefyra.get("enabled"):
+        if (
+            hasattr(self.parameters, "gefyra")
+            and self.parameters.gefyra.get("enabled") is True
+        ):
             from beiboot.comps.gefyra import handle_gefyra_components
 
             try:
@@ -294,7 +297,9 @@ class BeibootCluster(StateMachine):
                     parameters=self.parameters,
                 )
                 body_patch = {
-                    "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint},
+                    "parameters": {
+                        "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint}
+                    },
                     "kubeconfig": {
                         "source": base64.b64encode(
                             raw_kubeconfig.encode("utf-8")

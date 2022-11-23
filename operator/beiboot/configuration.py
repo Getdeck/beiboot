@@ -68,19 +68,38 @@ class ClusterConfiguration:
     k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
 
     @staticmethod
+    def _merge(source, destination):
+        for key, value in source.items():
+            if isinstance(value, dict):
+                # get node or create one
+                node = destination.setdefault(key, {})
+                ClusterConfiguration._merge(value, node)
+            else:
+                if value in ["false", "False", "0", "null", "None", False]:
+                    destination[key] = False
+                elif value in ["true", "True", "1", True]:
+                    destination[key] = True
+                else:
+                    destination[key] = str(value)
+        return destination
+
+    @staticmethod
     def _update_dict(source, merger):
         for key, value in merger.items():
             if hasattr(source, key):
-                if value in ["false", "False", "0", "null", "None"]:
+                if value in ["false", "False", "0", "null", "None", False]:
                     setattr(source, key, False)
-                elif value in ["true", "True", "1"]:
+                elif value in ["true", "True", "1", True]:
                     setattr(source, key, True)
                 elif type(value) is dict:
-                    setattr(source, key, ClusterConfiguration._update_dict(source[key], value))
+                    setattr(
+                        source,
+                        key,
+                        ClusterConfiguration._merge(value, getattr(source, key)),
+                    )
                 else:
-                    setattr(source, key, value)
-            else:
-                setattr(source, key, value)
+                    _type = ClusterConfiguration.__annotations__[key]
+                    setattr(source, key, _type(value))
 
     def update(self, new):
         ClusterConfiguration._update_dict(self, new)

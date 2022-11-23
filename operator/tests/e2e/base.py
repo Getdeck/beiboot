@@ -17,7 +17,9 @@ class TestOperatorBase:
             kubectl(["create", "ns", "getdeck"])
 
     def _get_beiboot_data(self, kubectl: Callable) -> dict:
-        output = kubectl(["-n", "getdeck", "get", "bbt", self.beiboot_name, "-o", "json"])
+        output = kubectl(
+            ["-n", "getdeck", "get", "bbt", self.beiboot_name, "-o", "json"]
+        )
         try:
             data = json.loads(output)
         except json.decoder.JSONDecodeError:

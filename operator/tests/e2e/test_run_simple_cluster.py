@@ -12,7 +12,7 @@ class TestOperator(TestOperatorBase):
     def test_create_simple_beiboot(self, kubeconfig, kubectl, timeout, caplog):
         caplog.set_level(logging.CRITICAL, logger="kopf")
         self._ensure_namespace(kubectl)
-        with KopfRunner(["run", "-n", "getdeck", "main.py"]) as runner:
+        with KopfRunner(["run", "-A", "main.py"]) as runner:
             sleep(5)
             self._apply_fixure_file(
                 "tests/fixtures/simple-beiboot.yaml", kubectl, timeout
@@ -30,8 +30,10 @@ class TestOperator(TestOperatorBase):
     def test_extract_tunnel_data(self, kubectl):
         data = self._get_beiboot_data(kubectl)
         assert "tunnel" in data
-        assert "gefyra" in data
-        assert "port" in data["gefyra"] and bool(data["gefyra"]["port"])
+        assert "gefyra" in data["parameters"]
+        assert "port" in data["parameters"]["gefyra"] and bool(
+            data["parameters"]["gefyra"]["port"]
+        )
         # assert "endpoint" in data["gefyra"] and bool(data["gefyra"]["endpoint"])
         assert "ghostunnel" in data["tunnel"]
         assert "mtls" in data["tunnel"]["ghostunnel"]

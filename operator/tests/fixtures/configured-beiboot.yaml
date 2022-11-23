@@ -8,8 +8,8 @@ parameters:
     ports:
       - 8080:80
       - 8443:443
-    nodes: 2
+    nodes: 3
     maxLifetime: 10s
-gefyra:
-  enabled: false
+    gefyra:
+      enabled: false
 

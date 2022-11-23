@@ -1,4 +1,3 @@
-import logging
 from typing import Optional
 
 import kopf
@@ -26,7 +25,7 @@ def handle_create_statefulset(
         app_v1_api.create_namespaced_stateful_set(body=statefulset, namespace=namespace)
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
-            logger.warn(
+            logger.warning(
                 f"Statefulset {statefulset.metadata.name} already available, now patching it with current configuration"
             )
             app_v1_api.patch_namespaced_stateful_set(
@@ -157,7 +156,7 @@ def handle_create_namespace(logger, namespace: str) -> str:
         logger.info(f"Created namespace for beiboot: {namespace}")
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
-            logger.warn(f"Namespace for beiboot {namespace} already exists")
+            logger.warning(f"Namespace for beiboot {namespace} already exists")
         else:
             raise e
     return namespace
@@ -237,7 +236,7 @@ async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
         token_secret = core_v1_api.read_namespaced_secret(
             name=token_secret_name, namespace=namespace
         )
-        return token_secret.data
+        data = token_secret.data
     except k8s.client.exceptions.ApiException as e:
         if e.status == 404:
             try:
@@ -252,8 +251,11 @@ async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
                         type="kubernetes.io/service-account-token",
                     ),
                 )
-                return token_secret.data
+                data = token_secret.data
             except k8s.client.exceptions.ApiException as e:
                 raise kopf.PermanentError(str(e))
         else:
             raise kopf.PermanentError(str(e))
+    if data is None:
+        raise kopf.TemporaryError("Serviceaccount token not yet generated", delay=1)
+    return data

@@ -78,6 +78,9 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                         type="string"
                     ),
                     "nodeStorageRequests": k8s.client.V1JSONSchemaProps(type="string"),
+                    "gefyra": k8s.client.V1JSONSchemaProps(
+                        type="object", x_kubernetes_preserve_unknown_fields=True
+                    ),
                 },
                 x_kubernetes_preserve_unknown_fields=True,
             ),
@@ -85,9 +88,6 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
             "tunnel": k8s.client.V1JSONSchemaProps(
-                type="object", x_kubernetes_preserve_unknown_fields=True
-            ),
-            "gefyra": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
             "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),
