@@ -52,7 +52,7 @@ jobs:
 #          poetry run coverage run -m pytest -x -s tests/unit/ --k8s-version ${{ matrix.k8s }}
 
   e2e-tests-operator:
-    needs: unit-tests-operator
+#    needs: unit-tests-operator
     strategy:
       fail-fast: true
       matrix:
