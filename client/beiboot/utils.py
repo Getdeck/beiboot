@@ -21,10 +21,7 @@ def create_beiboot_custom_ressource(
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
         "provider": "k3s",
-        "parameters": {
-            "ports": ports,
-            "nodes": 3
-        },
+        "parameters": {"ports": ports, "nodes": 3},
         "metadata": {
             "name": name,
             "namespace": config.NAMESPACE,

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  linters:
+    strategy:
+      matrix:
+        components: [ client, operator ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+        - uses: actions/checkout@v3
+        - uses: actions/setup-python@v4
+          with:
+            python-version: "3.9"
+        - name: Install Poetry
+          uses: snok/install-poetry@v1
+        - name: Lint and flake8 client
+            working-directory: ${{ matrix.component }}
+            run: |
+              poetry install
+              poetry run black . --check
+#              poetry run mypy
+
+  unit-tests-operator:
+    needs: linters
+    strategy:
+      fail-fast: true
+      matrix:
+        k8s: [ v1.25.3, v1.24.1 ]
+    name: Operator Unit-Tests ${{ matrix.k8s }}
+    runs-on: ubuntu-latest
+      timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Lint and flake8 client
+          working-directory: operator/
+          run: |
+            poetry install
+            poetry run coverage run -m pytest -s tests/unite/ --k8s-version ${{ matrix.k8s }}

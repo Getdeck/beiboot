@@ -296,6 +296,25 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "mypy"
+version = "0.991"
+description = "Optional static typing for Python"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+mypy-extensions = ">=0.4.3"
+tomli = {version = ">=1.1.0", markers = "python_version < \"3.11\""}
+typing-extensions = ">=3.10"
+
+[package.extras]
+dmypy = ["psutil (>=4.0)"]
+install-types = ["pip"]
+python2 = ["typed-ast (>=1.4.0,<2)"]
+reports = ["lxml"]
+
+[[package]]
 name = "mypy-extensions"
 version = "0.4.3"
 description = "Experimental type system extensions for programs checked with the mypy typechecker."
@@ -619,7 +638,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "1a8a34efb434fc25f9d144ae45c173b4ae808f96f5fd23c152804de8b26d6b48"
+content-hash = "b556eaee614d6ea5b25bbd43dd861bd58333646f571a5e3639e0f72b43fc3c79"
 
 [metadata.files]
 aiohttp = []
@@ -647,6 +666,7 @@ kopf = []
 kubernetes = []
 mccabe = []
 multidict = []
+mypy = []
 mypy-extensions = []
 oauthlib = []
 oscrypto = []
