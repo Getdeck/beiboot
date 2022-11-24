@@ -53,6 +53,10 @@ class TestOperatorBase:
             data = self._get_beiboot_data(kubectl)
             if data.get("state") == state:
                 break
+            if data.get("state") == "ERROR" and state != "ERROR":
+                raise pytest.fail(
+                    f"The Beiboot entered ERROR state which was not expected (timeout: {timeout})"
+                )
             else:
                 if _i % 2:
                     logging.getLogger().info(
