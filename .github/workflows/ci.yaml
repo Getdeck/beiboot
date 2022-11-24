@@ -49,4 +49,4 @@ jobs:
         working-directory: operator/
         run: |
           poetry install
-          poetry run coverage run -m pytest -s tests/unite/ --k8s-version ${{ matrix.k8s }}
+          poetry run coverage run -m pytest -s tests/unit/ --k8s-version ${{ matrix.k8s }}
