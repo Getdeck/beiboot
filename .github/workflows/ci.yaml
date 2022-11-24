@@ -65,14 +65,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-      - name: Start minikube
-        id: minikube
-        uses: medyagh/setup-minikube@master
-        with:
-          driver: docker
-          container-runtime: containerd
-          cpus: 2
-          memory: 4000m
       - name: Install Poetry
         uses: snok/install-poetry@v1
       - name: Run e2e tests with K8s ${{ matrix.k8s }}

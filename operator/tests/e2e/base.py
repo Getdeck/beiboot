@@ -63,18 +63,6 @@ class TestOperatorBase:
                     logger.info(
                         f"State is: {str(data.get('state'))} | waiting for {state} | time: {str(_i)}"
                     )
-                    logger.info(
-                        kubectl(
-                            [
-                                "-n",
-                                data["beibootNamespace"],
-                                "describe",
-                                "pod",
-                                "server-0",
-                            ]
-                        )
-                    )
-
                 _i = _i + 1
                 sleep(1)
         else:

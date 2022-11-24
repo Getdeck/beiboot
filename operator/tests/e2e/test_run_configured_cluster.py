@@ -10,7 +10,7 @@ class TestOperatorConfigured(TestOperatorBase):
     beiboot_name = "test-beiboot-configured"
 
     def test_create_configured_beiboot(self, kubeconfig, kubectl, timeout, caplog):
-        caplog.set_level(logging.INFO, logger="kopf")
+        caplog.set_level(logging.CRITICAL, logger="kopf")
         self._ensure_namespace(kubectl)
         with KopfRunner(["run", "-A", "main.py"]) as runner:
             sleep(5)
@@ -31,7 +31,7 @@ class TestOperatorConfigured(TestOperatorBase):
 
     def test_parameters_set(self, kubectl):
         data = self._get_beiboot_data(kubectl)
-        assert data["parameters"]["nodes"] == 3
+        assert data["parameters"]["nodes"] == 1
         assert data["parameters"]["maxLifetime"] == "10s"
         assert data["parameters"]["ports"] == ["8080:80", "8443:443"]
 
