@@ -71,7 +71,7 @@ jobs:
         with:
           driver: docker
           container-runtime: containerd
-          cpus: 4
+          cpus: 2
           memory: 4000m
       - name: Install Poetry
         uses: snok/install-poetry@v1

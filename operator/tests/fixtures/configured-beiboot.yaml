@@ -11,8 +11,16 @@ parameters:
       - 8443:443
     nodes: 1
     maxLifetime: 10s
-    serverStorageRequests: 500Mb
-    nodeStorageRequests: 500Mb
+
     gefyra:
       enabled: false
+
+    serverStorageRequests: 500Mb
+    nodeStorageRequests: 500Mb
+    serverResources:
+      cpu: "0.5"
+      memory: "0.5Gi"
+    nodeResources:
+      cpu: "0.5"
+      memory: "0.5Gi"
 

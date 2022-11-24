@@ -11,4 +11,10 @@ parameters:
   nodes: 1
   serverStorageRequests: 500Mb
   nodeStorageRequests: 500Mb
+  serverResources:
+    cpu: "0.5"
+    memory: "0.5Gi"
+  nodeResources:
+    cpu: "0.5"
+    memory: "0.5Gi"
 
