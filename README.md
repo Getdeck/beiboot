@@ -233,7 +233,7 @@ k3s](https://rancher.com/docs/k3s/latest/en/).
 [issues-url]: https://github.com/Getdeck/beiboot/issues
 [license-shield]: https://img.shields.io/github/license/Getdeck/beiboot.svg?style=for-the-badge
 [license-url]: https://github.com/Getdeck/beiboot/blob/master/LICENSE.txt
-[coveralls-shield]: https://img.shields.io/coveralls/github/Getdeck/beiboot/main?style=for-the-badge
-[coveralls-url]: https://coveralls.io/github/Getdeck/beiboot
+[codecov-shield]: https://img.shields.io/codecov/c/gh/Getdeck/beiboot?style=for-the-badge&token=QI26A1R5E9
+[codecov-url]: https://codecov.io/gh/Getdeck/beiboot
 
 
