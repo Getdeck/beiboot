@@ -11,9 +11,10 @@ jobs:
   linters:
     strategy:
       matrix:
-        components: [ client, operator ]
+        component: [ client, operator ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    name: Static analysis and code QA for ${{ matrix.component }}
     steps:
         - uses: actions/checkout@v3
         - uses: actions/setup-python@v4
@@ -21,8 +22,8 @@ jobs:
             python-version: "3.9"
         - name: Install Poetry
           uses: snok/install-poetry@v1
-        - name: Lint and flake8 client
-          working-directory: ${{ matrix.component }}
+        - name: black and flake8 the component
+          working-directory: ${{ matrix.component }}/
           run: |
             poetry install
             poetry run black . --check
