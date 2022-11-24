@@ -70,7 +70,9 @@ def kubectl(request):
 
 @pytest.fixture(scope="session")
 def timeout(request) -> int:
-    cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
+    cluster_timeout = request.config.option.cluster_timeout or request.config.getini(
+        "cluster_timeout"
+    )
     if cluster_timeout is None:
         return 60
     else:
