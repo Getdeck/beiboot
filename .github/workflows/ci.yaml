@@ -27,6 +27,7 @@ jobs:
           run: |
             poetry install
             poetry run black . --check
+            poetry run flake8
             poetry run mypy
 
   unit-tests-operator:
