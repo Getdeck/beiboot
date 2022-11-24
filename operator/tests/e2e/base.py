@@ -48,6 +48,7 @@ class TestOperatorBase:
             raise pytest.fail("The Beiboot object could not be created")
 
     def _wait_for_state(self, state: str, kubectl: Callable, timeout: int):
+        logger = logging.getLogger()
         _i = 0
         while _i < timeout:
             data = self._get_beiboot_data(kubectl)
@@ -59,9 +60,10 @@ class TestOperatorBase:
                 )
             else:
                 if _i % 2:
-                    logging.getLogger().info(
+                    logger.info(
                         f"State is: {str(data.get('state'))} | waiting for {state} | time: {str(_i)}"
                     )
+                    logger.info(kubectl(["-n", data["beibootNamespace"], "get", "pod"]))
                 _i = _i + 1
                 sleep(1)
         else:
