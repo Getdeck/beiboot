@@ -1,4 +1,5 @@
 import json
+import logging
 from time import sleep
 from typing import Callable
 
@@ -53,6 +54,8 @@ class TestOperatorBase:
             if data.get("state") == state:
                 break
             else:
+                if _i % 2:
+                    logging.getLogger().info("State is: " + str(data.get("state")))
                 _i = _i + 1
                 sleep(1)
         else:
