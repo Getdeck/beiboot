@@ -10,7 +10,7 @@ class TestOperatorConfigured(TestOperatorBase):
     beiboot_name = "test-beiboot-configured"
 
     def test_create_configured_beiboot(self, kubeconfig, kubectl, timeout, caplog):
-        caplog.set_level(logging.CRITICAL, logger="kopf")
+        caplog.set_level(logging.INFO, logger="kopf")
         self._ensure_namespace(kubectl)
         with KopfRunner(["run", "-A", "main.py"]) as runner:
             sleep(5)

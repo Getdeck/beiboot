@@ -55,7 +55,7 @@ class TestOperatorBase:
                 break
             else:
                 if _i % 2:
-                    logging.getLogger().info("State is: " + str(data.get("state")))
+                    logging.getLogger().info("State is: " + str(data.get("state")) + "| time: " + str(_i))
                 _i = _i + 1
                 sleep(1)
         else:

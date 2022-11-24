@@ -5,7 +5,8 @@ metadata:
   namespace: getdeck
 provider: k3s
 parameters:
-    ports:
-      - 8080:80
-    nodes: 1
+  clusterReadyTimeout: 200
+  ports:
+    - 8080:80
+  nodes: 1
 
