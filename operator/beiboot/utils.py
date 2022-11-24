@@ -2,7 +2,7 @@ import inspect
 import logging
 import string
 import random
-from typing import List, Optional
+from typing import List
 
 import kubernetes as k8s
 from statemachine.exceptions import MultipleTransitionCallbacksFound

@@ -280,7 +280,9 @@ class BeibootCluster(StateMachine):
                 }
             }
         else:
-            raise kopf.TemporaryError("Cluster is running but kubeconfig could not be extracted")
+            raise kopf.TemporaryError(
+                "Cluster is running but kubeconfig could not be extracted"
+            )
 
         # handle Gefyra integration
         if (

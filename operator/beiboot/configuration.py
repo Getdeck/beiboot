@@ -1,5 +1,4 @@
 import logging
-import typing
 from dataclasses import dataclass, fields, field
 from json import JSONDecodeError
 from typing import Optional
@@ -138,7 +137,9 @@ class ClusterConfiguration:
 
 
 class BeibootConfiguration:
-    def refresh_k8s_config(self, overrides: Optional[dict] = None) -> ClusterConfiguration:
+    def refresh_k8s_config(
+        self, overrides: Optional[dict] = None
+    ) -> ClusterConfiguration:
         from beiboot.resources.configmaps import create_beiboot_configmap
 
         core_v1_api = k8s.client.CoreV1Api()

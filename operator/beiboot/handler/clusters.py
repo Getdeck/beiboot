@@ -53,7 +53,7 @@ def _event_reason_not_in(event, **_) -> bool:
 
 @kopf.on.event(
     "event",
-    when=kopf.all_( # type: ignore
+    when=kopf.all_(  # type: ignore
         [_event_type_not_none, _workloads_in_beiboot_namespace, _event_reason_not_in]
     ),
 )
