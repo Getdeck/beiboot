@@ -6,7 +6,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![Coverage Information][coveralls-shield]][coveralls-url]
+[![Coverage Information][codecov-shield]][codecov-url]
 
 
 <!-- PROJECT LOGO -->
