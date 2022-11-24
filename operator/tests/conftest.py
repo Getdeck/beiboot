@@ -22,8 +22,10 @@ def kubeconfig(request):
         k8s_version = "v1.24.3"
 
     logging.getLogger().info("Setting up Minikube")
+
     ps = subprocess.run(
-        f"minikube start -p {CLUSTER_NAME} --driver=docker --kubernetes-version={k8s_version}",
+        f"minikube start -p {CLUSTER_NAME} --cpus=max --memory=4000 --driver=docker --kubernetes-version={k8s_version} "
+        "--addons=default-storageclass storage-provisioner",
         shell=True,
         stdout=subprocess.DEVNULL,
     )

@@ -17,6 +17,7 @@ async def beiboot_created(body, logger, **kwargs):
     :param logger: the logger object
     """
     parameters = configuration.refresh_k8s_config(body.get("parameters"))
+    logger.debug(parameters)
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
     if cluster.is_requested or cluster.is_creating:

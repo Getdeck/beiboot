@@ -9,12 +9,14 @@ parameters:
   ports:
     - 8080:80
   nodes: 1
-  serverStorageRequests: 500Mb
-  nodeStorageRequests: 500Mb
+  serverStorageRequests: 500Mi
+  nodeStorageRequests: 500Mi
   serverResources:
-    cpu: "0.5"
-    memory: "0.5Gi"
+    requests:
+      cpu: "0.5"
+      memory: 0.5Gi
   nodeResources:
-    cpu: "0.5"
-    memory: "0.5Gi"
+    requests:
+      cpu: "0.5"
+      memory: 0.5Gi
 
