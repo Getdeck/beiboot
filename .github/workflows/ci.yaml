@@ -53,6 +53,8 @@ jobs:
           poetry run coverage run -m pytest -x -s tests/unit/ --k8s-version ${{ matrix.k8s }}
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
+        with:
+          directory: operator/
 
   e2e-tests-operator:
     needs: unit-tests-operator
@@ -77,3 +79,5 @@ jobs:
           poetry run coverage run -m pytest -x -s tests/e2e/ --k8s-version ${{ matrix.k8s }}
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
+        with:
+          directory: operator/
