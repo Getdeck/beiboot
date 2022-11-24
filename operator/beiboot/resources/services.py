@@ -48,38 +48,3 @@ def ports_to_services(
         )
         services.append(service)
     return services
-
-
-def gefyra_service(port: int, namespace: str, cluster_config: ClusterConfiguration
-) -> k8s.client.V1Service:
-    """
-    It creates a service that exposes the gefyra port on all nodes in the cluster
-
-    :param port: The port number that the service will be exposed on
-    :type port: int
-    :param namespace: The namespace to deploy the service in
-    :type namespace: str
-    :param cluster_config: ClusterConfiguration
-    :type cluster_config: ClusterConfiguration
-    :return: A service object
-    """
-    spec = k8s.client.V1ServiceSpec(
-        type="NodePort",
-        selector=cluster_config.nodeLabels,
-        ports=[
-            k8s.client.V1ServicePort(
-                name=f"{port}-gefyra",
-                node_port=port,
-                target_port=31820,
-                port=31820,
-                protocol="UDP",
-            ),
-        ],
-    )
-    service = k8s.client.V1Service(
-        api_version="v1",
-        kind="Service",
-        metadata=k8s.client.V1ObjectMeta(name="gefyra-nodeport", namespace=namespace),
-        spec=spec,
-    )
-    return service

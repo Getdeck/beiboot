@@ -1,11 +1,13 @@
 import logging
 from dataclasses import dataclass, fields, field
 from json import JSONDecodeError
+from typing import Optional
 
 from decouple import config
 import json
 import kubernetes as k8s
 
+__VERSION__ = "0.12.0"
 
 logger = logging.getLogger("beiboot")
 
@@ -48,14 +50,63 @@ class ClusterConfiguration:
     gefyra: dict = field(
         default_factory=lambda: {
             "enabled": True,
-            "ports": "31820-31920",
             "endpoint": None,
         }
     )
+    tunnel: dict = field(
+        default_factory=lambda: {
+            "enabled": True,
+            "endpoint": None,
+        }
+    )
+    ports: Optional[list[str]] = field(default_factory=lambda: None)
+    maxLifetime: Optional[str] = field(default_factory=lambda: None)
+    maxSessionTimeout: Optional[str] = field(default_factory=lambda: None)
+
     # k3s settings
     k3sImage: str = field(default_factory=lambda: "rancher/k3s")
     k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")
     k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
+
+    @staticmethod
+    def _merge(source, destination):
+        for key, value in source.items():
+            if isinstance(value, dict):
+                # get node or create one
+                node = destination.setdefault(key, {})
+                ClusterConfiguration._merge(value, node)
+            else:
+                if value in ["false", "False", "0", "null", "None", False]:
+                    destination[key] = False
+                elif value in ["true", "True", "1", True]:
+                    destination[key] = True
+                else:
+                    destination[key] = str(value)
+        return destination
+
+    @staticmethod
+    def _update_dict(source, merger):
+        for key, value in merger.items():
+            if hasattr(source, key):
+                if value in ["false", "False", "0", "null", "None", False]:
+                    setattr(source, key, False)
+                elif value in ["true", "True", "1", True]:
+                    setattr(source, key, True)
+                elif type(value) is dict:
+                    setattr(
+                        source,
+                        key,
+                        ClusterConfiguration._merge(value, getattr(source, key)),
+                    )
+                else:
+                    _type = ClusterConfiguration.__annotations__[key]
+                    try:
+                        setattr(source, key, _type(value))
+                    except TypeError:
+                        setattr(source, key, value)
+
+    def update(self, new):
+        ClusterConfiguration._update_dict(self, new)
 
     def encode_cluster_configuration(self) -> dict:
         _s = {}
@@ -69,7 +120,9 @@ class ClusterConfiguration:
         return _s
 
     @classmethod
-    def decode_cluster_configuration(cls, configmap: k8s.client.V1ConfigMap):
+    def decode_cluster_configuration(
+        cls, configmap: k8s.client.V1ConfigMap
+    ) -> "ClusterConfiguration":
         _s = cls()
         field_names = [field.name for field in fields(_s)]
         for k, v in configmap.data.items():
@@ -84,7 +137,9 @@ class ClusterConfiguration:
 
 
 class BeibootConfiguration:
-    def refresh_k8s_config(self) -> ClusterConfiguration:
+    def refresh_k8s_config(
+        self, overrides: Optional[dict] = None
+    ) -> ClusterConfiguration:
         from beiboot.resources.configmaps import create_beiboot_configmap
 
         core_v1_api = k8s.client.CoreV1Api()
@@ -108,12 +163,18 @@ class BeibootConfiguration:
                     logger.error(e)
                     logger.error(f"Cannot create configmap for Beiboot: {e.reason}")
             else:
-                raise e
-        return ClusterConfiguration.decode_cluster_configuration(configmap)
+                raise e  # type: ignore
+        _original = ClusterConfiguration.decode_cluster_configuration(configmap)
+        if overrides:
+            # update the configs coming from the overrides
+            _original.update(overrides)
+        return _original
 
     def __init__(self):
         self.NAMESPACE = config("BEIBOOT_NAMESPACE", default="getdeck")
         self.CONFIGMAP_NAME = config("BEIBOOT_CONFIGMAP", default="beiboot-config")
+        self.GHOSTUNNEL_IMAGE = "ghostunnel/ghostunnel:v1.7.0"
+        self.CERTSTRAP_IMAGE = "squareup/certstrap:1.3.0"
         self._cluster_config = None
 
     def to_dict(self):

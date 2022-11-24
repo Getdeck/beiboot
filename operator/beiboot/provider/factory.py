@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
@@ -24,7 +24,7 @@ class ClusterFactory:
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
         **kwargs
     ):
@@ -42,7 +42,7 @@ class ClusterFactory:
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
         **kwargs
     ) -> AbstractClusterProvider:

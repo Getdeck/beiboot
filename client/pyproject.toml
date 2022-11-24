@@ -33,6 +33,7 @@ flake8-black = "^0.2.4"
 pytest = "^7.1.1"
 coverage = {extras = ["toml"], version = "^6.3.2"}
 coveralls = "^3.3.1"
+mypy = "^0.991"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -46,3 +47,9 @@ source = ["beiboot"]
 create = "testing.exec:create_a_cluster"
 connect = "testing.exec:connect_a_cluster"
 remove = "testing.exec:remove_a_cluster"
+
+[tool.mypy]
+python_version = "3.9"
+packages = "beiboot"
+ignore_missing_imports = "True"
+ignore_errors = "True"

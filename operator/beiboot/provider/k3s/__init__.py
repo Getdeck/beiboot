@@ -1,13 +1,13 @@
 import re
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import kopf
 import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod
+from beiboot.utils import exec_command_pod, get_label_selector
 
 from .utils import (
     create_k3s_server_workload,
@@ -30,7 +30,7 @@ class K3s(AbstractClusterProvider):
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
     ):
         super().__init__(name, namespace, ports)
@@ -78,30 +78,30 @@ class K3s(AbstractClusterProvider):
         )
 
     async def get_kubeconfig(self) -> str:
-
-        selector = ",".join(
-            [
-                "{0}={1}".format(*label)
-                for label in list(self.parameters.serverLabels.items())
-            ]
-        )
-        api_pod = core_api.list_namespaced_pod(self.namespace, label_selector=selector)
-        if len(api_pod.items) != 1:
-            self.logger.warning(
-                f"There is more then one API Pod, it is {len(api_pod.items)}"
+        try:
+            api_pod = core_api.list_namespaced_pod(
+                self.namespace,
+                label_selector=get_label_selector(self.parameters.serverLabels),
             )
+            if len(api_pod.items) != 1:
+                self.logger.warning(
+                    f"There is more then one API Pod, it is {len(api_pod.items)}"
+                )
 
-        kubeconfig = exec_command_pod(
-            core_api,
-            api_pod.items[0].metadata.name,
-            self.namespace,
-            self.parameters.apiServerContainerName,
-            ["cat", self.parameters.kubeconfigFromLocation],
-        )
-        if "No such file or directory" in kubeconfig:
+            kubeconfig = exec_command_pod(
+                core_api,
+                api_pod.items[0].metadata.name,
+                self.namespace,
+                self.parameters.apiServerContainerName,
+                ["cat", self.parameters.kubeconfigFromLocation],
+            )
+            if "No such file or directory" in kubeconfig:
+                raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
+            else:
+                return kubeconfig
+        except k8s.client.ApiException as e:
+            self.logger.error(str(e))
             raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
-        else:
-            return kubeconfig
 
     async def create(self) -> bool:
         from beiboot.utils import generate_token
@@ -139,36 +139,43 @@ class K3s(AbstractClusterProvider):
         return True
 
     async def delete(self) -> bool:
-        stss = app_api.list_namespaced_stateful_set(self.namespace, async_req=True)
-        for sts in stss.get().items:
-            handle_delete_statefulset(
-                logger=self.logger, name=sts.metadata.name, namespace=self.namespace
+        try:
+            stss = app_api.list_namespaced_stateful_set(
+                self.namespace,
+                async_req=True,
+                label_selector=get_label_selector(self.parameters.nodeLabels),
             )
-
-        volume_claims = core_api.list_namespaced_persistent_volume_claim(
-            self.namespace, async_req=True
-        )
-        for pvc in volume_claims.get().items:
-            try:
-                if pvc.spec.volume_name:
-                    core_api.delete_persistent_volume(
-                        name=pvc.spec.volume_name, grace_period_seconds=0
-                    )
-                core_api.delete_namespaced_persistent_volume_claim(
-                    name=pvc.metadata.name,
-                    namespace=self.namespace,
-                    grace_period_seconds=0,
+            for sts in stss.get().items:
+                handle_delete_statefulset(
+                    logger=self.logger, name=sts.metadata.name, namespace=self.namespace
                 )
-            except k8s.client.exceptions.ApiException as e:
-                if e.status == 404:
-                    continue
-                else:
-                    raise e
 
-        service = create_k3s_kubeapi_service(self.namespace, self.parameters)
-        handle_delete_service(
-            self.logger, name=service.metadata.name, namespace=self.namespace
-        )
+            volume_claims = core_api.list_namespaced_persistent_volume_claim(
+                self.namespace, async_req=True
+            )
+            for pvc in volume_claims.get().items:
+                try:
+                    if pvc.spec.volume_name:
+                        core_api.delete_persistent_volume(
+                            name=pvc.spec.volume_name, grace_period_seconds=0
+                        )
+                    core_api.delete_namespaced_persistent_volume_claim(
+                        name=pvc.metadata.name,
+                        namespace=self.namespace,
+                        grace_period_seconds=0,
+                    )
+                except k8s.client.exceptions.ApiException as e:
+                    if e.status == 404:
+                        continue
+                    else:
+                        raise e
+
+            service = create_k3s_kubeapi_service(self.namespace, self.parameters)
+            handle_delete_service(
+                self.logger, name=service.metadata.name, namespace=self.namespace
+            )
+        except k8s.client.ApiException:
+            pass
         return True
 
     async def exists(self) -> bool:
@@ -176,31 +183,38 @@ class K3s(AbstractClusterProvider):
 
     async def running(self) -> bool:
         # waiting for all StatefulSets to become ready
-        stss = app_api.list_namespaced_stateful_set(self.namespace, async_req=True)
-        for sts in stss.get().items:
-            if (
-                sts.status.updated_replicas == sts.spec.replicas
-                and sts.status.replicas == sts.spec.replicas  # noqa
-                and sts.status.available_replicas == sts.spec.replicas  # noqa
-                and sts.status.observed_generation >= sts.metadata.generation  # noqa
-            ):
-                continue
-            else:
+        try:
+            stss = app_api.list_namespaced_stateful_set(
+                self.namespace,
+                label_selector=get_label_selector(self.parameters.nodeLabels),
+            )
+            if len(stss.items) == 0:
                 return False
-        else:
-            return True
+            for sts in stss.items:
+                if (
+                    sts.status.updated_replicas == sts.spec.replicas
+                    and sts.status.replicas == sts.spec.replicas  # noqa
+                    and sts.status.available_replicas == sts.spec.replicas  # noqa
+                    and sts.status.observed_generation
+                    >= sts.metadata.generation  # noqa
+                ):
+                    continue
+                else:
+                    return False
+            else:
+                return True
+        except k8s.client.ApiException as e:
+            self.logger.error(str(e))
+            return False
 
     async def ready(self) -> bool:
         if not await self.running():
             return False
 
-        selector = ",".join(
-            [
-                "{0}={1}".format(*label)
-                for label in list(self.parameters.serverLabels.items())
-            ]
+        api_pod = core_api.list_namespaced_pod(
+            self.namespace,
+            label_selector=get_label_selector(self.parameters.serverLabels),
         )
-        api_pod = core_api.list_namespaced_pod(self.namespace, label_selector=selector)
         if len(api_pod.items) > 1:
             self.logger.warning(
                 f"There is more then one API Pod, it is {len(api_pod.items)}"
@@ -250,6 +264,18 @@ class K3s(AbstractClusterProvider):
         """
         raise NotImplementedError
 
+    def get_ports(self) -> List[str]:
+        """
+        Return the published ports
+        """
+        ports = self.ports
+        # add the kubernetes api port for k3s here
+        if ports is None:
+            ports = ["6443:6443"]
+        else:
+            ports.append("6443:6443")
+        return ports
+
 
 class K3sBuilder:
     def __init__(self):
@@ -261,7 +287,7 @@ class K3sBuilder:
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
         **_ignored,
     ):

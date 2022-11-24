@@ -60,6 +60,13 @@ def create_k3s_server_workload(
             period_seconds=1,
             initial_delay_seconds=1,
         ),
+        startup_probe=k8s.client.V1Probe(
+            _exec=k8s.client.V1ExecAction(
+                command=["cat", cluster_config.kubeconfigFromLocation],
+            ),
+            period_seconds=1,
+            failure_threshold=15,
+        ),
     )
 
     template = k8s.client.V1PodTemplateSpec(
@@ -89,7 +96,9 @@ def create_k3s_server_workload(
 
     workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
-        metadata=k8s.client.V1ObjectMeta(name="server", namespace=namespace),
+        metadata=k8s.client.V1ObjectMeta(
+            name="server", namespace=namespace, labels=cluster_config.serverLabels
+        ),
         spec=spec,
     )
 
@@ -170,7 +179,9 @@ def create_k3s_agent_workload(
     workload = k8s.client.V1StatefulSet(
         api_version="apps/v1",
         metadata=k8s.client.V1ObjectMeta(
-            name=f"agent-{node_index}", namespace=namespace
+            name=f"agent-{node_index}",
+            namespace=namespace,
+            labels=cluster_config.nodeLabels,
         ),
         spec=spec,
     )

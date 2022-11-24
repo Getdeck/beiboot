@@ -11,18 +11,83 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             "provider": k8s.client.V1JSONSchemaProps(type="string", enum=["k3s"]),
             "beibootNamespace": k8s.client.V1JSONSchemaProps(type="string"),
             "nodeToken": k8s.client.V1JSONSchemaProps(type="string"),
-            "providerConfig": k8s.client.V1JSONSchemaProps(
-                type="object", x_kubernetes_preserve_unknown_fields=True
-            ),
-            "ports": k8s.client.V1JSONSchemaProps(
-                type="array",
-                default=[],
-                items=k8s.client.V1JSONSchemaProps(type="string"),
+            "parameters": k8s.client.V1JSONSchemaProps(
+                type="object",
+                properties={
+                    # the forwarding for cluster ports in the form ['8080:80, '8443: 443']
+                    "ports": k8s.client.V1JSONSchemaProps(
+                        type="array",
+                        default=[],
+                        items=k8s.client.V1JSONSchemaProps(type="string"),
+                    ),
+                    # total time a cluster can exist
+                    "maxLifetime": k8s.client.V1JSONSchemaProps(type="string"),
+                    # max time with no client heartbeat before the cluster extincts
+                    "maxSessionTimeout": k8s.client.V1JSONSchemaProps(type="string"),
+                    # timeout for this cluster to become ready
+                    "clusterReadyTimeout": k8s.client.V1JSONSchemaProps(type="integer"),
+                    # server resources
+                    "serverResources": k8s.client.V1JSONSchemaProps(
+                        type="object",
+                        properties={
+                            "requests": k8s.client.V1JSONSchemaProps(
+                                type="object",
+                                properties={
+                                    "cpu": k8s.client.V1JSONSchemaProps(type="string"),
+                                    "memory": k8s.client.V1JSONSchemaProps(
+                                        type="string"
+                                    ),
+                                },
+                            ),
+                            "limits": k8s.client.V1JSONSchemaProps(
+                                type="object",
+                                properties={
+                                    "cpu": k8s.client.V1JSONSchemaProps(type="string"),
+                                    "memory": k8s.client.V1JSONSchemaProps(
+                                        type="string"
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                    # node resources
+                    "nodeResources": k8s.client.V1JSONSchemaProps(
+                        type="object",
+                        properties={
+                            "requests": k8s.client.V1JSONSchemaProps(
+                                type="object",
+                                properties={
+                                    "cpu": k8s.client.V1JSONSchemaProps(type="string"),
+                                    "memory": k8s.client.V1JSONSchemaProps(
+                                        type="string"
+                                    ),
+                                },
+                            ),
+                            "limits": k8s.client.V1JSONSchemaProps(
+                                type="object",
+                                properties={
+                                    "cpu": k8s.client.V1JSONSchemaProps(type="string"),
+                                    "memory": k8s.client.V1JSONSchemaProps(
+                                        type="string"
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                    "serverStorageRequests": k8s.client.V1JSONSchemaProps(
+                        type="string"
+                    ),
+                    "nodeStorageRequests": k8s.client.V1JSONSchemaProps(type="string"),
+                    "gefyra": k8s.client.V1JSONSchemaProps(
+                        type="object", x_kubernetes_preserve_unknown_fields=True
+                    ),
+                },
+                x_kubernetes_preserve_unknown_fields=True,
             ),
             "kubeconfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
-            "gefyra": k8s.client.V1JSONSchemaProps(
+            "tunnel": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
             "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),

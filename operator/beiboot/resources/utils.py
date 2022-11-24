@@ -25,7 +25,7 @@ def handle_create_statefulset(
         app_v1_api.create_namespaced_stateful_set(body=statefulset, namespace=namespace)
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
-            logger.warn(
+            logger.warning(
                 f"Statefulset {statefulset.metadata.name} already available, now patching it with current configuration"
             )
             app_v1_api.patch_namespaced_stateful_set(
@@ -34,6 +34,29 @@ def handle_create_statefulset(
                 namespace=namespace,
             )
             logger.info(f"Statefulset {statefulset.metadata.name} patched")
+        else:
+            raise e
+    except ValueError as e:
+        logger.info(str(e))
+        pass
+
+
+def handle_create_deployment(
+    logger, deployment: k8s.client.V1Deployment, namespace: str
+) -> None:
+    try:
+        app_v1_api.create_namespaced_deployment(body=deployment, namespace=namespace)
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logger.warn(
+                f"Deployment {deployment.metadata.name} already available, now patching it with current configuration"
+            )
+            app_v1_api.patch_namespaced_deployment(
+                name=deployment.metadata.name,
+                body=deployment,
+                namespace=namespace,
+            )
+            logger.info(f"Deployment {deployment.metadata.name} patched")
         else:
             raise e
     except ValueError as e:
@@ -65,7 +88,7 @@ def handle_delete_statefulset(logger, name: str, namespace: str) -> None:
 
 def handle_create_service(
     logger, service: k8s.client.V1Service, namespace: str
-) -> None:
+) -> k8s.client.V1Service:
     """
     If the service already exists, patch it with the current configuration
 
@@ -74,15 +97,18 @@ def handle_create_service(
     :type service: k8s.client.V1Service
     :param namespace: The namespace in which the service should be created
     :type namespace: str
+    :return: The service object
     """
     try:
-        core_v1_api.create_namespaced_service(body=service, namespace=namespace)
+        service = core_v1_api.create_namespaced_service(
+            body=service, namespace=namespace
+        )
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
             logger.warn(
                 f"Service {service.metadata.name} already available, now patching it with current configuration"
             )
-            core_v1_api.patch_namespaced_service(
+            service = core_v1_api.patch_namespaced_service(
                 name=service.metadata.name,
                 body=service,
                 namespace=namespace,
@@ -90,6 +116,7 @@ def handle_create_service(
             logger.info(f"Service {service.metadata.name} patched")
         else:
             raise e
+    return service
 
 
 def handle_delete_service(logger, name: str, namespace: str) -> None:
@@ -129,16 +156,31 @@ def handle_create_namespace(logger, namespace: str) -> str:
         logger.info(f"Created namespace for beiboot: {namespace}")
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
-            logger.warn(f"Namespace for beiboot {namespace} already exists")
+            logger.warning(f"Namespace for beiboot {namespace} already exists")
         else:
             raise e
     return namespace
 
 
+async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1Status]:
+    """
+    It deletes a namespace
+
+    :param logger: a logger object
+    :param namespace: The namespace to delete
+    :return: The status of the delete operation.
+    """
+    try:
+        status = core_v1_api.delete_namespace(namespace)
+        logger.info(f"Deleted namespace for beiboot: {namespace}")
+        return status
+    except k8s.client.exceptions.ApiException:
+        return None
+
+
 def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> None:
     """
     It creates a service account, a role, and a role binding to allow the service account to port forward
-
     :param logger: a logger object
     :param name: The name of the service account to create
     :type name: str
@@ -177,68 +219,43 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
                     k8s.client.V1Subject(kind="ServiceAccount", name=sa.metadata.name)
                 ],
                 role_ref=k8s.client.V1RoleRef(
-                        kind="Role",
-                        name=role.metadata.name,
-                        api_group="rbac.authorization.k8s.io",
-                    ),
+                    kind="Role",
+                    name=role.metadata.name,
+                    api_group="rbac.authorization.k8s.io",
+                ),
             ),
         )
         logger.info(f"Created serviceaccount and permissions for beiboot: {name}")
     except k8s.client.exceptions.ApiException as e:
         raise e
 
-#
-# async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
-#     try:
-#         sa = core_v1_api.read_namespaced_service_account(
-#             name=name,
-#             namespace=namespace
-#         )
-#         secrets = sa.secrets
-#         token_secret_name = secrets[0].name
-#         token_secret = core_v1_api.read_namespaced_secret(name=token_secret_name, namespace=namespace)
-#         return token_secret.data
-#     except k8s.client.exceptions.ApiException as e:
-#         raise kopf.TemporaryError(str(e))
-#
-#
-# async def get_serviceaccount_kubeconfig(name: str, namespace: str) -> str:
-#     data = await get_serviceaccount_data(name, namespace)
-#     SERVER = "utzli"
-#     CONFIG = f"""
-#     apiVersion: v1
-#     kind: Config
-#     clusters:
-#     - name: default-cluster
-#       cluster:
-#         certificate-authority-data: {data['ca.crt']}
-#         server: {SERVER}
-#     contexts:
-#     - name: default-context
-#       context:
-#         cluster: default-cluster
-#         namespace: default
-#         user: default-user
-#     current-context: default-context
-#     users:
-#     - name: default-user
-#       user:
-#         token: {data['token']}
-#     """
 
-
-
-async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1Status]:
-    """
-    It deletes a namespace
-
-    :param logger: a logger object
-    :param namespace: The namespace to delete
-    :return: The status of the delete operation.
-    """
+async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
+    token_secret_name = f"{name}-token"
     try:
-        status = core_v1_api.delete_namespace(namespace)
-        logger.info(f"Deleted namespace for beiboot: {namespace}")
-        return status
-    except k8s.client.exceptions.ApiException:
-        pass
+        token_secret = core_v1_api.read_namespaced_secret(
+            name=token_secret_name, namespace=namespace
+        )
+        data = token_secret.data
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            try:
+                token_secret = core_v1_api.create_namespaced_secret(
+                    namespace=namespace,
+                    body=k8s.client.V1Secret(
+                        metadata=k8s.client.V1ObjectMeta(
+                            name=token_secret_name,
+                            namespace=namespace,
+                            annotations={"kubernetes.io/service-account.name": name},
+                        ),
+                        type="kubernetes.io/service-account-token",
+                    ),
+                )
+                data = token_secret.data
+            except k8s.client.exceptions.ApiException as e:
+                raise kopf.PermanentError(str(e))
+        else:
+            raise kopf.PermanentError(str(e))  # type: ignore
+    if data is None:
+        raise kopf.TemporaryError("Serviceaccount token not yet generated", delay=1)
+    return data

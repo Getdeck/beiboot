@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  linters:
+    strategy:
+      matrix:
+        component: [ client, operator ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Code climate for ${{ matrix.component }}
+    steps:
+        - uses: actions/checkout@v3
+        - uses: actions/setup-python@v4
+          with:
+            python-version: "3.9"
+        - name: Install Poetry
+          uses: snok/install-poetry@v1
+        - name: black and flake8 the component
+          working-directory: ${{ matrix.component }}/
+          run: |
+            poetry install
+            poetry run black . --check
+            poetry run flake8
+            poetry run mypy
+
+  unit-tests-operator:
+    needs: linters
+    strategy:
+      fail-fast: true
+      matrix:
+        k8s: [ v1.25.3, v1.24.1 ]
+    name: Unit-tests Operator K8s ${{ matrix.k8s }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Run unit tests with K8s ${{ matrix.k8s }}
+        working-directory: operator/
+        run: |
+          poetry install
+          poetry run coverage run -m pytest -x -s tests/unit/ --k8s-version ${{ matrix.k8s }}
+          poetry run coverage json
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./operator/
+          files: coverage.json
+
+  e2e-tests-operator:
+    needs: unit-tests-operator
+    strategy:
+      fail-fast: true
+      matrix:
+        k8s: [ v1.25.3 , v1.24.8, v1.23.14, v1.22.15 ]
+    name: E2E-tests Operator K8s ${{ matrix.k8s }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      K8S: ${{ matrix.k8s }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Run e2e tests with K8s ${{ matrix.k8s }}
+        working-directory: operator/
+        run: |
+          poetry install
+          poetry run coverage run -m pytest -x -s tests/e2e/ --k8s-version ${{ matrix.k8s }}
+          poetry run coverage json
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          env_vars: K8S
+          directory: ./operator/
+          files: coverage.json

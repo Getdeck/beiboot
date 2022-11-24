@@ -2,7 +2,7 @@ import inspect
 import logging
 import string
 import random
-from typing import List, Optional
+from typing import List
 
 import kubernetes as k8s
 from statemachine.exceptions import MultipleTransitionCallbacksFound
@@ -79,7 +79,7 @@ def exec_command_pod(
     return resp
 
 
-def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
+def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[str]:
     """
     It gets the external IP addresses of all the nodes in the Kubernetes cluster
 
@@ -103,46 +103,6 @@ def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[s
             logger.error("Could not read Kubernetes node: " + str(e))
     logger.debug(ips)
     return ips
-
-
-def get_taken_gefyra_ports(
-    api_instance: k8s.client.CustomObjectsApi, config: BeibootConfiguration
-) -> List[Optional[int]]:
-    """
-    It reads all Beiboot objects from the cluster and returns a list of all Gefyra ports that are already taken
-
-    :param api_instance: The Kubernetes API instance
-    :type api_instance: k8s.client.CustomObjectsApi
-    :param config: BeibootConfiguration
-    :type config: BeibootConfiguration
-    :return: A list of ports that are already taken by other Beiboots.
-    """
-    try:
-        beiboots = api_instance.list_namespaced_custom_object(
-            namespace=config.NAMESPACE,
-            group="getdeck.dev",
-            plural="beiboots",
-            version="v1",
-        )
-    except Exception as e:  # noqa
-        logger.error(
-            "Could not read Beiboot objects from the cluster due to the following error: "
-            + str(e)
-        )
-        return []
-    taken_ports = []
-    for beiboot in beiboots["items"]:
-        if gefyra := beiboot.get("gefyra"):
-            port = gefyra.get("port")
-            try:
-                taken_ports.append(int(port))
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    f"Cannot read Gefyra ports from {beiboot.metadata.name} due to: {e}"
-                )
-        else:
-            continue
-    return taken_ports
 
 
 def get_namespace_name(name: str, cluster_config: ClusterConfiguration) -> str:
@@ -198,6 +158,10 @@ def get_beiboot_for_namespace(
             return AttrDict(bbt)
     else:
         return None
+
+
+def get_label_selector(labels: dict[str, str]) -> str:
+    return ",".join(["{0}={1}".format(*label) for label in list(labels.items())])
 
 
 # It's a subclass of the `Transition` class that adds a `run` method that runs the transition asynchronously

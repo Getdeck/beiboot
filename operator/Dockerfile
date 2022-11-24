@@ -1,3 +1,5 @@
+ARG GOLANG_VERSION=latest
+
 FROM quay.io/blueshoe/python3.9-slim AS builder
 
 # python
@@ -49,6 +51,12 @@ COPY poetry.lock pyproject.toml ./
 
 # install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
 RUN poetry install --no-dev
+
+FROM golang:${GOLANG_VERSION} as certstrap
+WORKDIR /certstrap
+RUN  apt update && apt install -y --no-install-recommends git
+RUN git clone https://github.com/square/certstrap && \
+    cd certstrap && go build
 
 
 FROM gcr.io/distroless/python3
