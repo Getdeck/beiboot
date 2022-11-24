@@ -1,6 +1,6 @@
 import re
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 import kopf
 import kubernetes as k8s
@@ -30,7 +30,7 @@ class K3s(AbstractClusterProvider):
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
     ):
         super().__init__(name, namespace, ports)
@@ -270,7 +270,10 @@ class K3s(AbstractClusterProvider):
         """
         ports = self.ports
         # add the kubernetes api port for k3s here
-        ports.append("6443:6443")
+        if ports is None:
+            ports = ["6443:6443"]
+        else:
+            ports.append("6443:6443")
         return ports
 
 
@@ -284,7 +287,7 @@ class K3sBuilder:
         cluster_parameter: ClusterConfiguration,
         name: str,
         namespace: str,
-        ports: List[str],
+        ports: Optional[List[str]],
         logger,
         **_ignored,
     ):

@@ -7,7 +7,7 @@ from beiboot.utils import get_namespace_name
 core_v1_api = k8s.client.CoreV1Api()
 
 
-@kopf.on.validate("beiboot.getdeck.dev", id="check-namespace-ready")
+@kopf.on.validate("beiboot.getdeck.dev", id="check-namespace-ready")  # type: ignore
 def check_namespace_ready(body, logger, operation, **_):
     """
     If the operation is a CREATE, check if the namespace exists. If it does, raise an error. If it doesn't, return True

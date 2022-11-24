@@ -71,6 +71,6 @@ def kubectl(request):
 def timeout(request) -> int:
     cluster_timeout = request.config.option.cluster_timeout
     if cluster_timeout is None:
-        return 60
+        return 120
     else:
         return int(cluster_timeout)

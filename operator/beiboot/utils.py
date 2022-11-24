@@ -79,7 +79,7 @@ def exec_command_pod(
     return resp
 
 
-def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[Optional[str]]:
+def get_external_node_ips(api_instance: k8s.client.CoreV1Api) -> List[str]:
     """
     It gets the external IP addresses of all the nodes in the Kubernetes cluster
 

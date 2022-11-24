@@ -175,7 +175,7 @@ async def handle_delete_namespace(logger, namespace) -> Optional[k8s.client.V1St
         logger.info(f"Deleted namespace for beiboot: {namespace}")
         return status
     except k8s.client.exceptions.ApiException:
-        pass
+        return None
 
 
 def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> None:
@@ -255,7 +255,7 @@ async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
             except k8s.client.exceptions.ApiException as e:
                 raise kopf.PermanentError(str(e))
         else:
-            raise kopf.PermanentError(str(e))
+            raise kopf.PermanentError(str(e))  # type: ignore
     if data is None:
         raise kopf.TemporaryError("Serviceaccount token not yet generated", delay=1)
     return data

@@ -153,7 +153,7 @@ class BeibootCluster(StateMachine):
         if timestamps:
             return max(
                 map(
-                    lambda x: datetime.fromisoformat(x.strip("Z")),
+                    lambda x: datetime.fromisoformat(x.strip("Z")),  # type: ignore
                     timestamps,
                 )
             )
@@ -271,13 +271,16 @@ class BeibootCluster(StateMachine):
         It creates the Gefyra service in the namespace of the Beiboot, and adds the endpoint and port to the kubeconfig
         """
         raw_kubeconfig = await self.kubeconfig
-        body_patch = {
-            "kubeconfig": {
-                "source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode(
-                    "utf-8"
-                )
+        if raw_kubeconfig:
+            body_patch = {
+                "kubeconfig": {
+                    "source": base64.b64encode(raw_kubeconfig.encode("utf-8")).decode(
+                        "utf-8"
+                    )
+                }
             }
-        }
+        else:
+            raise kopf.TemporaryError("Cluster is running but kubeconfig could not be extracted")
 
         # handle Gefyra integration
         if (
@@ -298,7 +301,7 @@ class BeibootCluster(StateMachine):
                 )
                 body_patch = {
                     "parameters": {
-                        "gefyra": {"port": gefyra_nodeport, "endpoint": gefyra_endpoint}
+                        "gefyra": {"port": str(gefyra_nodeport), "endpoint": gefyra_endpoint}  # type: ignore
                     },
                     "kubeconfig": {
                         "source": base64.b64encode(

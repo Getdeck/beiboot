@@ -47,3 +47,9 @@ source = ["beiboot"]
 create = "testing.exec:create_a_cluster"
 connect = "testing.exec:connect_a_cluster"
 remove = "testing.exec:remove_a_cluster"
+
+[tool.mypy]
+python_version = "3.9"
+packages = "beiboot"
+ignore_missing_imports = "True"
+ignore_errors = "True"

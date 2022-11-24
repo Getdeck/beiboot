@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Tuple
 
-import yaml
+import yaml  # type: ignore
 
 import kubernetes as k8s
 
@@ -44,7 +44,7 @@ def gefyra_service(
 async def create_gefyra_components(
     namespace: str,
     parameters: ClusterConfiguration,
-) -> Optional[Tuple[int, str]]:
+) -> Tuple[int, str]:
     svc = handle_create_service(
         logger,
         gefyra_service(namespace, parameters),
@@ -55,7 +55,7 @@ async def create_gefyra_components(
     if bool(gefyra_endpoint) is False:
         _ips = get_external_node_ips(core_api)
         gefyra_endpoint = _ips[0] if _ips else None
-    return gefyra_nodeport, gefyra_endpoint
+    return int(gefyra_nodeport), str(gefyra_endpoint)
 
 
 async def handle_gefyra_components(
@@ -92,4 +92,4 @@ async def handle_gefyra_components(
             if ctx["name"] == "default":
                 ctx["gefyra"] = f"{gefyra_endpoint}:{gefyra_nodeport}"
         kubeconfig = yaml.dump(data)
-    return gefyra_nodeport, gefyra_endpoint, kubeconfig
+    return str(gefyra_nodeport), str(gefyra_endpoint), kubeconfig

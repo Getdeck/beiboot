@@ -1,6 +1,8 @@
 import logging
+import typing
 from dataclasses import dataclass, fields, field
 from json import JSONDecodeError
+from typing import Optional
 
 from decouple import config
 import json
@@ -58,9 +60,9 @@ class ClusterConfiguration:
             "endpoint": None,
         }
     )
-    ports: list[str] = field(default_factory=lambda: None)
-    maxLifetime: str = field(default_factory=lambda: None)
-    maxSessionTimeout: str = field(default_factory=lambda: None)
+    ports: Optional[list[str]] = field(default_factory=lambda: None)
+    maxLifetime: Optional[str] = field(default_factory=lambda: None)
+    maxSessionTimeout: Optional[str] = field(default_factory=lambda: None)
 
     # k3s settings
     k3sImage: str = field(default_factory=lambda: "rancher/k3s")
@@ -99,7 +101,10 @@ class ClusterConfiguration:
                     )
                 else:
                     _type = ClusterConfiguration.__annotations__[key]
-                    setattr(source, key, _type(value))
+                    try:
+                        setattr(source, key, _type(value))
+                    except TypeError:
+                        setattr(source, key, value)
 
     def update(self, new):
         ClusterConfiguration._update_dict(self, new)
@@ -133,7 +138,7 @@ class ClusterConfiguration:
 
 
 class BeibootConfiguration:
-    def refresh_k8s_config(self, overrides: dict = None) -> ClusterConfiguration:
+    def refresh_k8s_config(self, overrides: Optional[dict] = None) -> ClusterConfiguration:
         from beiboot.resources.configmaps import create_beiboot_configmap
 
         core_v1_api = k8s.client.CoreV1Api()
@@ -157,7 +162,7 @@ class BeibootConfiguration:
                     logger.error(e)
                     logger.error(f"Cannot create configmap for Beiboot: {e.reason}")
             else:
-                raise e
+                raise e  # type: ignore
         _original = ClusterConfiguration.decode_cluster_configuration(configmap)
         if overrides:
             # update the configs coming from the overrides

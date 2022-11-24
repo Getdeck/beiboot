@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 
 class AbstractClusterProvider(ABC):
-    provider_type = None
+    provider_type = ""
 
-    def __init__(self, name: str, namespace: str, ports: List[str]) -> None:
+    def __init__(self, name: str, namespace: str, ports: Optional[List[str]]) -> None:
         self.name = name
         self.namespace = namespace
         self.ports = ports
@@ -60,7 +60,7 @@ class AbstractClusterProvider(ABC):
         """
         raise NotImplementedError
 
-    def get_ports(self) -> List[str]:
+    def get_ports(self) -> Optional[List[str]]:
         """
         Return the published ports
         """
