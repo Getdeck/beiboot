@@ -56,4 +56,4 @@ class TestOperatorBase:
                 _i = _i + 1
                 sleep(1)
         else:
-            raise pytest.fail(f"The Beiboot never entered {state} state")
+            raise pytest.fail(f"The Beiboot never entered {state} state (timeout: {timeout})")

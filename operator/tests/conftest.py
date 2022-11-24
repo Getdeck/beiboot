@@ -9,6 +9,7 @@ CLUSTER_NAME = "beiboot-test-cluster"
 def pytest_addoption(parser):
     parser.addoption("--k8s-version", action="store")
     parser.addoption("--cluster-timeout", action="store")
+    parser.addini("cluster_timeout", "The timeout waiting for Beiboot states")
 
 
 @pytest.fixture(scope="class")
@@ -69,8 +70,8 @@ def kubectl(request):
 
 @pytest.fixture(scope="session")
 def timeout(request) -> int:
-    cluster_timeout = request.config.option.cluster_timeout
+    cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
     if cluster_timeout is None:
-        return 120
+        return 60
     else:
         return int(cluster_timeout)
