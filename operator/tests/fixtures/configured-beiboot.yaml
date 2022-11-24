@@ -9,8 +9,10 @@ parameters:
     ports:
       - 8080:80
       - 8443:443
-    nodes: 3
+    nodes: 1
     maxLifetime: 10s
+    serverStorageRequests: 500Mb
+    nodeStorageRequests: 500Mb
     gefyra:
       enabled: false
 
