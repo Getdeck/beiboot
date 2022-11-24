@@ -25,7 +25,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                     # max time with no client heartbeat before the cluster extincts
                     "maxSessionTimeout": k8s.client.V1JSONSchemaProps(type="string"),
                     # timeout for this cluster to become ready
-                    "clusterReadyTimeout": k8s.client.V1JSONSchemaProps(type="string"),
+                    "clusterReadyTimeout": k8s.client.V1JSONSchemaProps(type="integer"),
                     # server resources
                     "serverResources": k8s.client.V1JSONSchemaProps(
                         type="object",

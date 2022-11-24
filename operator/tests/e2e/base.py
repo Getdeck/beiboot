@@ -60,7 +60,7 @@ class TestOperatorBase:
             else:
                 if _i % 2:
                     logging.getLogger().info(
-                        "State is: " + str(data.get("state")) + "| time: " + str(_i)
+                        f"State is: {str(data.get('state'))} | waiting for {state} | time: {str(_i)}"
                     )
                 _i = _i + 1
                 sleep(1)
