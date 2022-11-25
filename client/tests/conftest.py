@@ -82,6 +82,11 @@ def operator(request, kubectl):
         universal_newlines=True,
     )
     sleep(7)
+    if operator.poll() is None:
+        logger.info("Operator is running")
+    else:
+        raise RuntimeError("There was an error starting the Operator")
+
 
     def teardown():
         logger.info("Stopping the Operator")
@@ -110,7 +115,7 @@ def timeout(request) -> int:
     cluster_timeout = request.config.option.cluster_timeout or request.config.getini(
         "cluster_timeout"
     )
-    if cluster_timeout is None:
+    if not bool(cluster_timeout):
         return 60
     else:
         return int(cluster_timeout)

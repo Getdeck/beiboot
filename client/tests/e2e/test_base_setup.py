@@ -1,26 +1,13 @@
-import logging
-from time import sleep
+from tests.e2e.base import TestClientBase
 
 
-class TestBaseSetup:
-    def test_sane_operator(self, operator, kubectl):
-        output = kubectl(
-            ["-n", "getdeck", "apply", "-f", "tests/fixtures/simple-beiboot.yaml"]
-        )
-        _i = 0
-        while _i < 60:
-            output = kubectl(
-                [
-                    "-n",
-                    "getdeck",
-                    "get",
-                    "bbt",
-                    "test-beiboot",
-                    "-o",
-                    "jsonpath={.state}",
-                ]
-            )
-            if output == "READY":
-                break
-            logging.getLogger().info(output)
-            sleep(1)
+class TestBaseSetup(TestClientBase):
+
+    beiboot_name = "test-beiboot"
+
+    def test_sane_operator(self, operator, kubectl, timeout):
+        self._apply_fixture_file("tests/fixtures/simple-beiboot.yaml", kubectl, timeout)
+        self._wait_for_state("READY", kubectl, timeout)
+        data = self._get_beiboot_data(kubectl)
+
+
