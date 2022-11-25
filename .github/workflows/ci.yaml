@@ -33,7 +33,7 @@ jobs:
                 - 'client/**'
         - name: Install Poetry
           uses: snok/install-poetry@v1
-        - name: black and flake8 the component
+        - name: Static code analysis
           working-directory: ${{ matrix.component }}/
           run: |
             poetry install
