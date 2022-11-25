@@ -81,9 +81,15 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                     "gefyra": k8s.client.V1JSONSchemaProps(
                         type="object",
                         properties={
-                            "enabled": k8s.client.V1JSONSchemaProps(type="boolean"),
-                            "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
-                            "port": k8s.client.V1JSONSchemaProps(type="string")
+                            "enabled": k8s.client.V1JSONSchemaProps(
+                                type="boolean"
+                            ),
+                            "endpoint": k8s.client.V1JSONSchemaProps(
+                                type="string"
+                            ),
+                            "port": k8s.client.V1JSONSchemaProps(
+                                type="string"
+                            )
                         },
                     ),
                 },
