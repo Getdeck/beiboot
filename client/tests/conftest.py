@@ -76,7 +76,7 @@ def operator(request, kubectl):
     operator = subprocess.Popen(
         ["poetry", "run", "kopf", "run", "-A", "main.py"],
         cwd=os.path.join("..", "operator"),
-        stdout=subprocess.DEVNULL,
+        stdout=subprocess.STDOUT,
         stderr=subprocess.STDOUT,
         bufsize=1,
         universal_newlines=True,
