@@ -122,10 +122,6 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         uses: snok/install-poetry@v1
-      - name: Install operator
-        working-directory: operator/
-        run: |
-          poetry install
       - name: Run e2e tests with K8s ${{ matrix.k8s }}
         working-directory: client/
         run: |

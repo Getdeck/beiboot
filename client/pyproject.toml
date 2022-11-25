@@ -33,6 +33,7 @@ flake8-black = "^0.2.4"
 coverage = "^6.5.0"
 pytest-asyncio = "^0.20.2"
 mypy = "^0.991"
+kopf = "^1.36.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
