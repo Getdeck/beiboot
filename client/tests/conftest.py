@@ -81,18 +81,7 @@ def operator(request, kubectl):
         bufsize=1,
         universal_newlines=True,
     )
-    _i = 0
-    _output = ""
-    while _i < 5:
-        try:
-            stdout, stderr = operator.communicate(timeout=1)
-            _output = _output + stdout
-        except subprocess.TimeoutExpired:
-            pass
-        if "Initial authentication has finished" in _output:
-            break
-        else:
-            _i = _i + 1
+    sleep(7)
 
     def teardown():
         logger.info("Stopping the Operator")
