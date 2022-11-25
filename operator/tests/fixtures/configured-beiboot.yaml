@@ -10,7 +10,6 @@ parameters:
     - 8080:80
     - 8443:443
   nodes: 1
-  maxLifetime: 100s
 
   gefyra:
     enabled: false
