@@ -3,6 +3,7 @@ import logging
 import string
 import random
 from typing import List
+from datetime import timedelta
 
 import kubernetes as k8s
 from statemachine.exceptions import MultipleTransitionCallbacksFound
@@ -162,6 +163,31 @@ def get_beiboot_for_namespace(
 
 def get_label_selector(labels: dict[str, str]) -> str:
     return ",".join(["{0}={1}".format(*label) for label in list(labels.items())])
+
+
+def parse_timedelta(delta: str, only_positve=True) -> timedelta:
+    """Parses a human readable timedelta (3d5h19m) into a datetime.timedelta.
+    Delta includes:
+    * Xd days
+    * Xh hours
+    * Xm minutes
+    Values can be negative following timedelta's rules. Eg: -5h-30m
+    """
+    # source: https://gist.github.com/santiagobasulto/698f0ff660968200f873a2f9d1c4113c
+    import re
+
+    TIMEDELTA_REGEX = (
+        r"((?P<days>-?\d+)d)?" r"((?P<hours>-?\d+)h)?" r"((?P<minutes>-?\d+)m)?"
+    )
+    TIMEDELTA_PATTERN = re.compile(TIMEDELTA_REGEX, re.IGNORECASE)
+    match = TIMEDELTA_PATTERN.match(delta)
+    if match:
+        parts = {k: int(v) for k, v in match.groupdict().items() if v}
+        td = timedelta(**parts)
+        if only_positve and td.days < 0:
+            raise ValueError("Only positiv timedeltas are allowed")
+        return td
+    raise ValueError(f"Could not parse timedelta: {delta}")
 
 
 # It's a subclass of the `Transition` class that adds a `run` method that runs the transition asynchronously

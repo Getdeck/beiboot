@@ -111,10 +111,10 @@ webhooks:
     service:
       name: beiboot-admission
       namespace: getdeck
-      path: "/check-namespace-ready"
+      path: "/validate-parameters"
   failurePolicy: Fail
   matchPolicy: Equivalent
-  name: check-namespace-ready.beiboot.getdeck.dev
+  name: validate-parameters.beiboot.getdeck.dev
   namespaceSelector: {}
   objectSelector: {}
   rules:

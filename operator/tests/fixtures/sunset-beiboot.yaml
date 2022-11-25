@@ -1,0 +1,23 @@
+apiVersion: getdeck.dev/v1
+kind: beiboot
+metadata:
+  name: test-beiboot-sunset
+  namespace: getdeck
+provider: k3s
+parameters:
+  clusterReadyTimeout: 200
+  ports:
+    - 8080:80
+  nodes: 1
+  maxLifetime: 5s
+  serverStorageRequests: 500Mi
+  nodeStorageRequests: 500Mi
+  serverResources:
+    requests:
+      cpu: "0.5"
+      memory: 0.5Gi
+  nodeResources:
+    requests:
+      cpu: "0.5"
+      memory: 0.5Gi
+

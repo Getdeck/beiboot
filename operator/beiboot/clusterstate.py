@@ -20,7 +20,7 @@ from beiboot.resources.utils import (
     handle_create_beiboot_serviceaccount,
     get_serviceaccount_data,
 )
-from beiboot.utils import StateMachine, AsyncState
+from beiboot.utils import StateMachine, AsyncState, parse_timedelta
 
 
 class BeibootCluster(StateMachine):
@@ -120,6 +120,13 @@ class BeibootCluster(StateMachine):
         else:
             kubeconfig = await self.provider.get_kubeconfig()
         return kubeconfig
+
+    @property
+    def sunset(self) -> Optional[datetime]:
+        if sunset := self.model.get("sunset"):
+            return datetime.fromisoformat(sunset.strip("Z"))
+        else:
+            return None
 
     def completed_transition(self, state_value: str) -> Optional[str]:
         """
@@ -239,6 +246,13 @@ class BeibootCluster(StateMachine):
             self.namespace
         ):
             await self._write_tunnel_data()
+            # calculate the sunset time for this Beiboot
+            if self.parameters.maxLifetime:
+                td = parse_timedelta(self.parameters.maxLifetime)
+                sunset = datetime.utcnow() + td
+                self._patch_object(
+                    {"sunset": sunset.isoformat(timespec="microseconds") + "Z"}
+                )
         else:
             self.logger.info(
                 f"Beiboot provider running: {await self.provider.running()} | "
@@ -328,6 +342,7 @@ class BeibootCluster(StateMachine):
                     self.ready.value, f"The cluster '{self.name}' is now ready"
                 )
             await self._write_tunnel_data()
+
         else:
             # check how long this cluster is not ready
             timestamp_since = self.get_latest_transition()

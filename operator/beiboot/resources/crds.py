@@ -20,7 +20,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                         default=[],
                         items=k8s.client.V1JSONSchemaProps(type="string"),
                     ),
-                    # total time a cluster can exist
+                    # total time a cluster can exist, starts counting when cluster is ready
                     "maxLifetime": k8s.client.V1JSONSchemaProps(type="string"),
                     # max time with no client heartbeat before the cluster extincts
                     "maxSessionTimeout": k8s.client.V1JSONSchemaProps(type="string"),
@@ -79,7 +79,11 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                     ),
                     "nodeStorageRequests": k8s.client.V1JSONSchemaProps(type="string"),
                     "gefyra": k8s.client.V1JSONSchemaProps(
-                        type="object", x_kubernetes_preserve_unknown_fields=True
+                        type="object",
+                        properties={
+                            "enabled": k8s.client.V1JSONSchemaProps(type="boolean"),
+                            "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
+                        },
                     ),
                 },
                 x_kubernetes_preserve_unknown_fields=True,
@@ -87,6 +91,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             "kubeconfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
+            "sunset": k8s.client.V1JSONSchemaProps(type="string"),
             "tunnel": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),

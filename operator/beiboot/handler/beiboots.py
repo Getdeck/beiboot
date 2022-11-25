@@ -1,5 +1,6 @@
 import traceback
 from asyncio import sleep
+from datetime import datetime
 
 import kopf
 
@@ -80,12 +81,26 @@ async def reconcile_beiboot(body, logger, **kwargs):
     :param body: The body of the Kubernetes resource that triggered the handler
     :param logger: a logger object
     """
-    parameters = configuration.refresh_k8s_config()
+    parameters = configuration.refresh_k8s_config(body.get("parameters"))
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
+
+    if cluster.sunset and cluster.sunset <= datetime.utcnow():
+        # terminate this cluster
+        try:
+            await cluster.terminate()
+        except Exception as e:
+            logger.error(e)
+            raise kopf.PermanentError(e)
 
     if cluster.is_running or cluster.is_ready:
         try:
             await cluster.reconcile()
+        except (kopf.PermanentError, kopf.TemporaryError) as e:
+            await cluster.impair(str(e))
+            raise e from None
+    elif cluster.is_error:
+        try:
+            await cluster.recover()
         except (kopf.PermanentError, kopf.TemporaryError) as e:
             await cluster.impair(str(e))
             raise e from None
