@@ -43,7 +43,7 @@ jobs:
 
   unit-tests-operator:
     needs: linters
-    if: needs.linters.outputs.operator == 'true' || github.head_ref == 'main'
+    if: needs.linters.outputs.operator == 'true' || github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
@@ -72,7 +72,7 @@ jobs:
 
   e2e-tests-operator:
     needs: [unit-tests-operator, linters]
-    if: needs.linters.outputs.operator == 'true' || github.head_ref == 'main'
+    if: needs.linters.outputs.operator == 'true' || github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
@@ -105,7 +105,7 @@ jobs:
 
   e2e-tests-client:
     needs: [ linters ]
-    if: needs.linters.outputs.client == 'true' || github.head_ref == 'main'
+    if: needs.linters.outputs.client == 'true' || github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
