@@ -8,6 +8,4 @@ class TestBaseSetup(TestClientBase):
     def test_sane_operator(self, operator, kubectl, timeout):
         self._apply_fixture_file("tests/fixtures/simple-beiboot.yaml", kubectl, timeout)
         self._wait_for_state("READY", kubectl, timeout)
-        data = self._get_beiboot_data(kubectl)
-
-
+        _ = self._get_beiboot_data(kubectl)

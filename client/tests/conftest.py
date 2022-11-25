@@ -87,7 +87,6 @@ def operator(request, kubectl):
     else:
         raise RuntimeError("There was an error starting the Operator")
 
-
     def teardown():
         logger.info("Stopping the Operator")
         operator.terminate()
