@@ -73,6 +73,10 @@ def operator(request, kubectl):
 
     logger.info("Starting the Operator")
     # start the operator
+    # this workaround is needed for GitHub actions
+    import gc
+    gc.disable()
+
     operator = subprocess.Popen(
         ["poetry", "run", "kopf", "run", "-A", "main.py"],
         cwd=os.path.join("..", "operator"),
@@ -110,7 +114,7 @@ def operator(request, kubectl):
 
 
 @pytest.fixture(scope="session")
-def timeout(request) -> int:
+def timeout(request):
     cluster_timeout = request.config.option.cluster_timeout or request.config.getini(
         "cluster_timeout"
     )
