@@ -102,7 +102,7 @@ jobs:
           directory: ./operator/
           files: coverage.json
 
-  unit-test-client:
+  unit-tests-client:
     needs: [ linters ]
     if: needs.linters.outputs.client == 'true' || github.ref == 'refs/heads/main'
     strategy:
