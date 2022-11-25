@@ -11,6 +11,10 @@ parameters:
   nodes: 1
   serverStorageRequests: 500Mi
   nodeStorageRequests: 500Mi
+  gefyra:
+    enabled: true
+    endpoint: 127.0.0.1
+
   serverResources:
     requests:
       cpu: "0.5"

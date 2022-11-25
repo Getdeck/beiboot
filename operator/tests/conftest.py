@@ -1,6 +1,8 @@
 import logging
 import shutil
 import subprocess
+from time import sleep
+
 import pytest
 
 CLUSTER_NAME = "beiboot-test-cluster"
@@ -55,7 +57,17 @@ def kubeconfig(request):
     request.addfinalizer(teardown)
     import kubernetes as k8s
 
-    k8s.config.load_kube_config()
+    for _i in range(0, 10):
+        try:
+            k8s.config.load_kube_config()
+            core_api = k8s.client.CoreV1Api()
+            core_api.list_namespace()
+            break
+        except Exception:  # noqa
+            sleep(1)
+            continue
+    else:
+        raise RuntimeError("There was an error setting up Minikube correctly")
     return None
 
 

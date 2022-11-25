@@ -26,13 +26,13 @@ class TestOperatorConfigured(TestOperatorBase):
     def test_gefyra_disabled(self, kubectl):
         data = self._get_beiboot_data(kubectl)
         assert data["parameters"]["gefyra"]["enabled"] is False
-        assert data["parameters"]["gefyra"].get("endpoint") is None
-        assert data["parameters"]["gefyra"].get("port") is None
+        assert data["gefyra"].get("endpoint") is None
+        assert data["gefyra"].get("port") is None
+        assert data["gefyra"] == {}
 
     def test_parameters_set(self, kubectl):
         data = self._get_beiboot_data(kubectl)
         assert data["parameters"]["nodes"] == 1
-        assert data["parameters"]["maxLifetime"] == "10s"
         assert data["parameters"]["ports"] == ["8080:80", "8443:443"]
 
     def test_services_available(self, kubectl):
