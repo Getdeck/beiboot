@@ -2,8 +2,6 @@ import logging
 import os
 import shutil
 import subprocess
-import _thread
-from threading import Timer
 from time import sleep
 
 import pytest
@@ -55,6 +53,7 @@ def operator(request, kubectl):
     )
 
     import kubernetes as k8s
+
     for _i in range(0, 10):
         try:
             k8s.config.load_kube_config()
@@ -74,8 +73,14 @@ def operator(request, kubectl):
 
     logger.info("Starting the Operator")
     # start the operator
-    operator = subprocess.Popen(["poetry", "run", "kopf", "run", "-A", "main.py"], cwd=os.path.join("..", "operator"),
-                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True)
+    operator = subprocess.Popen(
+        ["poetry", "run", "kopf", "run", "-A", "main.py"],
+        cwd=os.path.join("..", "operator"),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+    )
     _i = 0
     _output = ""
     while _i < 5:
@@ -109,8 +114,6 @@ def operator(request, kubectl):
 
     request.addfinalizer(teardown)
     return None
-
-
 
 
 @pytest.fixture(scope="session")
