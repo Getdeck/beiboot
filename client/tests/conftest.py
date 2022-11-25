@@ -73,16 +73,13 @@ def operator(request, kubectl):
 
     logger.info("Starting the Operator")
     # start the operator
-    # this workaround is needed for GitHub actions
-    import gc
-
-    gc.disable()
-
     operator = subprocess.Popen(
         ["poetry", "run", "kopf", "run", "-A", "main.py"],
         cwd=os.path.join("..", "operator"),
         bufsize=1,
         universal_newlines=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     sleep(7)
     if operator.poll() is None:
