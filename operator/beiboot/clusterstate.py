@@ -316,9 +316,7 @@ class BeibootCluster(StateMachine):
                     parameters=self.parameters,
                 )
                 body_patch = {
-                    "parameters": {
-                        "gefyra": {"port": str(gefyra_nodeport), "endpoint": gefyra_endpoint}  # type: ignore
-                    },
+                    "gefyra": {"port": str(gefyra_nodeport), "endpoint": gefyra_endpoint},  # type: ignore
                     "kubeconfig": {
                         "source": base64.b64encode(
                             raw_kubeconfig.encode("utf-8")

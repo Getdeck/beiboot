@@ -31,10 +31,8 @@ class TestOperator(TestOperatorBase):
         data = self._get_beiboot_data(kubectl)
         assert "tunnel" in data
         assert "gefyra" in data["parameters"]
-        assert "port" in data["parameters"]["gefyra"] and bool(
-            data["parameters"]["gefyra"]["port"]
-        )
-        # assert "endpoint" in data["gefyra"] and bool(data["gefyra"]["endpoint"])
+        assert "port" in data["gefyra"] and bool(data["gefyra"]["port"])
+        assert "127.0.0.1" in data["gefyra"]["endpoint"]
         assert "ghostunnel" in data["tunnel"]
         assert "mtls" in data["tunnel"]["ghostunnel"]
         assert "client.crt" in data["tunnel"]["ghostunnel"]["mtls"] and bool(

@@ -81,15 +81,8 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                     "gefyra": k8s.client.V1JSONSchemaProps(
                         type="object",
                         properties={
-                            "enabled": k8s.client.V1JSONSchemaProps(
-                                type="boolean"
-                            ),
-                            "endpoint": k8s.client.V1JSONSchemaProps(
-                                type="string"
-                            ),
-                            "port": k8s.client.V1JSONSchemaProps(
-                                type="string"
-                            )
+                            "enabled": k8s.client.V1JSONSchemaProps(type="boolean"),
+                            "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
                         },
                     ),
                 },
@@ -97,6 +90,14 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             ),
             "kubeconfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
+            "gefyra": k8s.client.V1JSONSchemaProps(
+                type="object",
+                default={},
+                properties={
+                    "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
+                    "port": k8s.client.V1JSONSchemaProps(type="string"),
+                },
             ),
             "sunset": k8s.client.V1JSONSchemaProps(type="string"),
             "tunnel": k8s.client.V1JSONSchemaProps(
