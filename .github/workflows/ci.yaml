@@ -102,14 +102,14 @@ jobs:
           directory: ./operator/
           files: coverage.json
 
-  e2e-unit-client:
+  unit-test-client:
     needs: [ linters ]
     if: needs.linters.outputs.client == 'true' || github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
         k8s: [ v1.25.3, v1.24.1 ]
-    name: E2E-tests Client K8s ${{ matrix.k8s }}
+    name: Unit tests client K8s ${{ matrix.k8s }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -121,7 +121,7 @@ jobs:
           python-version: "3.9"
       - name: Install Poetry
         uses: snok/install-poetry@v1
-      - name: Run unite tests with K8s ${{ matrix.k8s }}
+      - name: Run unit tests with K8s ${{ matrix.k8s }}
         working-directory: client/
         run: |
           poetry install
@@ -135,13 +135,13 @@ jobs:
           files: coverage.json
 
   e2e-tests-client:
-    needs: [ e2e-unit-client, linters ]
+    needs: [ unit-tests-client, linters ]
     if: needs.linters.outputs.client == 'true' || github.ref == 'refs/heads/main'
     strategy:
       fail-fast: true
       matrix:
         k8s: [ v1.25.3 , v1.24.8, v1.23.14, v1.22.15 ]
-    name: E2E-tests Client K8s ${{ matrix.k8s }}
+    name: E2E-tests client K8s ${{ matrix.k8s }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
