@@ -1,7 +1,7 @@
 # Getdeck Beiboot Operator Development
 This is the Operator running Beiboot's cluster side components. The Operator
 contains the following components:
-* an object handler for 'beiboot' resources (CRD, see: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
+* an object handler for _beiboot_ resources (CRD, see: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
 * a state machine implementation for beiboots (logical K8s cluster) to set up, tear down, monitor, and reconciliation of clusters
 * an AdmissionWebhook to validate beiboot objects upon creation
 
@@ -43,12 +43,13 @@ can follow the log in the console and see what's going on.
 
 When starting the Operator, the following happens:
 1) _kopf_ connects the handler to Kubernetes' APIs (please consult kopf's documentation for more details)
-2) The Operator registers the Kubernetes API extension for 'beiboot.getdeck.dev' 
+2) The Operator registers the Kubernetes API extension for _beiboot.getdeck.dev_ 
 3) It writes the default cluster parameter configuration to the ConfigMap `beiboot-config` in namespace `getdeck`
 (Please follow the code in `beiboot/handler/components.py`).
 
 The Operator is ready once the log says so. You can now create a beiboot object based on your requirements.
-**Remark:** You can start with a beiboot object from the _tests_ directory:
+### Remarks
+You can start with a beiboot object from the `beiboot/operator/tests/` directory:
 ```bash
 > kubectl -n getdeck apply -f tests/fixtures/simple-beiboot.yaml
 ```
@@ -60,12 +61,12 @@ operations.
 ### Remarks
 * The kopf framework heavily relies on async structures, please use it as much as possible to keep the Operator responsive to concurrent activities in the cluster
 * The ValidationWebhooks cannot be registered that simple in a local environment, please use tests
-* Most of the execution happens in `beiboot/clusterstate.py` (the state machine implementation) and `beiboot/handler/beiboots.py` (the reactive handlers for beiboot objects)
+* Most of the execution happens in `beiboot/operator/beiboot/clusterstate.py` (the state machine implementation) and `beiboot/operator/beiboot/handler/beiboots.py` (the reactive handlers for beiboot objects)
 
 ## Testing
 Please add a test case for every new feature and other code changes alike. Please add both:
-* unit tests in `beiboot/tests/unit/` in a new or existing module
-* an integration/e2e test in `beiboot/tests/e2e/` with a new module
+* unit tests in `beiboot/operator/tests/unit/` in a new or existing module
+* an integration/e2e test in `beiboot/operator/tests/e2e/` with a new module
 
 ### Writing a test
 We're using [pytest](https://docs.pytest.org/) to run the test suite. Please write functions as documented.
@@ -81,7 +82,7 @@ def test_myfunction(kubeconfig):
     result = myfunction()  # call a function that depends on K8s  
 ```
 Adding the `kubeconfig` parameter to any function will cause `pytest` to set up a fresh Kubernetes cluster and
-execute the test function.
+execute the test function.  
 **Important:** You have to import such functions under test locally, i.e. within the test function. If you import the
 function under test globally (module level) it can cause to instantiate the K8s API object before actually creating the
 cluster which will make the K8s API object not being able to talk to the test cluster. This behavior is caused by the wrong
@@ -102,7 +103,7 @@ is `kubectl(command: list[str]) -> str`. Please always tokenize the command as a
 Using `kubectl` without `kubeconfig` seems to make no sense.
 
 ### Running the tests
-Please run the test with Poetry and coverage like so:
+Please run the test with Poetry and coverage like so (`pwd` is `beiboot/operator/`):
 * `poetry run coverage run -m pytest -x -s tests/` (for all tests; ~12min)
 * `poetry run coverage run -m pytest -x -s tests/e2e/` (for all end to end tests; ~10min)
 * `poetry run coverage run -m pytest -x -s tests/unit/` (for all unit tests; ~2min)
