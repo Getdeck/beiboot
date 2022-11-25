@@ -34,6 +34,9 @@ coverage = "^6.5.0"
 pytest-asyncio = "^0.20.2"
 mypy = "^0.991"
 kopf = "^1.36.0"
+python-decouple = "^3.5"
+certbuilder = "^0.14.2"
+python-statemachine = "^0.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

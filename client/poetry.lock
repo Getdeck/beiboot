@@ -30,6 +30,14 @@ python-versions = ">=3.7"
 frozenlist = ">=1.1.0"
 
 [[package]]
+name = "asn1crypto"
+version = "1.5.1"
+description = "Fast ASN.1 parser and serializer with definitions for private keys, public keys, certificates, CRL, OCSP, CMS, PKCS#3, PKCS#7, PKCS#8, PKCS#12, PKCS#5, X.509 and TSP"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "async-timeout"
 version = "4.0.2"
 description = "Timeout context manager for asyncio programs"
@@ -88,6 +96,18 @@ description = "Extensible memoizing collections and decorators"
 category = "main"
 optional = false
 python-versions = "~=3.7"
+
+[[package]]
+name = "certbuilder"
+version = "0.14.2"
+description = "Creates and signs X.509 certificates"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+asn1crypto = ">=0.18.1"
+oscrypto = ">=0.16.1"
 
 [[package]]
 name = "certifi"
@@ -334,6 +354,17 @@ signals = ["blinker (>=1.4.0)"]
 signedtoken = ["cryptography (>=3.0.0)", "pyjwt (>=2.0.0,<3)"]
 
 [[package]]
+name = "oscrypto"
+version = "1.3.0"
+description = "TLS (SSL) sockets, key generation, encryption, decryption, signing, verification and KDFs using the OS crypto libraries. Does not require a compiler, and relies on the OS for patching. Works on Windows, OS X and Linux/BSD."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+asn1crypto = ">=1.5.1"
+
+[[package]]
 name = "packaging"
 version = "21.3"
 description = "Core utilities for Python packages"
@@ -477,12 +508,28 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 six = ">=1.5"
 
 [[package]]
+name = "python-decouple"
+version = "3.6"
+description = "Strict separation of settings from code."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "python-json-logger"
 version = "2.0.4"
 description = "A python library adding a json log formatter"
 category = "dev"
 optional = false
 python-versions = ">=3.5"
+
+[[package]]
+name = "python-statemachine"
+version = "0.8.0"
+description = "Python Finite State Machines made easy."
+category = "dev"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "pywin32"
@@ -617,16 +664,18 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "8ecc6eb6efa25d283e9a9b024f6e802a856775d9ba672f8e1d65266920d4b3f7"
+content-hash = "c857e1f50bd6ecb8423df711668b08f02a7795936334dcd082a3dff3efbd0e2f"
 
 [metadata.files]
 aiohttp = []
 aiosignal = []
+asn1crypto = []
 async-timeout = []
 atomicwrites = []
 attrs = []
 black = []
 cachetools = []
+certbuilder = []
 certifi = []
 charset-normalizer = []
 click = []
@@ -647,6 +696,7 @@ multidict = []
 mypy = []
 mypy-extensions = []
 oauthlib = []
+oscrypto = []
 packaging = []
 pathspec = []
 platformdirs = []
@@ -660,7 +710,9 @@ pyparsing = []
 pytest = []
 pytest-asyncio = []
 python-dateutil = []
+python-decouple = []
 python-json-logger = []
+python-statemachine = []
 pywin32 = []
 pyyaml = []
 requests = []
