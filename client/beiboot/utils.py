@@ -11,19 +11,21 @@ import kubernetes as k8s
 from beiboot.configuration import ClientConfiguration
 from docker.models.containers import Container
 
+from beiboot.types import BeibootRequest
+
 logger = logging.getLogger("getdeck.beiboot")
 
 
 def create_beiboot_custom_ressource(
-    config: ClientConfiguration, name: str, ports: List[str]
+    req: BeibootRequest, config: ClientConfiguration
 ) -> dict:
     cr = {
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
         "provider": "k3s",
-        "parameters": {"ports": ports, "nodes": 3},
+        "parameters": req.parameters.as_dict(),
         "metadata": {
-            "name": name,
+            "name": req.name,
             "namespace": config.NAMESPACE,
         },
     }

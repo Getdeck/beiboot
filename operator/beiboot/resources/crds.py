@@ -20,6 +20,8 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                         default=[],
                         items=k8s.client.V1JSONSchemaProps(type="string"),
                     ),
+                    # the amount of nodes for this cluster
+                    "nodes": k8s.client.V1JSONSchemaProps(type="integer"),
                     # total time a cluster can exist, starts counting when cluster is ready
                     "maxLifetime": k8s.client.V1JSONSchemaProps(type="string"),
                     # max time with no client heartbeat before the cluster extincts
