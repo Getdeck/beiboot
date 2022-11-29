@@ -1,4 +1,5 @@
 from beiboot.types import BeibootParameters, BeibootRequest
+from beiboot.utils import decode_mtls_data
 
 
 def test_beiboot_params():
@@ -19,3 +20,9 @@ def test_beiboot_request():
     assert req.name == "mycluster"
     assert req.parameters.nodes is None
     assert req.parameters == BeibootParameters()
+
+
+def test_encode_mtls_data():
+    data = decode_mtls_data({"ca.crt": "aGVsbG8K", "client.crt": "Y2xpZW50Cg=="})
+    assert data["ca.crt"] == "hello"
+    assert data["client.crt"] == "client"

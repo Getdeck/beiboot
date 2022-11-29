@@ -1,10 +1,16 @@
+import binascii
+import logging
+
 import kubernetes as k8s
 
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 from beiboot.configuration import default_configuration, ClientConfiguration
+
+
+logger = logging.getLogger(__name__)
 
 
 class BeibootProvider(Enum):
@@ -63,10 +69,7 @@ class BeibootParameters:
         for _field in fields(self):
             if _v := getattr(self, _field.name):
                 if type(_v) == GefyraParams:
-                    data["gefyra"] = {
-                        "enabled": _v.enabled,
-                        "endpoint": _v.endpoint
-                    }
+                    data["gefyra"] = {"enabled": _v.enabled, "endpoint": _v.endpoint}
                 else:
                     data[_field.name] = _v
         return data
@@ -96,8 +99,8 @@ class Beiboot:
     name: str
     # the namespace this cluster runs in the host cluster
     namespace: str
-    # the beiboot.getdeck.dev object name
-    object_name: str
+    # the uid from Kubernetes for this object
+    uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
     state: BeibootState
@@ -108,17 +111,21 @@ class Beiboot:
         self, beiboot: dict, config: ClientConfiguration = default_configuration
     ):
         self.name = beiboot["metadata"]["name"]
-        self.object_name = beiboot["metadata"]["name"]
-        self.namespace = beiboot.get("beibootNamespace")
+        self.uid = beiboot["metadata"]["uid"]
         self.object_namespace = beiboot["metadata"]["namespace"]
-        self._data = beiboot
+        self._init_data(beiboot)
         self._config = config
-        self._init_data()
 
-    def _init_data(self):
-        self.state = self._data["state"]
-        self.transitions = self._data["stateTransitions"]
+    def _init_data(self, _object: dict[str, Any]):
+        self._data = _object
+        self.state = BeibootState(self._data.get("state"))
+        self.namespace = self._data.get("beibootNamespace")
+        self.transitions = self._data.get("stateTransitions")
         self.parameters = BeibootParameters.from_raw(self._data["parameters"])
+
+    def __getattr__(self, item):
+        self._fetch_object()
+        return self.__getattribute__(item)
 
     def _fetch_object(self):
         try:
@@ -136,4 +143,66 @@ class Beiboot:
                 ) from None
             else:
                 raise RuntimeError(str(e)) from None
-        self._init_data()
+        self._init_data(bbt)
+
+    @property
+    def kubeconfig(self) -> Optional[str]:
+        from beiboot.utils import decode_kubeconfig
+
+        if self.state != BeibootState.READY:
+            logger.warning("This Beiboot is not in READY state")
+        kubeconfig_object = self._data.get("kubeconfig")  # noqa
+        if kubeconfig_object is None:
+            return None
+        try:
+            kubeconfig = decode_kubeconfig(kubeconfig_object)
+        except (KeyError, binascii.Error) as e:
+            raise RuntimeError(f"Can not fetch kubeconfig: {e}") from None
+        else:
+            return kubeconfig
+
+    @property
+    def mtls_files(self) -> Optional[dict[str, str]]:
+        from beiboot.utils import decode_b64_dict
+
+        if self.state != BeibootState.READY:
+            logger.warning("This Beiboot is not in READY state")
+        if tunnel := self._data.get("tunnel"):
+            if ghostunnel := tunnel.get("ghostunnel"):
+                try:
+                    return decode_b64_dict(ghostunnel["mtls"])
+                except binascii.Error as e:
+                    raise RuntimeError(
+                        f"There was an error decoding mTLS data: {e}"
+                    ) from None
+        return None
+
+    @property
+    def serviceaccount_tokens(self) -> Optional[dict[str, Union[str, Any]]]:
+        from beiboot.utils import decode_b64_dict
+
+        if self.state != BeibootState.READY:
+            logger.warning("This Beiboot is not in READY state")
+        if tunnel := self._data.get("tunnel"):
+            if sa_token := tunnel.get("serviceaccount"):
+                try:
+                    return decode_b64_dict(sa_token)
+                except binascii.Error as e:
+                    raise RuntimeError(
+                        f"There was an error decoding the serviceaccount token: {e}"
+                    ) from None
+        return None
+
+    def wait_for_state(self, state: BeibootState, timeout: Optional[int] = None):
+        w = k8s.watch.Watch()
+        for _object in w.stream(
+            self._config.K8S_CUSTOM_OBJECT_API.list_namespaced_custom_object,
+            namespace=self._config.NAMESPACE,
+            group="getdeck.dev",
+            plural="beiboots",
+            version="v1",
+        ):
+            _bbt = _object.get("object")
+            if _bbt["metadata"]["uid"] == self.uid and _bbt["state"] == state.value:
+                self._init_data(_bbt)
+                break

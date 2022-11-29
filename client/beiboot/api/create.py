@@ -1,4 +1,5 @@
 import json
+import logging
 
 import kubernetes as k8s
 
@@ -7,13 +8,25 @@ from beiboot.configuration import default_configuration, ClientConfiguration
 from beiboot.types import BeibootRequest, Beiboot
 from beiboot.utils import create_beiboot_custom_ressource
 
+logger = logging.getLogger(__name__)
+
 
 @stopwatch
 def create(
     req: BeibootRequest, config: ClientConfiguration = default_configuration
 ) -> Beiboot:
+    """
+    It creates a Beiboot cluster
+
+    :param req: BeibootRequest
+    :type req: BeibootRequest
+    :param config: ClientConfiguration = default_configuration
+    :type config: ClientConfiguration
+    :return: A Beiboot object
+    """
     obj = create_beiboot_custom_ressource(req, config)
     try:
+        logger.debug("Checking if Beiboot object already exists")
         _ = config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
             group="getdeck.dev",
             version="v1",
@@ -23,7 +36,7 @@ def create(
         )
         raise RuntimeError(f"The requested Beiboot cluster {req.name} already exists.")
     except k8s.client.exceptions.ApiException:
-        # that is ok
+        logger.debug("Beiboot object does not exist and can be created")
         pass
 
     try:
@@ -34,6 +47,7 @@ def create(
             plural="beiboots",
             version="v1",
         )
+        logger.debug(f"Successfully created Beiboot object: {obj['metadata']['name']}")
     except k8s.client.exceptions.ApiException as e:
         if e.status == 404:
             raise RuntimeError(

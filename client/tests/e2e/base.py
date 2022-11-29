@@ -10,6 +10,11 @@ class TestClientBase:
 
     beiboot_name = ""
 
+    def get_target_namespace(self):
+        # this mimics the default namespace pattern from the operator
+        namespace = f"getdeck-bbt-{self.beiboot_name}"
+        return namespace
+
     def _apply_fixture_file(self, path: str, kubectl: Callable, timeout: int):
         _i = 0
         while _i < timeout:

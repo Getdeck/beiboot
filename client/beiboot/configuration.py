@@ -77,12 +77,15 @@ class ClientConfiguration(object):
             AppsV1Api,
             CustomObjectsApi,
         )
-        from kubernetes.config import load_kube_config
+        from kubernetes.config import load_kube_config, config_exception
 
-        if self.KUBECONFIG_FILE:
-            load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
-        else:
-            load_kube_config(context=context or self.context)
+        try:
+            if self.KUBECONFIG_FILE:
+                load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
+            else:
+                load_kube_config(context=context or self.context)
+        except config_exception.ConfigException as e:
+            raise RuntimeError(f"Could not load kubeconfig or context: {e}") from None
         self.K8S_CORE_API = CoreV1Api()
         self.K8S_RBAC_API = RbacAuthorizationV1Api()
         self.K8S_APP_API = AppsV1Api()
