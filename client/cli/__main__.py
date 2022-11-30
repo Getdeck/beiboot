@@ -3,7 +3,14 @@ from prompt_toolkit import print_formatted_text
 
 from beiboot.configuration import ClientConfiguration
 
-from cli.cluster import create_cluster, delete, list_clusters, connect, inspect
+from cli.cluster import (
+    create_cluster,
+    delete,
+    list_clusters,
+    connect,
+    inspect,
+    disconnect,
+)
 from cli.install import install, uninstall
 
 
@@ -45,6 +52,7 @@ cluster.add_command(create_cluster)
 cluster.add_command(delete)
 cluster.add_command(list_clusters)
 cluster.add_command(connect)
+cluster.add_command(disconnect)
 cluster.add_command(inspect)
 
 

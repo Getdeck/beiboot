@@ -5,7 +5,7 @@ from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.shortcuts.progress_bar import formatters
 from prompt_toolkit.styles import Style
 
-styles = Style.from_dict({"error": "#FF1820", "success": "#31F565", "bild": "bold"})
+styles = Style.from_dict({"error": "#FF1820", "success": "#31F565", "bold": "bold"})
 
 create_pbar = Style.from_dict(
     {

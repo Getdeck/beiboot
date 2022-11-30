@@ -107,9 +107,13 @@ class Beiboot:
     uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
+    # the timestamp when this cluster gets removed
     sunset: Optional[str] = None
+    # all state transitions
     transitions: Optional[dict[str, str]]
+    # the cluster parameters
     parameters: BeibootParameters
+    provider: str
 
     def __init__(
         self, beiboot: dict, config: ClientConfiguration = default_configuration
@@ -117,6 +121,7 @@ class Beiboot:
         self.name = beiboot["metadata"]["name"]
         self.uid = beiboot["metadata"]["uid"]
         self.object_namespace = beiboot["metadata"]["namespace"]
+        self.provider = beiboot["provider"]
         self._init_data(beiboot)
         self._config = config
 
@@ -173,7 +178,7 @@ class Beiboot:
 
         if self.state != BeibootState.READY:
             logger.warning("This Beiboot is not in READY state")
-        if tunnel := self._data.get("tunnel"):
+        if tunnel := self.tunnel:
             if ghostunnel := tunnel.get("ghostunnel"):
                 try:
                     return decode_b64_dict(ghostunnel["mtls"])
@@ -189,7 +194,7 @@ class Beiboot:
 
         if self.state != BeibootState.READY:
             logger.warning("This Beiboot is not in READY state")
-        if tunnel := self._data.get("tunnel"):
+        if tunnel := self.tunnel:
             if sa_token := tunnel.get("serviceaccount"):
                 try:
                     return decode_b64_dict(sa_token)
@@ -197,6 +202,12 @@ class Beiboot:
                     raise RuntimeError(
                         f"There was an error decoding the serviceaccount token: {e}"
                     ) from None
+        return None
+
+    @property
+    def tunnel(self) -> Optional[dict[str, Any]]:
+        if tunnel := self._data.get("tunnel"):
+            return tunnel
         return None
 
     @property
@@ -225,7 +236,7 @@ class Beiboot:
             if self.state == awaited_state:
                 return
             else:
-                logger.debug(
+                logger.info(
                     f"Waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
                 )
                 sleep(1)

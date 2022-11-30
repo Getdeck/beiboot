@@ -1,7 +1,8 @@
 import base64
 import logging
-import pathlib
 import socket
+from pathlib import Path
+from typing import List, Optional, Container
 
 from beiboot.configuration import ClientConfiguration
 
@@ -32,8 +33,18 @@ def decode_kubeconfig(kubeconfig_obj: dict):
     return kubeconfig
 
 
+def get_beiboot_config_location(config: ClientConfiguration, cluster_name: str) -> str:
+    config_dir = config.KUBECONFIG_LOCATION.joinpath(cluster_name)
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return str(config_dir)
+
+
 def get_kubeconfig_location(config: ClientConfiguration, cluster_name: str) -> str:
-    return str(config.KUBECONFIG_LOCATION.joinpath(f"{cluster_name}.yaml"))
+    return str(
+        Path(get_beiboot_config_location(config, cluster_name)).joinpath(
+            f"{cluster_name}.yaml"
+        )
+    )
 
 
 def decode_b64_dict(b64_dict: dict[str, str]) -> dict[str, str]:
@@ -41,24 +52,6 @@ def decode_b64_dict(b64_dict: dict[str, str]) -> dict[str, str]:
         k: base64.b64decode(v.encode("utf-8")).decode("utf-8").strip()
         for k, v in b64_dict.items()
     }
-
-
-def save_kubeconfig_to_file(
-    config: ClientConfiguration, cluster_name: str, kubeconfig
-) -> str:
-    location = get_kubeconfig_location(config, cluster_name)
-    with open(location, "w") as yaml_file:
-        yaml_file.write(kubeconfig)
-    return location
-
-
-def delete_kubeconfig_file(config: ClientConfiguration, cluster_name: str):
-    location = get_kubeconfig_location(config, cluster_name)
-    pathlib.Path(location).unlink(missing_ok=True)
-
-
-def _get_tooler_container_name(cluster_name: str):
-    return f"getdeck-proxy-{cluster_name}"
 
 
 def _check_port_free(port: int) -> bool:
@@ -213,15 +206,17 @@ def _check_port_free(port: int) -> bool:
 #                 )
 #
 #
-# def _list_containers_by_prefix(
-#     config: ClientConfiguration, prefix: str
-# ) -> List[Optional[Container]]:
-#     containers = config.DOCKER.containers.list()
-#     result = []
-#     for container in containers:
-#         if container.name.startswith(prefix):
-#             result.append(container)
-#     return result
+def _list_containers_by_prefix(
+    config: ClientConfiguration, prefix: str
+) -> List[Optional[Container]]:
+    containers = config.DOCKER.containers.list()
+    result = []
+    for container in containers:
+        if container.name.startswith(prefix):
+            result.append(container)
+    return result
+
+
 #
 #
 # def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:

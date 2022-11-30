@@ -2,11 +2,13 @@ import time
 
 import click
 from prompt_toolkit import print_formatted_text
+from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.shortcuts import ProgressBar
 from tabulate import tabulate
 
 
 from beiboot import api
+from beiboot.connection.types import ConnectorType
 from beiboot.types import BeibootRequest, BeibootParameters, BeibootState
 from cli.console import (
     info,
@@ -14,6 +16,7 @@ from cli.console import (
     cluster_create_formatters,
     success,
     heading,
+    styles,
 )
 from cli.utils import standard_error_handler
 
@@ -137,7 +140,9 @@ def create_cluster(
                     if beiboot.state == BeibootState.ERROR:
                         raise RuntimeError("This Beiboot cluster entered ERROR state")
                     time.sleep(0.5)
-        success(f"Beiboot cluster ready in {time.time() - start_time:.1f} seconds")
+        success(
+            f"Beiboot cluster became ready in {time.time() - start_time:.1f} seconds"
+        )
 
 
 @click.command("delete")
@@ -196,5 +201,57 @@ def inspect(ctx, name):
 @click.command("connect")
 @click.argument("name")
 @click.pass_context
+@standard_error_handler
 def connect(ctx, name):
-    pass
+    beiboot = api.read(name=name)
+    info(
+        f"Now connecting to Beiboot '{name}' using connector 'ConnectorType.GHOSTUNNEL_DOCKER'"
+    )
+
+    formatted_ports = ", ".join(
+        list(
+            map(
+                lambda p: f"127.0.0.1:{p.split(':')[0]} -> cluster:{p.split(':')[1]}",
+                beiboot.parameters.ports,
+            )
+        )
+    )
+    print_formatted_text(
+        FormattedText(
+            [
+                ("class:info", "Creating port-forwards for the following ports: "),
+                ("class:italic", formatted_ports),
+            ],
+            style=styles,
+        )
+    )
+
+    connector = api.connect(
+        beiboot, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
+    )
+
+    location = connector.save_kubeconfig_to_file()
+    info(f"The kubeconfig file is written to {location}")
+    print_formatted_text(
+        FormattedText(
+            [
+                ("class:info", "You can now run "),
+                ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
+                ("class:info", "to interact with the cluster"),
+            ],
+            style=styles,
+        )
+    )
+
+
+@click.command("disconnect")
+@click.argument("name")
+@click.pass_context
+@standard_error_handler
+def disconnect(ctx, name):
+    beiboot = api.read(name=name, config=ctx.obj["config"])
+    info(f"Now disconnecting from Beiboot '{name}'")
+    connector = api.terminate(
+        beiboot, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
+    )
+    connector.delete_beiboot_config_directory()

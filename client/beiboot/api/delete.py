@@ -34,10 +34,10 @@ def _delete_bbt(cluster_name: str, config: ClientConfiguration):
         )
         logger.debug(f"Successfully deleted Beiboot {cluster_name}")
     except k8s.client.exceptions.ApiException as e:
-        logger.error(f"Error deleting Beiboot object: {e.reason} ({e.status})")
         if e.status == 404:
             #  Getdeck Beiboot probably not available
-            pass
+            raise RuntimeWarning(f"Beiboot {cluster_name} does not exist")
         else:
-            # TODO  handle that case
-            raise
+            raise RuntimeError(
+                f"Error deleting Beiboot object: {e.reason} ({e.status})"
+            )

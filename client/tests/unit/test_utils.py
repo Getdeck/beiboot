@@ -1,5 +1,11 @@
+from pathlib import Path
+
 from beiboot.types import BeibootParameters, BeibootRequest
-from beiboot.utils import decode_b64_dict
+from beiboot.utils import (
+    decode_b64_dict,
+    get_beiboot_config_location,
+    get_kubeconfig_location,
+)
 
 
 def test_beiboot_params():
@@ -28,3 +34,14 @@ def test_encode_mtls_data():
     data = decode_b64_dict({"ca.crt": "aGVsbG8K", "client.crt": "Y2xpZW50Cg=="})
     assert data["ca.crt"] == "hello"
     assert data["client.crt"] == "client"
+
+
+def test_config_paths():
+    from beiboot.configuration import ClientConfiguration
+
+    bbt_dir = get_beiboot_config_location(ClientConfiguration(), "mycluster")
+    assert bbt_dir == str(Path.home().joinpath(".getdeck", "mycluster"))
+    kubeconfig = get_kubeconfig_location(ClientConfiguration(), "mycluster")
+    assert kubeconfig == str(
+        Path.home().joinpath(".getdeck", "mycluster", "mycluster.yaml")
+    )
