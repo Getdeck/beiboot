@@ -14,6 +14,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
             "parameters": k8s.client.V1JSONSchemaProps(
                 type="object",
                 properties={
+                    "k8sVersion": k8s.client.V1JSONSchemaProps(type="string"),
                     # the forwarding for cluster ports in the form ['8080:80, '8443: 443']
                     "ports": k8s.client.V1JSONSchemaProps(
                         type="array",
@@ -88,7 +89,6 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                         },
                     ),
                 },
-                x_kubernetes_preserve_unknown_fields=True,
             ),
             "kubeconfig": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True

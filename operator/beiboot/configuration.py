@@ -14,6 +14,7 @@ logger = logging.getLogger("beiboot")
 
 @dataclass
 class ClusterConfiguration:
+    k8sVersion: Optional[str] = field(default_factory=lambda: None)
     nodes: int = field(default_factory=lambda: 2)
     nodeLabels: dict = field(
         default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true"}
@@ -76,21 +77,21 @@ class ClusterConfiguration:
                 node = destination.setdefault(key, {})
                 ClusterConfiguration._merge(value, node)
             else:
-                if value in ["false", "False", "0", "null", "None", False]:
+                if value in ["false", "False", False]:
                     destination[key] = False
-                elif value in ["true", "True", "1", True]:
+                elif value in ["true", "True", True]:
                     destination[key] = True
                 else:
-                    destination[key] = str(value)
+                    destination[key] = value
         return destination
 
     @staticmethod
     def _update_dict(source, merger):
         for key, value in merger.items():
             if hasattr(source, key):
-                if value in ["false", "False", "0", "null", "None", False]:
+                if value in ["false", "False"]:
                     setattr(source, key, False)
-                elif value in ["true", "True", "1", True]:
+                elif value in ["true", "True"]:
                     setattr(source, key, True)
                 elif type(value) is dict:
                     setattr(

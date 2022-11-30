@@ -1,5 +1,5 @@
 from beiboot.types import BeibootParameters, BeibootRequest
-from beiboot.utils import decode_mtls_data
+from beiboot.utils import decode_b64_dict
 
 
 def test_beiboot_params():
@@ -23,6 +23,6 @@ def test_beiboot_request():
 
 
 def test_encode_mtls_data():
-    data = decode_mtls_data({"ca.crt": "aGVsbG8K", "client.crt": "Y2xpZW50Cg=="})
+    data = decode_b64_dict({"ca.crt": "aGVsbG8K", "client.crt": "Y2xpZW50Cg=="})
     assert data["ca.crt"] == "hello"
     assert data["client.crt"] == "client"

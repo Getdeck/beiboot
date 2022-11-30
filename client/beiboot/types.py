@@ -1,5 +1,6 @@
 import binascii
 import logging
+from datetime import datetime
 
 import kubernetes as k8s
 
@@ -27,28 +28,29 @@ class GefyraParams:
 
 @dataclass
 class BeibootParameters:
+    k8sVersion: Optional[str] = field(default_factory=lambda: None)
     # the ports mapped to local host
     ports: Optional[list[str]] = field(default_factory=lambda: None)
     # amount of nodes for this cluster
     nodes: Optional[int] = field(default_factory=lambda: None)
     # the max lifetime for this cluster (timedelta e.g. '2h', '2h30m')
-    lifetime: Optional[str] = field(default_factory=lambda: None)
+    maxLifetime: Optional[str] = field(default_factory=lambda: None)
     # the max time for this cluster before getting removed when no client is connected
-    session_timeout: Optional[str] = field(default_factory=lambda: None)
+    maxSessionTimeout: Optional[str] = field(default_factory=lambda: None)
     # the max time waiting for this cluster to become 'READY'
-    cluster_timeout: Optional[int] = field(
+    clusterReadyTimeout: Optional[int] = field(
         default_factory=lambda: default_configuration.CLUSTER_CREATION_TIMEOUT
     )
     # the K8s resources (requests, limits) for the server and node pods
-    server_resources: Optional[dict[str, dict[str, str]]] = field(
+    serverResources: Optional[dict[str, dict[str, str]]] = field(
         default_factory=lambda: None
     )
-    node_resources: Optional[dict[str, dict[str, str]]] = field(
+    nodeResources: Optional[dict[str, dict[str, str]]] = field(
         default_factory=lambda: None
     )
     # storage requests for server and node pods
-    server_storage: Optional[str] = field(default_factory=lambda: None)
-    node_storage: Optional[str] = field(default_factory=lambda: None)
+    serverStorageRequests: Optional[str] = field(default_factory=lambda: None)
+    nodeStorageRequests: Optional[str] = field(default_factory=lambda: None)
     # Gefyra component requests
     gefyra: GefyraParams = field(default_factory=lambda: GefyraParams())
 
@@ -57,11 +59,12 @@ class BeibootParameters:
         params = cls()
         params.ports = data.get("ports")
         params.nodes = data.get("nodes")
-        params.lifetime = data.get("maxLifetime")
-        params.session_timeout = data.get("maxSessionTimeout")
-        params.cluster_timeout = data.get("clusterReadyTimeout")
-        params.server_storage = data.get("serverStorageRequests")
-        params.node_storage = data.get("nodeStorageRequests")
+        params.maxLifetime = data.get("maxLifetime")
+        params.maxSessionTimeout = data.get("maxSessionTimeout")
+        params.clusterReadyTimeout = data.get("clusterReadyTimeout")
+        params.serverStorageRequests = data.get("serverStorageRequests")
+        params.nodeStorageRequests = data.get("nodeStorageRequests")
+        params.gefyra = GefyraParams(**data.get("gefyra"))  # type: ignore
         return params
 
     def as_dict(self) -> dict[str, Any]:
@@ -103,7 +106,7 @@ class Beiboot:
     uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
-    state: BeibootState
+    sunset: Optional[str] = None
     transitions: Optional[dict[str, str]]
     parameters: BeibootParameters
 
@@ -118,16 +121,17 @@ class Beiboot:
 
     def _init_data(self, _object: dict[str, Any]):
         self._data = _object
-        self.state = BeibootState(self._data.get("state"))
-        self.namespace = self._data.get("beibootNamespace")
+        self.namespace = str(self._data.get("beibootNamespace"))
+        self.sunset = self._data.get("sunset")
         self.transitions = self._data.get("stateTransitions")
         self.parameters = BeibootParameters.from_raw(self._data["parameters"])
 
-    def __getattr__(self, item):
-        self._fetch_object()
-        return self.__getattribute__(item)
+    @property
+    def state(self):
+        self.fetch_object()
+        return BeibootState(self._data.get("state"))
 
-    def _fetch_object(self):
+    def fetch_object(self):
         try:
             bbt = self._config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
                 group="getdeck.dev",
@@ -192,6 +196,26 @@ class Beiboot:
                         f"There was an error decoding the serviceaccount token: {e}"
                     ) from None
         return None
+
+    @property
+    def events_by_timestamp(self) -> dict[datetime, Any]:
+        try:
+            events = self._config.K8S_CORE_API.list_namespaced_event(
+                namespace=self._config.NAMESPACE
+            )
+            related_events = list(
+                filter(lambda et: et.involved_object.uid == self.uid, events.items)
+            )
+        except k8s.client.ApiException as e:
+            raise RuntimeError(str(e)) from None
+        result = {}
+        for revent in related_events:
+            result[revent.event_time] = {
+                "reason": revent.reason,
+                "reporter": revent.reporting_component,
+                "message": revent.message,
+            }
+        return dict(sorted(result.items()))
 
     def wait_for_state(self, state: BeibootState, timeout: Optional[int] = None):
         w = k8s.watch.Watch()

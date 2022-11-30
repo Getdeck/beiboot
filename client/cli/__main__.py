@@ -3,7 +3,7 @@ from prompt_toolkit import print_formatted_text
 
 from beiboot.configuration import ClientConfiguration
 
-from cli.cluster import create_cluster, delete, list_clusters, watch, connect
+from cli.cluster import create_cluster, delete, list_clusters, connect, inspect
 
 
 @click.group()
@@ -34,20 +34,20 @@ def version(ctx):
 cli.add_command(version)
 
 
-@click.group("clusters")
+@click.group("cluster")
 @click.pass_context
-def clusters(ctx):
+def cluster(ctx):
     pass
 
 
-clusters.add_command(create_cluster)
-clusters.add_command(delete)
-clusters.add_command(list_clusters)
-clusters.add_command(watch)
-clusters.add_command(connect)
+cluster.add_command(create_cluster)
+cluster.add_command(delete)
+cluster.add_command(list_clusters)
+cluster.add_command(connect)
+cluster.add_command(inspect)
 
 
-cli.add_command(clusters)
+cli.add_command(cluster)
 
 
 def main():

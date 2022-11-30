@@ -2,6 +2,7 @@ import sys
 import os
 import logging
 from pathlib import Path
+from typing import Optional
 
 console = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(levelname)s] %(message)s")
@@ -18,14 +19,14 @@ class ClientConfiguration(object):
         self,
         docker_client=None,
         namespace: str = "getdeck",
-        registry_url: str = None,
-        tooler_image: str = None,
+        registry_url: Optional[str] = None,
+        tooler_image: Optional[str] = None,
         cluster_timeout: int = 180,
         api_connection_timeout: int = 30,
         api_port: int = 6443,
-        kube_config_file: str = None,
-        kube_context: str = None,
-        aws_dir: str = None,
+        kube_config_file: Optional[str] = None,
+        kube_context: Optional[str] = None,
+        aws_dir: Optional[str] = None,
     ):
         self.NAMESPACE = namespace
         self.REGISTRY_URL = (

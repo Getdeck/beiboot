@@ -14,6 +14,9 @@ def test_initial_configuration():
 
 def test_merged_configuration():
     config = ClusterConfiguration()
+    config.update({"nodes": 1})
+    assert type(config.nodes) == int
+    assert config.nodes == 1
     config.update({"nodes": 3})
     assert config.nodes == 3
     config.update({"nodes": "4"})
@@ -105,6 +108,7 @@ def test_encode_configuration():
     tc = TestCase()
     tc.assertDictEqual(
         {
+            "k8sVersion": "null",
             "nodes": "2",
             "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
             "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',
@@ -132,6 +136,7 @@ def test_encode_configuration():
 
 def test_decode_configuration():
     serialized = {
+        "k8sVersion": "null",
         "nodes": "3",
         "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
         "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',

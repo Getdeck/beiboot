@@ -34,11 +34,12 @@ def create(
             plural="beiboots",
             name=req.name,
         )
-        raise RuntimeError(f"The requested Beiboot cluster {req.name} already exists.")
+        raise RuntimeError(
+            f"The requested Beiboot cluster '{req.name}' already exists."
+        )
     except k8s.client.exceptions.ApiException:
         logger.debug("Beiboot object does not exist and can be created")
         pass
-
     try:
         bbt = config.K8S_CUSTOM_OBJECT_API.create_namespaced_custom_object(
             namespace=config.NAMESPACE,

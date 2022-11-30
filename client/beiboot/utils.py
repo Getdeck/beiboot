@@ -1,12 +1,8 @@
 import base64
 import logging
-import os
 import pathlib
 import socket
-from time import sleep
-from typing import List, Optional
 
-import kubernetes as k8s
 from beiboot.configuration import ClientConfiguration
 
 from beiboot.types import BeibootRequest
@@ -37,7 +33,7 @@ def decode_kubeconfig(kubeconfig_obj: dict):
 
 
 def get_kubeconfig_location(config: ClientConfiguration, cluster_name: str) -> str:
-    return config.KUBECONFIG_LOCATION.joinpath(f"{cluster_name}.yaml")
+    return str(config.KUBECONFIG_LOCATION.joinpath(f"{cluster_name}.yaml"))
 
 
 def decode_b64_dict(b64_dict: dict[str, str]) -> dict[str, str]:
