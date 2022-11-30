@@ -88,12 +88,9 @@ class GhostunnelDocker(AbstractConnector):
                     ],
                 )
             except docker.errors.APIError as e:
-                if e.status_code == 409:
-                    continue
-                else:
-                    raise RuntimeError(
-                        f"Could not run ghostunnel container due to the following error: {e}"
-                    ) from None
+                raise RuntimeError(
+                    f"Could not run ghostunnel container due to the following error: {e}"
+                ) from None
 
     def terminate(self) -> None:
         try:

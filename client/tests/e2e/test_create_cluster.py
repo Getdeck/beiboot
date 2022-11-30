@@ -47,6 +47,6 @@ class TestBaseSetup(TestClientBase):
         api.delete(bbt)
         # bbt.wait_for_state(awaited_state=BeibootState.TERMINATING)
         # assert bbt.state == BeibootState.TERMINATING
-        sleep(1)
+        sleep(5)
         with pytest.raises(RuntimeError):
             _ = self._get_beiboot_data(kubectl)
