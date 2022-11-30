@@ -47,7 +47,9 @@ class GhostunnelDocker(AbstractConnector):
 
     def establish(self) -> None:
         if self.beiboot.tunnel is None:
-            raise RuntimeError("Connection data is not available, unable to establish connection")
+            raise RuntimeError(
+                "Connection data is not available, unable to establish connection"
+            )
 
         ghostunnel = self.beiboot.tunnel["ghostunnel"]
         remote_ports = ghostunnel.get(

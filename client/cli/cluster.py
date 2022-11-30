@@ -200,13 +200,17 @@ def inspect(ctx, name):
 
 @click.command("connect")
 @click.argument("name")
+@click.option(
+    "--connector",
+    type=click.Choice(["ghostunnel_docker"], case_sensitive=False),
+    default="ghostunnel_docker",
+)
 @click.pass_context
 @standard_error_handler
-def connect(ctx, name):
+def connect(ctx, name, connector):
     beiboot = api.read(name=name)
-    info(
-        f"Now connecting to Beiboot '{name}' using connector 'ConnectorType.GHOSTUNNEL_DOCKER'"
-    )
+    connector_type = ConnectorType(connector)
+    info(f"Now connecting to Beiboot '{name}' using connector '{connector_type}'")
 
     formatted_ports = ", ".join(
         list(
@@ -226,9 +230,7 @@ def connect(ctx, name):
         )
     )
 
-    connector = api.connect(
-        beiboot, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
-    )
+    connector = api.connect(beiboot, connector_type, config=ctx.obj["config"])
 
     location = connector.save_kubeconfig_to_file()
     info(f"The kubeconfig file is written to {location}")
