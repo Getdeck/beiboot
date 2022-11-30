@@ -10,7 +10,7 @@ def test_beiboot_params():
 
     _dict = data.as_dict()
     assert _dict["nodes"] == 3
-    assert _dict["lifetime"] == "2h"
+    assert _dict["maxLifetime"] == "2h"
     assert "ports" not in _dict
     assert type(_dict["gefyra"]) == dict
 
