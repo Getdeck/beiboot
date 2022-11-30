@@ -3,7 +3,7 @@ from beiboot.utils import decode_b64_dict
 
 
 def test_beiboot_params():
-    data = BeibootParameters.from_raw({"nodes": 3, "maxLifetime": "2h"})
+    data = BeibootParameters.from_raw({"nodes": 3, "maxLifetime": "2h", "gefyra": {"enabled": True}})
     assert data.nodes == 3
     assert data.maxLifetime == "2h"
     assert data.ports is None
