@@ -1,6 +1,7 @@
 import binascii
 import logging
 from datetime import datetime
+from time import sleep
 
 import kubernetes as k8s
 
@@ -217,16 +218,14 @@ class Beiboot:
             }
         return dict(sorted(result.items()))
 
-    def wait_for_state(self, state: BeibootState, timeout: Optional[int] = None):
-        w = k8s.watch.Watch()
-        for _object in w.stream(
-            self._config.K8S_CUSTOM_OBJECT_API.list_namespaced_custom_object,
-            namespace=self._config.NAMESPACE,
-            group="getdeck.dev",
-            plural="beiboots",
-            version="v1",
-        ):
-            _bbt = _object.get("object")
-            if _bbt["metadata"]["uid"] == self.uid and _bbt["state"] == state.value:
-                self._init_data(_bbt)
-                break
+    def wait_for_state(self, awaited_state: BeibootState, timeout: int = 60):
+        _i = 0
+        while _i < timeout:
+            if self.state == awaited_state:
+                return
+            else:
+                logger.info(f"Waiting for state {awaited_state} (is: {self.state}, {_i}s/{timeout}s) ")
+                sleep(1)
+                _i = _i + 1
+        if self.state != awaited_state:
+            raise RuntimeError(f"Waiting for state {awaited_state.value} failed")

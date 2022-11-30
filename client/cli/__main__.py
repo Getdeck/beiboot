@@ -4,6 +4,7 @@ from prompt_toolkit import print_formatted_text
 from beiboot.configuration import ClientConfiguration
 
 from cli.cluster import create_cluster, delete, list_clusters, connect, inspect
+from cli.install import install, uninstall
 
 
 @click.group()
@@ -48,6 +49,9 @@ cluster.add_command(inspect)
 
 
 cli.add_command(cluster)
+
+cli.add_command(install)
+cli.add_command(uninstall)
 
 
 def main():

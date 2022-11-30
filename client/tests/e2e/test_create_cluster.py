@@ -17,7 +17,7 @@ class TestBaseSetup(TestClientBase):
         req = BeibootRequest(name=self.beiboot_name)
         bbt = api.create(req)
 
-        bbt.wait_for_state(state=BeibootState.PENDING)
+        bbt.wait_for_state(awaited_state=BeibootState.PENDING)
         bbt_raw = self._get_beiboot_data(kubectl)
         assert bbt_raw["state"] in [
             BeibootState.CREATING.value,
@@ -29,7 +29,7 @@ class TestBaseSetup(TestClientBase):
         assert bbt.namespace == self.get_target_namespace()
         assert bbt.transitions is not None
 
-        bbt.wait_for_state(state=BeibootState.RUNNING)
+        bbt.wait_for_state(awaited_state=BeibootState.RUNNING)
         assert bbt.state == BeibootState.RUNNING
 
         a_bbt = api.read(self.beiboot_name)
@@ -37,7 +37,7 @@ class TestBaseSetup(TestClientBase):
         assert a_bbt.state == bbt.state
 
         api.delete(bbt)
-        bbt.wait_for_state(state=BeibootState.TERMINATING)
+        bbt.wait_for_state(awaited_state=BeibootState.TERMINATING)
         assert bbt.state == BeibootState.TERMINATING
         sleep(1)
         with pytest.raises(RuntimeError):
