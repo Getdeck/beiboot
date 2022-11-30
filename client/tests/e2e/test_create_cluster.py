@@ -3,7 +3,7 @@ from time import sleep
 import pytest
 
 from beiboot import api
-from beiboot.types import BeibootRequest
+from beiboot.types import BeibootRequest, BeibootParameters
 from tests.e2e.base import TestClientBase
 
 from beiboot.types import BeibootState
@@ -14,7 +14,15 @@ class TestBaseSetup(TestClientBase):
     beiboot_name = "mycluster"
 
     def test_simple_beiboot(self, operator, kubectl, timeout):
-        req = BeibootRequest(name=self.beiboot_name)
+        req = BeibootRequest(
+            name=self.beiboot_name,
+            parameters=BeibootParameters(
+                nodes=1,
+                serverStorageRequests="500Mi",
+                serverResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+                nodeResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+            ),
+        )
         bbt = api.create(req)
 
         bbt.wait_for_state(awaited_state=BeibootState.PENDING)

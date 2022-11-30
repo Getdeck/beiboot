@@ -1,11 +1,21 @@
 from beiboot import api
-from beiboot.types import BeibootRequest, BeibootState
+from beiboot.types import BeibootRequest, BeibootState, BeibootParameters
 from tests.e2e.base import TestClientBase
 
 
 class TestConnectSetup(TestClientBase):
     def test_get_connection_data(self, operator, kubectl, timeout):
-        bbt = api.create(BeibootRequest(name="cluster1"))
+        bbt = api.create(
+            BeibootRequest(
+                name="cluster1",
+                parameters=BeibootParameters(
+                    nodes=1,
+                    serverStorageRequests="500Mi",
+                    serverResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+                    nodeResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+                ),
+            )
+        )
         bbt.wait_for_state(awaited_state=BeibootState.READY, timeout=timeout)
         mtls = bbt.mtls_files
         assert mtls is not None
