@@ -64,7 +64,7 @@ class BeibootParameters:
         params.clusterReadyTimeout = data.get("clusterReadyTimeout")
         params.serverStorageRequests = data.get("serverStorageRequests")
         params.nodeStorageRequests = data.get("nodeStorageRequests")
-        params.gefyra = GefyraParams(**data.get("gefyra"))  # type: ignore
+        params.gefyra = data.get("gefyra")  # type: ignore
         return params
 
     def as_dict(self) -> dict[str, Any]:
