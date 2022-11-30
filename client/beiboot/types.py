@@ -133,6 +133,7 @@ class Beiboot:
         return BeibootState(self._data.get("state"))
 
     def fetch_object(self):
+        logger.debug(f"Fetching object Beiboot {self.name}")
         try:
             bbt = self._config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
                 group="getdeck.dev",
@@ -224,7 +225,7 @@ class Beiboot:
             if self.state == awaited_state:
                 return
             else:
-                logger.info(
+                logger.debug(
                     f"Waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
                 )
                 sleep(1)
