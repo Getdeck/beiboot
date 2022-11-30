@@ -10,8 +10,8 @@ class TestBaseSetup(TestClientBase):
             parameters=BeibootParameters(
                 nodes=1,
                 serverStorageRequests="500Mi",
-                serverResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
-                nodeResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+                serverResources={"requests": {"cpu": "0.1", "memory": "0.2Gi"}},
+                nodeResources={"requests": {"cpu": "0.1", "memory": "0.2Gi"}},
             ),
         )
         req2 = BeibootRequest(
@@ -19,8 +19,8 @@ class TestBaseSetup(TestClientBase):
             parameters=BeibootParameters(
                 nodes=1,
                 serverStorageRequests="500Mi",
-                serverResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
-                nodeResources={"requests": {"cpu": 0.5, "memory": "0.5Gi"}},
+                serverResources={"requests": {"cpu": "0.1", "memory": "0.2Gi"}},
+                nodeResources={"requests": {"cpu": "0.1", "memory": "0.2Gi"}},
             ),
         )
         _ = api.create(req1)
