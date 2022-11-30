@@ -224,7 +224,7 @@ class Beiboot:
             if self.state == awaited_state:
                 return
             else:
-                logger.info(f"Waiting for state {awaited_state} (is: {self.state}, {_i}s/{timeout}s) ")
+                logger.info(f"Waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) ")
                 sleep(1)
                 _i = _i + 1
         if self.state != awaited_state:
