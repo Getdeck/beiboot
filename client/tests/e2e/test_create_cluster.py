@@ -25,7 +25,7 @@ class TestBaseSetup(TestClientBase):
         )
         bbt = api.create(req)
 
-        bbt.wait_for_state(awaited_state=BeibootState.PENDING)
+        bbt.wait_for_state(awaited_state=BeibootState.PENDING, timeout=timeout)
         bbt_raw = self._get_beiboot_data(kubectl)
         assert bbt_raw["state"] in [
             BeibootState.CREATING.value,
@@ -37,7 +37,7 @@ class TestBaseSetup(TestClientBase):
         assert bbt.namespace == self.get_target_namespace()
         assert bbt.transitions is not None
 
-        bbt.wait_for_state(awaited_state=BeibootState.RUNNING)
+        bbt.wait_for_state(awaited_state=BeibootState.RUNNING, timeout=timeout)
         assert bbt.state == BeibootState.RUNNING
 
         a_bbt = api.read(self.beiboot_name)
