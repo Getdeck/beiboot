@@ -32,7 +32,7 @@ def test_merged_configuration():
     assert config.gefyra.get("enabled") is True
     assert config.tunnel.get("enabled") is False
 
-    assert config.nodeStorageRequests == "10Gi"
+    assert config.nodeStorageRequests == "1Gi"
     config.update({"nodeStorageRequests": "15Gi"})
     assert config.nodeStorageRequests == "15Gi"
 
@@ -109,13 +109,13 @@ def test_encode_configuration():
     tc.assertDictEqual(
         {
             "k8sVersion": "null",
-            "nodes": "2",
+            "nodes": "1",
             "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
             "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',
             "serverResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
-            "serverStorageRequests": "10Gi",
+            "serverStorageRequests": "1Gi",
             "nodeResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
-            "nodeStorageRequests": "10Gi",
+            "nodeStorageRequests": "1Gi",
             "namespacePrefix": "getdeck-bbt",
             "serverStartupTimeout": "60",
             "apiServerContainerName": "apiserver",
