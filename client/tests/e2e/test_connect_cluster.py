@@ -1,3 +1,5 @@
+from time import sleep
+
 import pytest
 
 from beiboot import api
@@ -24,3 +26,5 @@ class TestConnectSetup(TestClientBase):
 
         bbt.wait_for_state(awaited_state=BeibootState.READY, timeout=timeout)
         _ = api.connect(bbt, ConnectorType.GHOSTUNNEL_DOCKER)
+        sleep(2)
+        _ = api.terminate(bbt.name, ConnectorType.GHOSTUNNEL_DOCKER)

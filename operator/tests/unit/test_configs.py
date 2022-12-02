@@ -9,7 +9,7 @@ def test_initial_configuration():
     # test the current default configuration for Beiboot clusters
     assert initial_config.gefyra.get("enabled") is True
     assert initial_config.gefyra.get("endpoint") is None
-    assert initial_config.nodes == 2
+    assert initial_config.nodes == 1
 
 
 def test_merged_configuration():
