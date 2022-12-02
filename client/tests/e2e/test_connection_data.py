@@ -3,7 +3,7 @@ from beiboot.types import BeibootRequest, BeibootState, BeibootParameters
 from tests.e2e.base import TestClientBase
 
 
-class TestConnectSetup(TestClientBase):
+class TestConnectionSetup(TestClientBase):
     def test_get_connection_data(self, operator, kubectl, timeout):
         bbt = api.create(
             BeibootRequest(

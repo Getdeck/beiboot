@@ -19,3 +19,8 @@ class TestReadBeiboots:
         _ = api.create(BeibootRequest(name="test-read-all"))
         _all = api.read_all()
         assert len(_all) == 2
+
+    def test_c_read_events(self, operator):
+        beiboot = api.read("test-read-all")
+        events = beiboot.events_by_timestamp
+        assert type(events) == dict

@@ -1,12 +1,9 @@
-from typing import Optional, List
-
 from beiboot.configuration import ClientConfiguration
 from beiboot.connection.abstract import AbstractConnector
 from beiboot.connection.ghostunnel import (
     GhostunnelDockerBuilder,
 )
 from beiboot.connection.types import ConnectorType
-from beiboot.types import Beiboot
 
 
 class ConnectorFactory:
@@ -20,26 +17,20 @@ class ConnectorFactory:
         self,
         connector_type: ConnectorType,
         configuration: ClientConfiguration,
-        beiboot: Beiboot,
-        additional_ports: Optional[List[str]],
         **kwargs
     ):
         builder = self._builders.get(connector_type.value)
         if not builder:
             raise ValueError(connector_type)
-        return builder(configuration, beiboot, additional_ports, **kwargs)
+        return builder(configuration, **kwargs)
 
     def get(
         self,
         connector_type: ConnectorType,
         configuration: ClientConfiguration,
-        beiboot: Beiboot,
-        additional_ports: Optional[List[str]],
         **kwargs
     ) -> AbstractConnector:
-        return self.__create(
-            connector_type, configuration, beiboot, additional_ports, **kwargs
-        )
+        return self.__create(connector_type, configuration, **kwargs)
 
 
 connector_factory = ConnectorFactory()

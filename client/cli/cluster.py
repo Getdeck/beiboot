@@ -232,7 +232,7 @@ def connect(ctx, name, connector):
 
     connector = api.connect(beiboot, connector_type, config=ctx.obj["config"])
 
-    location = connector.save_kubeconfig_to_file()
+    location = connector.save_kubeconfig_to_file(beiboot)
     info(f"The kubeconfig file is written to {location}")
     print_formatted_text(
         FormattedText(
@@ -251,9 +251,8 @@ def connect(ctx, name, connector):
 @click.pass_context
 @standard_error_handler
 def disconnect(ctx, name):
-    beiboot = api.read(name=name, config=ctx.obj["config"])
     info(f"Now disconnecting from Beiboot '{name}'")
     connector = api.terminate(
-        beiboot, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
+        name, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
     )
-    connector.delete_beiboot_config_directory()
+    connector.delete_beiboot_config_directory(name)

@@ -33,12 +33,12 @@ def test_write_files(operator, kubectl, timeout):
         def terminate(self) -> None:
             pass
 
-    ac = TestConnector(config, bbt, None)
-    files = ac.save_mtls_files()
+    ac = TestConnector(config)
+    files = ac.save_mtls_files(bbt)
     for _, location in files.items():
         assert Path(location).is_file() is True
 
-    files = ac.save_serviceaccount_files()
+    files = ac.save_serviceaccount_files(bbt)
     for _, location in files.items():
         assert Path(location).is_file() is True
 

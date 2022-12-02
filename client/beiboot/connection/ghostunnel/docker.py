@@ -19,14 +19,10 @@ class GhostunnelDockerBuilder:
     def __call__(
         self,
         configuration: ClientConfiguration,
-        beiboot: Beiboot,
-        additional_ports: Optional[List[str]],
         **_ignored,
     ):
         instance = GhostunnelDocker(
             configuration=configuration,
-            beiboot=beiboot,
-            additional_ports=additional_ports,
         )
         return instance
 
@@ -35,23 +31,25 @@ class GhostunnelDocker(AbstractConnector):
 
     connector_type = ConnectorType.GHOSTUNNEL_DOCKER.value
     IMAGE = "ghostunnel/ghostunnel:v1.7.1"
+    CONTAINER_PREFIX = "getdeck-beiboot-{name}"
 
     def __init__(
         self,
         configuration: ClientConfiguration,
-        beiboot: Beiboot,
-        additional_ports: Optional[List[str]],
     ):
-        super(GhostunnelDocker, self).__init__(configuration, beiboot, additional_ports)
-        self.CONTAINER_PREFIX = f"getdeck-beiboot-{self.beiboot.name}"
+        super(GhostunnelDocker, self).__init__(configuration)
 
-    def establish(self) -> None:
-        if self.beiboot.tunnel is None:
+    def establish(
+        self, beiboot: Beiboot, additional_ports: Optional[List[str]]
+    ) -> None:
+        if not additional_ports:
+            additional_ports = []
+        if beiboot.tunnel is None:
             raise RuntimeError(
                 "Connection data is not available, unable to establish connection"
             )
 
-        ghostunnel = self.beiboot.tunnel["ghostunnel"]
+        ghostunnel = beiboot.tunnel["ghostunnel"]
         remote_ports = ghostunnel.get(
             "ports"
         )  # "endpoint": -> address; "target": cluster port
@@ -62,9 +60,10 @@ class GhostunnelDocker(AbstractConnector):
                     return port.get("endpoint")
             return None
 
-        self.additional_ports.extend(self.beiboot.parameters.ports or [])
-        mtls_files = self.save_mtls_files()  # {filename, path}
-        for call_port in self.additional_ports:
+        additional_ports.extend(beiboot.parameters.ports or [])
+        mtls_files = self.save_mtls_files(beiboot)  # {filename, path}
+        container_prefixes = self.CONTAINER_PREFIX.format(name=beiboot.name)
+        for call_port in additional_ports:
             local_port, cluster_port = call_port.split(":")
             _endpoint = _nodeport_for_target(cluster_port)
             if not _endpoint:
@@ -77,7 +76,7 @@ class GhostunnelDocker(AbstractConnector):
             try:
                 container = self.configuration.DOCKER.containers.run(  # noqa
                     image=self.IMAGE,
-                    name=f"{self.CONTAINER_PREFIX}-{cluster_port}",
+                    name=f"{container_prefixes}-{cluster_port}",
                     command=_cmd,
                     restart_policy={"Name": "unless-stopped"},
                     remove=False,
@@ -92,10 +91,10 @@ class GhostunnelDocker(AbstractConnector):
                     f"Could not run ghostunnel container due to the following error: {e}"
                 ) from None
 
-    def terminate(self) -> None:
+    def terminate(self, name: str) -> None:
         try:
             containers = _list_containers_by_prefix(
-                self.configuration, self.CONTAINER_PREFIX
+                self.configuration, self.CONTAINER_PREFIX.format(name=name)
             )
             for container in containers:
                 try:

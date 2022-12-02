@@ -11,17 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_connector(
-    beiboot: Beiboot, connector_type: ConnectorType, config: ClientConfiguration
+    connector_type: ConnectorType, config: ClientConfiguration
 ) -> AbstractConnector:
-    additional_ports = []
-    if BeibootProvider(beiboot.provider) == BeibootProvider.K3S:
-        additional_ports = ["6443:6443"]
-
     connector = connector_factory.get(
         connector_type=connector_type,
         configuration=config,
-        beiboot=beiboot,
-        additional_ports=additional_ports,
     )
     return connector
 
@@ -32,17 +26,20 @@ def connect(
     connector_type: ConnectorType,
     config: ClientConfiguration = default_configuration,
 ) -> AbstractConnector:
-    connector = _get_connector(beiboot, connector_type, config)
-    connector.establish()
+    additional_ports = []
+    if BeibootProvider(beiboot.provider) == BeibootProvider.K3S:
+        additional_ports = ["6443:6443"]
+    connector = _get_connector(connector_type, config)
+    connector.establish(beiboot, additional_ports)
     return connector
 
 
 @stopwatch
 def terminate(
-    beiboot: Beiboot,
+    name: str,  # passing only the name, as the Beiboot may already deleted
     connector_type: ConnectorType,
     config: ClientConfiguration = default_configuration,
 ) -> AbstractConnector:
-    connector = _get_connector(beiboot, connector_type, config)
-    connector.terminate()
+    connector = _get_connector(connector_type, config)
+    connector.terminate(name=name)
     return connector

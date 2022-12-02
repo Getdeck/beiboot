@@ -15,7 +15,7 @@ logger = logging.getLogger("beiboot")
 @dataclass
 class ClusterConfiguration:
     k8sVersion: Optional[str] = field(default_factory=lambda: None)
-    nodes: int = field(default_factory=lambda: 2)
+    nodes: int = field(default_factory=lambda: 1)
     nodeLabels: dict = field(
         default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true"}
     )
@@ -32,14 +32,14 @@ class ClusterConfiguration:
             "limits": {},
         }
     )
-    serverStorageRequests: str = field(default_factory=lambda: "10Gi")
+    serverStorageRequests: str = field(default_factory=lambda: "1Gi")
     nodeResources: dict = field(
         default_factory=lambda: {
             "requests": {"cpu": "1", "memory": "1Gi"},
             "limits": {},
         }
     )
-    nodeStorageRequests: str = field(default_factory=lambda: "10Gi")
+    nodeStorageRequests: str = field(default_factory=lambda: "1Gi")
     namespacePrefix: str = field(default_factory=lambda: "getdeck-bbt")
     serverStartupTimeout: int = field(default_factory=lambda: 60)
     apiServerContainerName: str = field(default_factory=lambda: "apiserver")
