@@ -9,11 +9,14 @@ def test_initial_configuration():
     # test the current default configuration for Beiboot clusters
     assert initial_config.gefyra.get("enabled") is True
     assert initial_config.gefyra.get("endpoint") is None
-    assert initial_config.nodes == 2
+    assert initial_config.nodes == 1
 
 
 def test_merged_configuration():
     config = ClusterConfiguration()
+    config.update({"nodes": 1})
+    assert type(config.nodes) == int
+    assert config.nodes == 1
     config.update({"nodes": 3})
     assert config.nodes == 3
     config.update({"nodes": "4"})
@@ -29,7 +32,7 @@ def test_merged_configuration():
     assert config.gefyra.get("enabled") is True
     assert config.tunnel.get("enabled") is False
 
-    assert config.nodeStorageRequests == "10Gi"
+    assert config.nodeStorageRequests == "1Gi"
     config.update({"nodeStorageRequests": "15Gi"})
     assert config.nodeStorageRequests == "15Gi"
 
@@ -105,13 +108,14 @@ def test_encode_configuration():
     tc = TestCase()
     tc.assertDictEqual(
         {
-            "nodes": "2",
+            "k8sVersion": "null",
+            "nodes": "1",
             "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
             "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',
             "serverResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
-            "serverStorageRequests": "10Gi",
+            "serverStorageRequests": "1Gi",
             "nodeResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
-            "nodeStorageRequests": "10Gi",
+            "nodeStorageRequests": "1Gi",
             "namespacePrefix": "getdeck-bbt",
             "serverStartupTimeout": "60",
             "apiServerContainerName": "apiserver",
@@ -132,6 +136,7 @@ def test_encode_configuration():
 
 def test_decode_configuration():
     serialized = {
+        "k8sVersion": "null",
         "nodes": "3",
         "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
         "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',

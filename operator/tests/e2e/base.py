@@ -61,7 +61,7 @@ class TestOperatorBase:
             else:
                 if _i % 2:
                     logger.info(
-                        f"State is: {str(data.get('state'))} | waiting for {state} | time: {str(_i)}"
+                        f"Waiting for state {state} (is: {str(data.get('state'))}, {str(_i)}s/{_i}s)"
                     )
                 _i = _i + 1
                 sleep(1)

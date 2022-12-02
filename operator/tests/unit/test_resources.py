@@ -49,7 +49,7 @@ def test_beiboot_configmap():
     )
     # these are the default Beiboot parameters
     assert configmap.data["clusterReadyTimeout"] == "180"
-    assert configmap.data["nodes"] == "2"
+    assert configmap.data["nodes"] == "1"
     assert configmap.metadata.name == "beiboot-config"
 
 

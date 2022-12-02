@@ -2,6 +2,7 @@ import sys
 import os
 import logging
 from pathlib import Path
+from typing import Optional
 
 console = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(levelname)s] %(message)s")
@@ -18,14 +19,14 @@ class ClientConfiguration(object):
         self,
         docker_client=None,
         namespace: str = "getdeck",
-        registry_url: str = None,
-        tooler_image: str = None,
+        registry_url: Optional[str] = None,
+        tooler_image: Optional[str] = None,
         cluster_timeout: int = 180,
         api_connection_timeout: int = 30,
         api_port: int = 6443,
-        kube_config_file: str = None,
-        kube_context: str = None,
-        aws_dir: str = None,
+        kube_config_file: Optional[str] = None,
+        kube_context: Optional[str] = None,
+        aws_dir: Optional[str] = None,
     ):
         self.NAMESPACE = namespace
         self.REGISTRY_URL = (
@@ -77,12 +78,15 @@ class ClientConfiguration(object):
             AppsV1Api,
             CustomObjectsApi,
         )
-        from kubernetes.config import load_kube_config
+        from kubernetes.config import load_kube_config, config_exception
 
-        if self.KUBECONFIG_FILE:
-            load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
-        else:
-            load_kube_config(context=context or self.context)
+        try:
+            if self.KUBECONFIG_FILE:
+                load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
+            else:
+                load_kube_config(context=context or self.context)
+        except config_exception.ConfigException as e:
+            raise RuntimeError(f"Could not load kubeconfig or context: {e}") from None
         self.K8S_CORE_API = CoreV1Api()
         self.K8S_RBAC_API = RbacAuthorizationV1Api()
         self.K8S_APP_API = AppsV1Api()

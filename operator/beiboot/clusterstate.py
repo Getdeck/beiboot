@@ -181,10 +181,17 @@ class BeibootCluster(StateMachine):
         """
         > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
         """
+        import dataclasses
+
         self.post_event(
             self.creating.value, f"The cluster '{self.name}' is now being created"
         )
-        self._patch_object({"beibootNamespace": self.namespace})
+        self._patch_object(
+            {
+                "beibootNamespace": self.namespace,
+                "parameters": dataclasses.asdict(self.parameters),
+            }
+        )
 
     async def on_enter_creating(self):
         """
@@ -382,6 +389,16 @@ class BeibootCluster(StateMachine):
                 raise kopf.TemporaryError(
                     f"Namespace {self.namespace} still terminating"
                 )
+        except k8s.client.ApiException:
+            pass
+        try:
+            self.custom_api.delete_namespaced_custom_object(
+                namespace=self.configuration.NAMESPACE,
+                name=self.name,
+                group="getdeck.dev",
+                plural="beiboots",
+                version="v1",
+            )
         except k8s.client.ApiException:
             pass
 

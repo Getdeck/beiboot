@@ -9,7 +9,7 @@ parameters:
   ports:
     - 8080:80
   nodes: 1
-  maxLifetime: 5s
+  maxLifetime: 20s
   serverStorageRequests: 500Mi
   nodeStorageRequests: 500Mi
   serverResources:
