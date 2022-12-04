@@ -14,7 +14,7 @@ def pytest_addoption(parser):
     parser.addini("cluster_timeout", "The timeout waiting for Beiboot states")
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="package")
 def kubeconfig(request):
     if shutil.which("minikube") is None:
         raise RuntimeError("You need 'minikube' installed to run these tests.")

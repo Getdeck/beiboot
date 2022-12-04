@@ -42,10 +42,7 @@ class ClusterConfiguration:
     nodeStorageRequests: str = field(default_factory=lambda: "1Gi")
     namespacePrefix: str = field(default_factory=lambda: "getdeck-bbt")
     serverStartupTimeout: int = field(default_factory=lambda: 60)
-    apiServerContainerName: str = field(default_factory=lambda: "apiserver")
-    kubeconfigFromLocation: str = field(
-        default_factory=lambda: "/getdeck/kube-config.yaml"
-    )
+
     clusterReadyTimeout: int = field(default_factory=lambda: 180)
     # Gefyra integration
     gefyra: dict = field(
@@ -63,11 +60,6 @@ class ClusterConfiguration:
     ports: Optional[list[str]] = field(default_factory=lambda: None)
     maxLifetime: Optional[str] = field(default_factory=lambda: None)
     maxSessionTimeout: Optional[str] = field(default_factory=lambda: None)
-
-    # k3s settings
-    k3sImage: str = field(default_factory=lambda: "rancher/k3s")
-    k3sImageTag: str = field(default_factory=lambda: "v1.24.3-k3s1")
-    k3sImagePullPolicy: str = field(default_factory=lambda: "IfNotPresent")
 
     @staticmethod
     def _merge(source, destination):

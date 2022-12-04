@@ -34,6 +34,19 @@ class TestOperatorConfigured(TestOperatorBase):
         data = self._get_beiboot_data(kubectl)
         assert data["parameters"]["nodes"] == 1
         assert data["parameters"]["ports"] == ["8080:80", "8443:443"]
+        assert data["parameters"]["k8sVersion"] == "1.25.3"
+        image = kubectl(
+            [
+                "-n",
+                "getdeck-bbt-test-beiboot-configured",
+                "get",
+                "pod",
+                "server-0",
+                "-o",
+                "jsonpath={.spec.containers[0].image}",
+            ]
+        )
+        assert image == "rancher/k3s:v1.25.3-k3s1"
 
     def test_services_available(self, kubectl):
         data = self._get_beiboot_data(kubectl)
