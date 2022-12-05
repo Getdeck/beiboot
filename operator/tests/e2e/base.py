@@ -69,3 +69,7 @@ class TestOperatorBase:
             raise pytest.fail(
                 f"The Beiboot never entered {state} state (timeout: {timeout})"
             )
+
+    # a hack-around for an instance-based tear down to remove the beiboot in a shared cluster
+    def test_zz_delete_beiboot(self, kubeconfig, kubectl, timeout):
+        kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
