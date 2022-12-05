@@ -199,6 +199,11 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
                         api_groups=[""],
                         resources=["pods/portforward"],
                         verbs=["get", "list", "create"],
+                    ),
+                    k8s.client.V1PolicyRule(
+                        api_groups=[""],
+                        resources=["configmaps"],
+                        verbs=["patch"],
                     )
                 ],
             ),

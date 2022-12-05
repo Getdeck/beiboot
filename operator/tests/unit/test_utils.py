@@ -51,6 +51,7 @@ def test_validator_maxlifetime():
     validate_maxlifetime("", {"maxLifetime": "2d"}, None, logging.getLogger())
     validate_maxlifetime("", {"maxLifetime": "2h30m"}, None, logging.getLogger())
     validate_maxlifetime("", {"maxLifetime": "1h35m20s"}, None, logging.getLogger())
+    validate_maxlifetime("", {"maxLifetime": "20s"}, None, logging.getLogger())
     with pytest.raises(kopf.AdmissionError):
         validate_maxlifetime("", {"maxLifetime": "1.5h"}, None, logging.getLogger())
         validate_maxlifetime(
@@ -58,67 +59,92 @@ def test_validator_maxlifetime():
         )
 
 
-def test_validator_namespace(kubeconfig, kubectl):
-    from beiboot.handler import validate_namespace
+def test_validator_session_timeout():
+    from beiboot.handler import validate_session_timeout
 
-    validate_namespace("valid-test", {}, ClusterConfiguration(), logging.getLogger())
-    kubectl(["create", "ns", "getdeck-bbt-valid-test"])
-    sleep(1)
-    with pytest.raises(kopf.AdmissionError):
-        validate_namespace(
-            "valid-test", {}, ClusterConfiguration(), logging.getLogger()
-        )
-
-
-def test_validation_webhook(kubeconfig, kubectl):
-    from beiboot.handler import check_validate_beiboot_request
-
-    check_validate_beiboot_request(
-        body={"metadata": {"name": "test"}, "parameters": {"maxLifetime": "20s"}},
-        logger=logging.getLogger(),
-        operation="CREATE",
+    validate_session_timeout("", {"maxSessionTimeout": "2d"}, None, logging.getLogger())
+    validate_session_timeout(
+        "", {"maxSessionTimeout": "2h30m"}, None, logging.getLogger()
     )
-    check_validate_beiboot_request(
-        body={
-            "metadata": {"name": "test"},
-            "parameters": {"maxLifetime": "20s", "ports": ["8090:9090"]},
-        },
-        logger=logging.getLogger(),
-        operation="CREATE",
+    validate_session_timeout(
+        "", {"maxSessionTimeout": "1h35m20s"}, None, logging.getLogger()
     )
-    check_validate_beiboot_request(
-        body={"metadata": {"name": "test"}, "parameters": {"ports": ["8090:9090"]}},
-        logger=logging.getLogger(),
-        operation="CREATE",
+    validate_session_timeout(
+        "", {"maxSessionTimeout": "1m"}, None, logging.getLogger()
     )
     with pytest.raises(kopf.AdmissionError):
-        check_validate_beiboot_request(
-            body={"metadata": {"name": "test"}, "parameters": {"ports": ["8090:ii"]}},
-            logger=logging.getLogger(),
-            operation="CREATE",
+        validate_session_timeout(
+            "", {"maxSessionTimeout": "60s"}, None, logging.getLogger()
         )
-        check_validate_beiboot_request(
-            body={"metadata": {"name": "test"}, "parameters": {"maxLifetime": "2k"}},
-            logger=logging.getLogger(),
-            operation="CREATE",
+        validate_session_timeout(
+            "", {"maxSessionTimeout": "1.5h"}, None, logging.getLogger()
         )
-        check_validate_beiboot_request(
-            body={
-                "metadata": {"name": "test"},
-                "parameters": {"ports": ["blubb"], "maxLifetime": "2k"},
-            },
-            logger=logging.getLogger(),
-            operation="CREATE",
+        validate_session_timeout(
+            "", {"maxSessionTimeout": "-1h35m20s"}, None, logging.getLogger()
         )
-        check_validate_beiboot_request(
-            body={"metadata": {"name": "test"}, "parameters": {"ports": "blubb"}},
-            logger=logging.getLogger(),
-            operation="CREATE",
-        )
-        kubectl(["create", "ns", "getdeck-bbt-test"])
-        sleep(1)
-        check_validate_beiboot_request(
-            body={"metadata": {"name": "test"}, "parameters": {"ports": ["80:90"]}},
-            logger=logging.getLogger(),
-            operation="CREATE",
-        )
+
+
+# def test_validator_namespace(kubeconfig, kubectl):
+#     from beiboot.handler import validate_namespace
+#
+#     validate_namespace("valid-test", {}, ClusterConfiguration(), logging.getLogger())
+#     kubectl(["create", "ns", "getdeck-bbt-valid-test"])
+#     sleep(1)
+#     with pytest.raises(kopf.AdmissionError):
+#         validate_namespace(
+#             "valid-test", {}, ClusterConfiguration(), logging.getLogger()
+#         )
+#
+#
+# def test_validation_webhook(kubeconfig, kubectl):
+#     from beiboot.handler import check_validate_beiboot_request
+#
+#     check_validate_beiboot_request(
+#         body={"metadata": {"name": "test"}, "parameters": {"maxLifetime": "20s"}},
+#         logger=logging.getLogger(),
+#         operation="CREATE",
+#     )
+#     check_validate_beiboot_request(
+#         body={
+#             "metadata": {"name": "test"},
+#             "parameters": {"maxLifetime": "20s", "ports": ["8090:9090"]},
+#         },
+#         logger=logging.getLogger(),
+#         operation="CREATE",
+#     )
+#     check_validate_beiboot_request(
+#         body={"metadata": {"name": "test"}, "parameters": {"ports": ["8090:9090"]}},
+#         logger=logging.getLogger(),
+#         operation="CREATE",
+#     )
+#     with pytest.raises(kopf.AdmissionError):
+#         check_validate_beiboot_request(
+#             body={"metadata": {"name": "test"}, "parameters": {"ports": ["8090:ii"]}},
+#             logger=logging.getLogger(),
+#             operation="CREATE",
+#         )
+#         check_validate_beiboot_request(
+#             body={"metadata": {"name": "test"}, "parameters": {"maxLifetime": "2k"}},
+#             logger=logging.getLogger(),
+#             operation="CREATE",
+#         )
+#         check_validate_beiboot_request(
+#             body={
+#                 "metadata": {"name": "test"},
+#                 "parameters": {"ports": ["blubb"], "maxLifetime": "2k"},
+#             },
+#             logger=logging.getLogger(),
+#             operation="CREATE",
+#         )
+#         check_validate_beiboot_request(
+#             body={"metadata": {"name": "test"}, "parameters": {"ports": "blubb"}},
+#             logger=logging.getLogger(),
+#             operation="CREATE",
+#         )
+#         kubectl(["create", "ns", "getdeck-bbt-test"])
+#         sleep(1)
+#         check_validate_beiboot_request(
+#             body={"metadata": {"name": "test"}, "parameters": {"ports": ["80:90"]}},
+#             logger=logging.getLogger(),
+#             operation="CREATE",
+#         )

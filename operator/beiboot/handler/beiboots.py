@@ -1,7 +1,5 @@
 import traceback
 from asyncio import sleep
-from datetime import datetime
-
 import kopf
 
 from beiboot.configuration import configuration
@@ -73,7 +71,7 @@ async def beiboot_created(body, logger, **kwargs):
                 raise e from None
 
 
-@kopf.timer("beiboot", interval=60)
+@kopf.timer("beiboot", interval=5)
 async def reconcile_beiboot(body, logger, **kwargs):
     """
     If the cluster is running or ready, it calls the `reconcile` method on it
@@ -84,7 +82,7 @@ async def reconcile_beiboot(body, logger, **kwargs):
     parameters = configuration.refresh_k8s_config(body.get("parameters"))
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
-    if cluster.sunset and cluster.sunset <= datetime.utcnow():
+    if cluster.should_terminate:
         # terminate this cluster
         try:
             await cluster.terminate()

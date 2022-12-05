@@ -32,6 +32,17 @@ def validate_maxlifetime(name: str, parameters: dict, _: ClusterConfiguration, l
             raise kopf.AdmissionError(f"maxLifetime parameter is not valid: {e}")
 
 
+def validate_session_timeout(
+    name: str, parameters: dict, _: ClusterConfiguration, logger
+):
+    if mlt := parameters.get("maxSessionTimeout"):
+        try:
+            parse_timedelta(mlt)
+        except ValueError as e:
+            logger.warning(f"maxSessionTimeout parameter is not valid: {e}")
+            raise kopf.AdmissionError(f"maxSessionTimeout parameter is not valid: {e}")
+
+
 def validate_ports(name: str, parameters: dict, _: ClusterConfiguration, logger):
     if ports := parameters.get("ports"):
         try:
@@ -49,7 +60,7 @@ def validate_ports(name: str, parameters: dict, _: ClusterConfiguration, logger)
             raise kopf.AdmissionError(f"ports parameter is not valid: {e}")
 
 
-VALIDATORS = [validate_namespace, validate_maxlifetime]
+VALIDATORS = [validate_namespace, validate_maxlifetime, validate_session_timeout]
 
 
 @kopf.on.validate("beiboot.getdeck.dev", id="validate-parameters")  # type: ignore
