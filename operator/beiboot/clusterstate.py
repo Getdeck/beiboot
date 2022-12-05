@@ -150,10 +150,6 @@ class BeibootCluster(StateMachine):
                 ready_timestamp = datetime.fromisoformat(
                     self.completed_transition(BeibootCluster.ready.value).strip("Z")
                 )
-                self.logger.warning(ready_timestamp)
-                self.logger.warning(td)
-                self.logger.warning(datetime.utcnow())
-                self.logger.warning(f"{ready_timestamp + td} < {datetime.utcnow()}")
                 if ready_timestamp + td < datetime.utcnow():
                     self.logger.warning(
                         f"Beiboot {self.name} should terminate due to client timeout (no client connected): "
