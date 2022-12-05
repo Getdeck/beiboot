@@ -4,19 +4,10 @@ from time import sleep
 from typing import Callable
 
 import pytest
-from kopf.testing import KopfRunner
 
 
 class TestOperatorBase:
     beiboot_name = ""
-
-    @staticmethod
-    def _ensure_namespace(kubectl):
-        output = kubectl(["get", "ns"])
-        if "getdeck" in output:
-            return
-        else:
-            kubectl(["create", "ns", "getdeck"])
 
     def _get_beiboot_data(self, kubectl: Callable) -> dict:
         output = kubectl(
@@ -70,10 +61,3 @@ class TestOperatorBase:
             raise pytest.fail(
                 f"The Beiboot never entered {state} state (timeout: {timeout})"
             )
-
-    # a hack-around for an instance-based tear down to remove the beiboot in a shared cluster
-    def test_zz_delete_beiboot(self, kubeconfig, kubectl, caplog):
-        caplog.set_level(logging.CRITICAL, logger="kopf")
-
-        with KopfRunner(["run", "-A", "main.py"]) as _:
-            kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])

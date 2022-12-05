@@ -1,27 +1,15 @@
-import logging
-from time import sleep
-
-from kopf.testing import KopfRunner
-
 from tests.e2e.base import TestOperatorBase
 
 
 class TestOperatorConfigured(TestOperatorBase):
     beiboot_name = "test-beiboot-configured"
 
-    def test_create_configured_beiboot(self, kubeconfig, kubectl, timeout, caplog):
-        caplog.set_level(logging.CRITICAL, logger="kopf")
-        self._ensure_namespace(kubectl)
-        with KopfRunner(["run", "-A", "main.py"]) as runner:
-            sleep(5)
-            self._apply_fixure_file(
-                "tests/fixtures/configured-beiboot.yaml", kubectl, timeout
-            )
-            # READY state
-            self._wait_for_state("READY", kubectl, timeout * 2)
-
-        assert runner.exit_code == 0
-        assert runner.exception is None
+    def test_create_configured_beiboot(self, operator, kubectl, timeout):
+        self._apply_fixure_file(
+            "tests/fixtures/configured-beiboot.yaml", kubectl, timeout
+        )
+        # READY state
+        self._wait_for_state("READY", kubectl, timeout * 2)
 
     def test_gefyra_disabled(self, kubectl):
         data = self._get_beiboot_data(kubectl)

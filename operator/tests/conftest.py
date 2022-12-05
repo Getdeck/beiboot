@@ -4,6 +4,7 @@ import subprocess
 from time import sleep
 
 import pytest
+from kopf.testing import KopfRunner
 
 CLUSTER_NAME = "beiboot-test-cluster"
 
@@ -80,6 +81,38 @@ def kubectl(request):
         return ps.stdout.decode()
 
     return _fn
+
+
+def _ensure_namespace(kubectl):
+    output = kubectl(["get", "ns"])
+    if "getdeck" in output:
+        return
+    else:
+        kubectl(["create", "ns", "getdeck"])
+
+
+@pytest.fixture(scope="module")
+def operator(request, kubeconfig, kubectl):
+
+    _ensure_namespace(kubectl)
+    operator = KopfRunner(["run", "-A", "main.py"])
+    operator.__enter__()
+
+    kopf_logger = logging.getLogger("kopf")
+    kopf_logger.setLevel(logging.CRITICAL)
+
+    def teardown():
+        beiboots = kubectl(["-n", "getdeck", "get", "bbt"])
+        for beiboot in beiboots.split("\n"):
+            bbt_name = beiboot.split(" ")[0]
+            kubectl(["-n", "getdeck", "delete", "bbt", bbt_name])
+            sleep(5)
+        operator.__exit__(None, None, None)
+        assert operator.exit_code == 0
+        assert operator.exception is None
+
+    request.addfinalizer(teardown)
+    return operator
 
 
 @pytest.fixture(scope="session")
