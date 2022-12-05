@@ -9,9 +9,6 @@ from tests.e2e.base import TestOperatorBase
 class TestOperatorConfigured(TestOperatorBase):
     beiboot_name = "test-beiboot-configured"
 
-    def test_zz_delete_beiboot(self, kubeconfig, kubectl, timeout):
-        kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
-
     def test_create_configured_beiboot(self, kubeconfig, kubectl, timeout, caplog):
         caplog.set_level(logging.CRITICAL, logger="kopf")
         self._ensure_namespace(kubectl)

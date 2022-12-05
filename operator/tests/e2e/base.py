@@ -4,6 +4,7 @@ from time import sleep
 from typing import Callable
 
 import pytest
+from kopf.testing import KopfRunner
 
 
 class TestOperatorBase:
@@ -71,5 +72,8 @@ class TestOperatorBase:
             )
 
     # a hack-around for an instance-based tear down to remove the beiboot in a shared cluster
-    def test_zz_delete_beiboot(self, kubeconfig, kubectl, timeout):
-        kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
+    def test_zz_delete_beiboot(self, kubeconfig, kubectl, caplog):
+        caplog.set_level(logging.CRITICAL, logger="kopf")
+
+        with KopfRunner(["run", "-A", "main.py"]) as runner:
+            kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
