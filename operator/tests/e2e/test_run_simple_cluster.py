@@ -1,8 +1,3 @@
-import logging
-from time import sleep
-
-from kopf.testing import KopfRunner
-
 from tests.e2e.base import TestOperatorBase
 
 
