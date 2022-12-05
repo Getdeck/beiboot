@@ -61,11 +61,13 @@ def test_validator_maxlifetime():
 def test_validator_namespace(kubeconfig, kubectl):
     from beiboot.handler import validate_namespace
 
-    validate_namespace("test", {}, ClusterConfiguration(), logging.getLogger())
-    kubectl(["create", "ns", "getdeck-bbt-test"])
+    validate_namespace("valid-test", {}, ClusterConfiguration(), logging.getLogger())
+    kubectl(["create", "ns", "getdeck-bbt-valid-test"])
     sleep(1)
     with pytest.raises(kopf.AdmissionError):
-        validate_namespace("test", {}, ClusterConfiguration(), logging.getLogger())
+        validate_namespace(
+            "valid-test", {}, ClusterConfiguration(), logging.getLogger()
+        )
 
 
 def test_validation_webhook(kubeconfig, kubectl):

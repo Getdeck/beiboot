@@ -1,6 +1,7 @@
 import re
 from datetime import timedelta
 from typing import List, Optional
+import urllib
 
 import kopf
 import kubernetes as k8s
@@ -24,6 +25,12 @@ class K3s(AbstractClusterProvider):
 
     provider_type = "k3s"
 
+    k3s_image: str = "rancher/k3s"
+    k3s_default_image_tag: str = "v1.24.3-k3s1"
+    k3s_image_pullpolicy: str = "IfNotPresent"
+    kubeconfig_from_location: str = "/getdeck/kube-config.yaml"
+    api_server_container_name: str = "apiserver"
+
     def __init__(
         self,
         configuration: BeibootConfiguration,
@@ -37,6 +44,31 @@ class K3s(AbstractClusterProvider):
         self.configuration = configuration
         self.parameters = cluster_parameter
         self.logger = logger
+
+    def _check_image_exists(self, k8s_version: str) -> Optional[str]:
+        _b = k8s_version.lower().replace("v", "")
+        k3s_tag = f"v{_b.strip()}-k3s1"
+        req = urllib.request.Request(
+            f"https://hub.docker.com/v2/repositories/rancher/k3s/tags/{k3s_tag}",
+            method="HEAD",
+        )
+        try:
+            _ = urllib.request.urlopen(req)
+            return k3s_tag
+        except urllib.error.HTTPError:
+            return None
+
+    @property
+    def k3s_image_tag(self):
+        if k8s_version := self.parameters.k8sVersion:
+            tag = self._check_image_exists(k8s_version)
+            if tag is None:
+                raise kopf.PermanentError(
+                    "Cannot create a Beiboot with provider 'k3s' and Kubernetes API version "
+                    f"{self.parameters.k8sVersion}"
+                )
+            return tag
+        return self.k3s_default_image_tag
 
     def _parse_kubectl_nodes_output(self, string: str) -> dict:
 
@@ -73,7 +105,7 @@ class K3s(AbstractClusterProvider):
             core_api,
             api_pod_name,
             self.namespace,
-            self.parameters.apiServerContainerName,
+            self.api_server_container_name,
             ["kubectl", "delete", "node", node_name],
         )
 
@@ -92,8 +124,8 @@ class K3s(AbstractClusterProvider):
                 core_api,
                 api_pod.items[0].metadata.name,
                 self.namespace,
-                self.parameters.apiServerContainerName,
-                ["cat", self.parameters.kubeconfigFromLocation],
+                self.api_server_container_name,
+                ["cat", self.kubeconfig_from_location],
             )
             if "No such file or directory" in kubeconfig:
                 raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
@@ -112,10 +144,27 @@ class K3s(AbstractClusterProvider):
 
         node_token = generate_token()
         server_workloads = [
-            create_k3s_server_workload(self.namespace, node_token, self.parameters)
+            create_k3s_server_workload(
+                self.namespace,
+                node_token,
+                self.k3s_image,
+                self.k3s_image_tag,
+                self.k3s_image_pullpolicy,
+                self.kubeconfig_from_location,
+                self.api_server_container_name,
+                self.parameters,
+            )
         ]
         node_workloads = [
-            create_k3s_agent_workload(self.namespace, node_token, self.parameters, node)
+            create_k3s_agent_workload(
+                self.namespace,
+                node_token,
+                self.k3s_image,
+                self.k3s_image_tag,
+                self.k3s_image_pullpolicy,
+                self.parameters,
+                node,
+            )
             for node in range(
                 1, self.parameters.nodes
             )  # (no +1 ) since the server deployment already runs one node
@@ -229,7 +278,7 @@ class K3s(AbstractClusterProvider):
                 core_api,
                 api_pod.items[0].metadata.name,
                 self.namespace,
-                self.parameters.apiServerContainerName,
+                self.api_server_container_name,
                 ["kubectl", "get", "node"],
             )
             if "No resources found" in output:

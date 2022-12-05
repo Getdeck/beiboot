@@ -109,7 +109,7 @@ async def reconcile_beiboot(body, logger, **kwargs):
 @kopf.on.delete("beiboot")
 async def beiboot_deleted(body, logger, **kwargs):
     """
-    It deletes the cluster if it's not requested state
+    It deletes the cluster if it's not REQUESTED state
 
     :param body: the body of the request
     :param logger: a logger object

@@ -9,14 +9,6 @@ import pytest
 class TestOperatorBase:
     beiboot_name = ""
 
-    @staticmethod
-    def _ensure_namespace(kubectl):
-        output = kubectl(["get", "ns"])
-        if "getdeck" in output:
-            return
-        else:
-            kubectl(["create", "ns", "getdeck"])
-
     def _get_beiboot_data(self, kubectl: Callable) -> dict:
         output = kubectl(
             ["-n", "getdeck", "get", "bbt", self.beiboot_name, "-o", "json"]
@@ -61,7 +53,7 @@ class TestOperatorBase:
             else:
                 if _i % 2:
                     logger.info(
-                        f"Waiting for state {state} (is: {str(data.get('state'))}, {str(_i)}s/{_i}s)"
+                        f"Waiting for state {state} (is: {str(data.get('state'))}, {_i}s/{timeout}s)"
                     )
                 _i = _i + 1
                 sleep(1)

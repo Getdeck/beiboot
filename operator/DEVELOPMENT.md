@@ -81,8 +81,9 @@ def test_myfunction(kubeconfig):
     
     result = myfunction()  # call a function that depends on K8s  
 ```
-Adding the `kubeconfig` parameter to any function will cause `pytest` to set up a fresh Kubernetes cluster and
-execute the test function.  
+Adding the `kubeconfig` parameter to any function will cause `pytest` to set up a Kubernetes cluster and
+execute the test function.
+**Important:** For the sake of short runtimes a Kubernetes cluster is shared among all tests in one package.
 **Important:** You have to import such functions under test locally, i.e. within the test function. If you import the
 function under test globally (module level) it can cause to instantiate the K8s API object before actually creating the
 cluster which will make the K8s API object not being able to talk to the test cluster. This behavior is caused by the wrong
@@ -104,7 +105,7 @@ Using `kubectl` without `kubeconfig` seems to make no sense.
 
 ### Running the tests
 Please run the test with Poetry and coverage like so (`pwd` is `beiboot/operator/`):
-* `poetry run coverage run -m pytest -x -s tests/` (for all tests; ~12min)
-* `poetry run coverage run -m pytest -x -s tests/e2e/` (for all end to end tests; ~10min)
-* `poetry run coverage run -m pytest -x -s tests/unit/` (for all unit tests; ~2min)
+* `poetry run coverage run -m pytest -x -s tests/` (for all tests; ~5min)
+* `poetry run coverage run -m pytest -x -s tests/e2e/` (for all end to end tests; ~4min)
+* `poetry run coverage run -m pytest -x -s tests/unit/` (for all unit tests; ~40s)
 * `poetry run coverage run -m pytest -x -s tests/unit/tests_utils.py` (for one test module)
