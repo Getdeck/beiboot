@@ -75,5 +75,5 @@ class TestOperatorBase:
     def test_zz_delete_beiboot(self, kubeconfig, kubectl, caplog):
         caplog.set_level(logging.CRITICAL, logger="kopf")
 
-        with KopfRunner(["run", "-A", "main.py"]) as runner:
+        with KopfRunner(["run", "-A", "main.py"]) as _:
             kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
