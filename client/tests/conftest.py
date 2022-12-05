@@ -26,8 +26,8 @@ def kubectl(request):
     return _fn
 
 
-@pytest.fixture(scope="class")
-def operator(request, kubectl):
+@pytest.fixture(scope="package")
+def minikube(request, kubectl):
     logger = logging.getLogger()
     if shutil.which("minikube") is None:
         raise RuntimeError("You need 'minikube' installed to run these tests.")
@@ -66,10 +66,37 @@ def operator(request, kubectl):
     else:
         raise RuntimeError("There was an error setting up Minikube correctly")
 
+    def teardown():
+        logger.info("Removing Minikube")
+        subprocess.run(
+            f"minikube delete -p {CLUSTER_NAME}",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            "minikube profile default",
+            shell=True,
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
+
+    request.addfinalizer(teardown)
+    return None
+
+
+def _ensure_namespace(kubectl):
     output = kubectl(["get", "ns"])
-    if "getdeck" not in output:
-        logger.info("Creating namespace 'getdeck'")
+    if "getdeck" in output:
+        return
+    else:
         kubectl(["create", "ns", "getdeck"])
+
+
+@pytest.fixture(scope="module")
+def operator(request, minikube, kubectl):
+    logger = logging.getLogger()
+    _ensure_namespace(kubectl)
 
     logger.info("Starting the Operator")
     # start the operator
@@ -88,22 +115,14 @@ def operator(request, kubectl):
         raise RuntimeError("There was an error starting the Operator")
 
     def teardown():
+        beiboots = kubectl(["-n", "getdeck", "get", "bbt"])
+        for beiboot in beiboots.split("\n"):
+            bbt_name = beiboot.split(" ")[0]
+            kubectl(["-n", "getdeck", "delete", "bbt", bbt_name])
+            sleep(5)
         logger.info("Stopping the Operator")
         operator.terminate()
         operator.kill()
-        logger.info("Removing Minikube")
-        subprocess.run(
-            f"minikube delete -p {CLUSTER_NAME}",
-            shell=True,
-            check=True,
-            stdout=subprocess.DEVNULL,
-        )
-        subprocess.run(
-            "minikube profile default",
-            shell=True,
-            check=True,
-            stdout=subprocess.DEVNULL,
-        )
 
     request.addfinalizer(teardown)
     return None
