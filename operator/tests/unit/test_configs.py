@@ -1,3 +1,5 @@
+import logging
+
 import kubernetes
 
 from beiboot.configuration import ClusterConfiguration
@@ -145,7 +147,7 @@ def test_decode_configuration():
         "serverStartupTimeout": "60",
         "clusterReadyTimeout": "80",
         "gefyra": '{"enabled": false, "endpoint": null}',
-        "tunnel": '{"enabled": true, "endpoint": 192.168.49.2}',
+        "tunnel": '{"enabled": true, "endpoint": "192.168.49.2"}',
         "ports": '["8080:80", "8443:443"]',
         "maxLifetime": "2h",
         "maxSessionTimeout": "4d",

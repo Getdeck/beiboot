@@ -1,3 +1,4 @@
+import getpass
 import logging
 import os
 import socket
@@ -37,7 +38,7 @@ class GhostunnelDocker(AbstractConnector):
     CONTAINER_PREFIX = "getdeck-beiboot-{name}"
     _DOCKER_NETWORK_NAME = None
     HEARTBEAT_CMD = 'watch -n30 "VAR=\'{{\\"data\\":{{\\"{client}\\": \\"\'$(date +\\"%Y-%m-%dT%H:%M:%S\\")\'\\"}}}}\';  kubectl --kubeconfig /kubernetes/sa_kubeconfig.yaml patch configmap beiboot-clients -n {namespace} --type merge --patch=\\"$VAR\\""'  # noqa
-    CLIENT = f"{socket.gethostname()}-{os.getlogin()}"
+    CLIENT = f"{socket.gethostname()}-{getpass.getuser()}"
 
     def __init__(
         self,
