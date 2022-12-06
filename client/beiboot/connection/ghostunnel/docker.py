@@ -1,6 +1,5 @@
 import getpass
 import logging
-import os
 import socket
 from typing import Optional, List
 

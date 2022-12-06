@@ -1,5 +1,3 @@
-import logging
-
 import kubernetes
 
 from beiboot.configuration import ClusterConfiguration
