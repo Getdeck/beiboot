@@ -166,11 +166,11 @@ jobs:
           directory: ./client/
           files: coverage.json
       - name: Run CLI tests with K8s ${{ matrix.k8s }}
-          working-directory: client/
-          run: |
-            poetry install
-            poetry run coverage run -m pytest -x -s tests/cli/ --k8s-version ${{ matrix.k8s }}
-            poetry run coverage json
+        working-directory: client/
+        run: |
+          poetry install
+          poetry run coverage run -m pytest -x -s tests/cli/ --k8s-version ${{ matrix.k8s }}
+          poetry run coverage json
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
