@@ -23,6 +23,7 @@ def kubectl(request):
         logging.getLogger().debug(f"Running: {_cmd}")
         ps = subprocess.run(_cmd, shell=True, stdout=subprocess.PIPE)
         return ps.stdout.decode(sys.stdout.encoding)
+
     return _fn
 
 
@@ -132,6 +133,7 @@ def local_kubectl(request):
         logging.getLogger().debug(f"Running: {_cmd}")
         ps = subprocess.run(_cmd, shell=True, stdout=subprocess.PIPE)
         return ps.stdout.decode(sys.stdout.encoding)
+
     return _fn
 
 
@@ -164,6 +166,7 @@ def operator(request, minikube, kubectl):
 
     def teardown():
         import kubernetes as k8s
+
         extension_api = k8s.client.ApiextensionsV1Api()
 
         beiboots = kubectl(["-n", "getdeck", "get", "bbt"])

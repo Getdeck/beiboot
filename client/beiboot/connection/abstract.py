@@ -50,7 +50,6 @@ class AbstractConnector(ABC):
         """
         raise NotImplementedError
 
-
     def _save_items(
         self, beiboot_name: str, items: Iterable, prefix: str = "."
     ) -> dict[str, str]:
