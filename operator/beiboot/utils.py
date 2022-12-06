@@ -177,7 +177,10 @@ def parse_timedelta(delta: str, only_positve=True) -> timedelta:
     import re
 
     TIMEDELTA_REGEX = (
-        r"((?P<days>-?\d+)d)?" r"((?P<hours>-?\d+)h)?" r"((?P<minutes>-?\d+)m)?"
+        r"((?P<days>-?\d+)d)?"
+        r"((?P<hours>-?\d+)h)?"
+        r"((?P<minutes>-?\d+)m)?"
+        r"((?P<seconds>-?\d+)s)?"
     )
     TIMEDELTA_PATTERN = re.compile(TIMEDELTA_REGEX, re.IGNORECASE)
     match = TIMEDELTA_PATTERN.match(delta)
@@ -186,6 +189,8 @@ def parse_timedelta(delta: str, only_positve=True) -> timedelta:
         td = timedelta(**parts)
         if only_positve and td.days < 0:
             raise ValueError("Only positiv timedeltas are allowed")
+        if not bool(td):
+            raise ValueError(f"{delta} is malformed")
         return td
     raise ValueError(f"Could not parse timedelta: {delta}")
 

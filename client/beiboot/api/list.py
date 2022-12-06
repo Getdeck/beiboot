@@ -16,7 +16,12 @@ def read_all(config: ClientConfiguration = default_configuration) -> list[Beiboo
             plural="beiboots",
         )
     except k8s.client.ApiException as e:
-        raise RuntimeError(str(e)) from None
+        if e.status == 404:
+            raise RuntimeError(
+                "This cluster does probably not support Getdeck Beiboot, or is not ready."
+            ) from None
+        else:
+            raise RuntimeError(str(e)) from None
     else:
         for bbt in bbts["items"]:
             result.append(Beiboot(bbt))

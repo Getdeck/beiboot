@@ -1,7 +1,7 @@
 apiVersion: getdeck.dev/v1
 kind: beiboot
 metadata:
-  name: test-beiboot-sunset
+  name: test-beiboot-timeout
   namespace: getdeck
 provider: k3s
 parameters:
@@ -9,7 +9,7 @@ parameters:
   ports:
     - 8080:80
   nodes: 1
-  maxLifetime: 10s
+  maxSessionTimeout: 10s
   serverStorageRequests: 500Mi
   nodeStorageRequests: 500Mi
   serverResources:

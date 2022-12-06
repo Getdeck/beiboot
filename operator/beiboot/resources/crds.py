@@ -1,9 +1,7 @@
 import kubernetes as k8s
 
-from beiboot.configuration import configuration
 
-
-def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
+def create_beiboot_definition(namespace: str) -> k8s.client.V1CustomResourceDefinition:
     schema_props = k8s.client.V1JSONSchemaProps(
         type="object",
         required=["provider"],
@@ -88,6 +86,13 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                             "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
                         },
                     ),
+                    "tunnel": k8s.client.V1JSONSchemaProps(
+                        type="object",
+                        properties={
+                            "enabled": k8s.client.V1JSONSchemaProps(type="boolean"),
+                            "endpoint": k8s.client.V1JSONSchemaProps(type="string"),
+                        },
+                    ),
                 },
             ),
             "kubeconfig": k8s.client.V1JSONSchemaProps(
@@ -102,6 +107,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
                 },
             ),
             "sunset": k8s.client.V1JSONSchemaProps(type="string"),
+            "lastClientContact": k8s.client.V1JSONSchemaProps(type="string"),
             "tunnel": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
             ),
@@ -141,7 +147,7 @@ def create_beiboot_definition() -> k8s.client.V1CustomResourceDefinition:
         spec=def_spec,
         metadata=k8s.client.V1ObjectMeta(
             name="beiboots.getdeck.dev",
-            namespace=configuration.NAMESPACE,
+            namespace=namespace,
             finalizers=[],
         ),
     )

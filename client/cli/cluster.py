@@ -9,7 +9,7 @@ from tabulate import tabulate
 
 from beiboot import api
 from beiboot.connection.types import ConnectorType
-from beiboot.types import BeibootRequest, BeibootParameters, BeibootState
+from beiboot.types import BeibootRequest, BeibootParameters, BeibootState, TunnelParams
 from cli.console import (
     info,
     last_event_by_timestamp_toolbar,
@@ -50,12 +50,13 @@ from cli.utils import standard_error_handler
     help="The timeout for a cluster to enter READY state (in seconds)",
     type=int,
 )
-@click.option("--server-requests-cpu", type=float)
+@click.option("--server-requests-cpu", type=str)
 @click.option("--server-requests-memory", type=str)
-@click.option("--node-requests-cpu", type=float)
+@click.option("--node-requests-cpu", type=str)
 @click.option("--node-requests-memory", type=str)
 @click.option("--server-storage", type=str)
 @click.option("--node-storage", type=str)
+@click.option("--tunnel-host", type=str)
 @click.option(
     "-s",
     "--nowait",
@@ -78,6 +79,7 @@ def create_cluster(
     node_requests_memory,
     server_storage,
     node_storage,
+    tunnel_host,
     nowait,
 ):
     server_requests = {}
@@ -90,6 +92,9 @@ def create_cluster(
         node_requests.update({"cpu": node_requests_cpu})
     if node_requests_memory:
         node_requests.update({"memory": node_requests_memory})
+    tunnel = None
+    if tunnel_host:
+        tunnel = TunnelParams(endpoint=tunnel_host)
 
     parameters = BeibootParameters(
         k8sVersion=k8s_version,
@@ -102,6 +107,7 @@ def create_cluster(
         nodeResources={"requests": node_requests} if node_requests else None,
         nodeStorageRequests=node_storage,
         serverStorageRequests=server_storage,
+        tunnel=tunnel,
     )
     req = BeibootRequest(name=name, parameters=parameters)
     start_time = time.time()
@@ -149,7 +155,7 @@ def create_cluster(
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
-def delete(ctx, name):
+def delete_cluster(ctx, name):
     api.delete_by_name(name)
     info(f"Beiboot '{name}' marked for deletion")
 
@@ -161,11 +167,30 @@ def list_clusters(ctx):
     beiboots = api.read_all(config=ctx.obj["config"])
     if beiboots:
         tab = [
-            (bbt.uid, bbt.name, bbt.namespace, bbt.state.value, bbt.sunset or "-")
+            (
+                bbt.uid,
+                bbt.name,
+                bbt.namespace,
+                bbt.state.value,
+                bbt.sunset or "-",
+                f"{bbt.last_client_contact} (timeout: {bbt.parameters.maxSessionTimeout or '-'})"
+                if bbt.last_client_contact
+                else f"- (timeout: {bbt.parameters.maxSessionTimeout or '-'})",
+            )
             for bbt in beiboots
         ]
         print_formatted_text(
-            tabulate(tab, headers=["UID", "Name", "Namespace", "State", "Sunset"])
+            tabulate(
+                tab,
+                headers=[
+                    "UID",
+                    "Name",
+                    "Namespace",
+                    "State",
+                    "Sunset",
+                    "Last Client Contact",
+                ],
+            )
         )
     else:
         info("No Beiboot(s) running")
@@ -205,9 +230,10 @@ def inspect(ctx, name):
     type=click.Choice(["ghostunnel_docker"], case_sensitive=False),
     default="ghostunnel_docker",
 )
+@click.option("--host", help="Override the connection endpoint")
 @click.pass_context
 @standard_error_handler
-def connect(ctx, name, connector):
+def connect(ctx, name, connector, host):
     beiboot = api.read(name=name)
     connector_type = ConnectorType(connector)
     info(f"Now connecting to Beiboot '{name}' using connector '{connector_type}'")
@@ -230,7 +256,7 @@ def connect(ctx, name, connector):
         )
     )
 
-    connector = api.connect(beiboot, connector_type, config=ctx.obj["config"])
+    connector = api.connect(beiboot, connector_type, host, config=ctx.obj["config"])
 
     location = connector.save_kubeconfig_to_file(beiboot)
     info(f"The kubeconfig file is written to {location}")

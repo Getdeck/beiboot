@@ -9,11 +9,19 @@ from beiboot.types import BeibootState
 from cli import cluster
 
 
-def test_create_delete_cluster(operator):
+def test_create_delete_beiboot(operator):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,
-        ["test1", "--nodes", "1"],
+        cluster.create_cluster,  # noqa
+        [
+            "test1",
+            "--nodes",
+            "1",
+            "--server-requests-cpu",
+            "0.25",
+            "--server-requests-memory",
+            "0.25Gi",
+        ],
         obj={"config": ClientConfiguration()},
     )
     assert result.exit_code == 0
@@ -24,10 +32,14 @@ def test_create_delete_cluster(operator):
     assert beiboot.parameters.nodes == 1
 
     result = runner.invoke(
-        cluster.delete, ["test1"], obj={"config": ClientConfiguration()}
+        cluster.delete_cluster, ["test1"], obj={"config": ClientConfiguration()}  # noqa
     )
     assert result.exit_code == 0
     assert not result.exception
     sleep(2)
     with pytest.raises(RuntimeError):
         api.read("test1")
+
+
+def test_connect_beiboot(operator):
+    pass

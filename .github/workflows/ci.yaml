@@ -108,10 +108,10 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [ v1.25.3, v1.24.1 ]
+        k8s: [ v1.25.3 ]
     name: Unit tests client K8s ${{ matrix.k8s }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       K8S: ${{ matrix.k8s }}
     steps:
@@ -158,6 +158,18 @@ jobs:
         run: |
           poetry install
           poetry run coverage run -m pytest -x -s tests/e2e/ --k8s-version ${{ matrix.k8s }}
+          poetry run coverage json
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          env_vars: K8S
+          directory: ./client/
+          files: coverage.json
+      - name: Run CLI tests with K8s ${{ matrix.k8s }}
+        working-directory: client/
+        run: |
+          poetry install
+          poetry run coverage run -m pytest -x -s tests/cli/ --k8s-version ${{ matrix.k8s }}
           poetry run coverage json
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3

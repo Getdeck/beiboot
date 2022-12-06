@@ -28,18 +28,44 @@ def create_beiboot_custom_ressource(
 
 
 def decode_kubeconfig(kubeconfig_obj: dict):
+    """
+    It takes a dictionary with a key called `source` and returns the value of that key decoded from base64
+
+    :param kubeconfig_obj: The kubeconfig object that we created in the previous step
+    :type kubeconfig_obj: dict
+    :return: A string of the kubeconfig
+    """
     b64_kubeconfig = kubeconfig_obj["source"]
     kubeconfig = base64.b64decode(b64_kubeconfig.encode("utf-8")).decode("utf-8")
     return kubeconfig
 
 
 def get_beiboot_config_location(config: ClientConfiguration, cluster_name: str) -> str:
+    """
+    It creates a directory for the cluster's configuration file if it doesn't already exist, and returns the path to
+    that directory
+
+    :param config: ClientConfiguration
+    :type config: ClientConfiguration
+    :param cluster_name: The name of the cluster you want to create
+    :type cluster_name: str
+    :return: The path to the directory where the kubeconfig file will be stored.
+    """
     config_dir = config.KUBECONFIG_LOCATION.joinpath(cluster_name)
     config_dir.mkdir(parents=True, exist_ok=True)
     return str(config_dir)
 
 
 def get_kubeconfig_location(config: ClientConfiguration, cluster_name: str) -> str:
+    """
+    It returns the location of the kubeconfig file for a given cluster name
+
+    :param config: This is the configuration object that we created earlier
+    :type config: ClientConfiguration
+    :param cluster_name: The name of the Beiboot cluster you want to create
+    :type cluster_name: str
+    :return: The path to the kubeconfig file for the cluster.
+    """
     return str(
         Path(get_beiboot_config_location(config, cluster_name)).joinpath(
             f"{cluster_name}.yaml"
@@ -48,6 +74,13 @@ def get_kubeconfig_location(config: ClientConfiguration, cluster_name: str) -> s
 
 
 def decode_b64_dict(b64_dict: dict[str, str]) -> dict[str, str]:
+    """
+    It takes a dictionary of base64 encoded strings and returns a dictionary of decoded strings
+
+    :param b64_dict: a dictionary of key-value pairs where the value is a base64-encoded string
+    :type b64_dict: dict[str, str]
+    :return: A dictionary with the keys and values decoded from base64.
+    """
     return {
         k: base64.b64decode(v.encode("utf-8")).decode("utf-8").strip()
         for k, v in b64_dict.items()
@@ -67,211 +100,22 @@ def _check_port_free(port: int) -> bool:
     return True
 
 
-#
-# def start_kubeapi_portforwarding(
-#     config: ClientConfiguration, cluster_name: str, probe_connection: bool = True
-# ):
-#     bbt = config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
-#         namespace=config.NAMESPACE,
-#         name=cluster_name,
-#         group="getdeck.dev",
-#         plural="beiboots",
-#         version="v1",
-#     )
-#     forwarded_ports = bbt.get("ports")
-#     forwards = []
-#
-#     for port in forwarded_ports:
-#         forwards.append(
-#             (
-#                 port.split(":")[0],
-#                 [
-#                     "kubectl",
-#                     "--context",
-#                     config.context,
-#                     "port-forward",
-#                     "-n",
-#                     bbt["beibootNamespace"],
-#                     f"svc/port-{port.split(':')[1]}",
-#                     port,
-#                     "--address='0.0.0.0'",
-#                 ]
-#                 if config.context
-#                 else [
-#                     "kubectl",
-#                     "port-forward",
-#                     "-n",
-#                     bbt["beibootNamespace"],
-#                     f"svc/port-{port.split(':')[1]}",
-#                     port,
-#                     "--address='0.0.0.0'",
-#                 ],
-#             )
-#         )
-#
-#     forwards.append(
-#         (
-#             config.BEIBOOT_API_PORT,
-#             [
-#                 "kubectl",
-#                 "--context",
-#                 config.context,
-#                 "port-forward",
-#                 "-n",
-#                 bbt["beibootNamespace"],
-#                 "svc/kubeapi",
-#                 f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
-#                 "--address='0.0.0.0'",
-#             ]
-#             if config.context
-#             else [
-#                 "kubectl",
-#                 "port-forward",
-#                 "-n",
-#                 bbt["beibootNamespace"],
-#                 "svc/kubeapi",
-#                 f"{config.BEIBOOT_API_PORT}:{config.BEIBOOT_API_PORT}",
-#                 "--address='0.0.0.0'",
-#             ],
-#         )
-#     )
-#
-#     # check if ports are actually free on the local machine
-#     for forward in forwards:
-#         _check_port_free(int(forward[0]))
-#
-#     if config.KUBECONFIG_FILE:
-#         kubeconfig_path = config.KUBECONFIG_FILE
-#     else:
-#         from kubernetes.config import kube_config
-#
-#         kubeconfig_path = os.path.expanduser(kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
-#
-#     for forward in forwards:
-#         try:
-#             _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
-#             logger.debug(_cmd)
-#             container = config.DOCKER.containers.run(  # noqa
-#                 image=config.TOOLER_IMAGE,
-#                 name=f"{_get_tooler_container_name(cluster_name)}-{forward[0]}",
-#                 command=_cmd,
-#                 restart_policy={"Name": "unless-stopped"},
-#                 remove=False,
-#                 detach=True,
-#                 ports={f"{forward[0]}/tcp": int(forward[0])},
-#                 environment=[
-#                     "KUBECONFIG=/tmp/.kube/config",
-#                     "AWS_CONFIG_FILE=/tmp/.aws/config",
-#                     "AWS_SHARED_CREDENTIALS_FILE=/tmp/.aws/credentials",
-#                 ],
-#                 volumes=[
-#                     f"{kubeconfig_path}:/tmp/.kube/config",
-#                     f"{config.AWS_DIR}:/tmp/.aws",
-#                 ],
-#             )
-#         except docker.errors.APIError as e:
-#             if e.status_code == 409:
-#                 try:
-#                     _cmd = ["/bin/sh", "-c", f"{' '.join(forward[1])}"]
-#                     # retry
-#                     config.DOCKER.containers.get(
-#                         f"{_get_tooler_container_name(cluster_name)}-{forward[0]}"
-#                     ).remove()
-#                     config.DOCKER.containers.run(  # noqa
-#                         image=config.TOOLER_IMAGE,
-#                         name=f"{_get_tooler_container_name(cluster_name)}-{forward[0]}",
-#                         command=_cmd,
-#                         restart_policy={"Name": "unless-stopped"},
-#                         remove=False,
-#                         detach=True,
-#                         ports={f"{forward[0]}/tcp": int(forward[0])},
-#                         environment=[
-#                             "KUBECONFIG=/tmp/.kube/config",
-#                             "AWS_CONFIG_FILE=/tmp/.aws/config",
-#                             "AWS_SHARED_CREDENTIALS_FILE=/tmp/.aws/credentials",
-#                         ],
-#                         volumes=[
-#                             f"{kubeconfig_path}:/tmp/.kube/config",
-#                             f"{config.AWS_DIR}:/tmp/.aws",
-#                         ],
-#                     )
-#                 except docker.errors.APIError:
-#                     raise RuntimeError(
-#                         "Finally failed to set up local proxy for the Kubernetes API"
-#                     )
-#             else:
-#                 logger.error(e.explanation)
-#                 raise RuntimeError(
-#                     "Could not create the local proxy for the Kubernetes API"
-#                 )
-#
-#
 def _list_containers_by_prefix(
     config: ClientConfiguration, prefix: str
 ) -> List[Optional[Container]]:
+    """
+    It returns a list of all containers whose name starts with a given prefix
+
+    :param config: ClientConfiguration
+    :type config: ClientConfiguration
+    :param prefix: The prefix of the container name
+    :type prefix: str
+    :return: A list of containers that start with the prefix.
+    """
+
     containers = config.DOCKER.containers.list()
     result = []
     for container in containers:
         if container.name.startswith(prefix):
             result.append(container)
     return result
-
-
-#
-#
-# def kill_kubeapi_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
-#     try:
-#         config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
-#             namespace=config.NAMESPACE,
-#             name=cluster_name,
-#             group="getdeck.dev",
-#             plural="beiboots",
-#             version="v1",
-#         )
-#     except k8s.client.exceptions.ApiException:
-#         pass
-#
-#     try:
-#         containers = _list_containers_by_prefix(
-#             config, _get_tooler_container_name(cluster_name)
-#         )
-#         for container in containers:
-#             try:
-#                 container.kill()
-#             except:  # noqa
-#                 pass
-#             try:
-#                 container.remove()
-#             except:  # noqa
-#                 pass
-#     except docker.errors.APIError as e:
-#         logger.warning(str(e))
-#
-#
-# def probe_portforwarding(config: ClientConfiguration, cluster_name: str) -> None:
-#     i = 0
-#     ready = set()
-#     while config.CONNECTION_TIMEOUT > i:
-#         containers = _list_containers_by_prefix(
-#             config, _get_tooler_container_name(cluster_name)
-#         )
-#         for container in containers:
-#             if container.status == "running":
-#                 if "Forwarding" in container.logs().decode():
-#                     ready.add(container.name)
-#                 else:
-#                     pass
-#         if len(ready) == len(containers):
-#             # all containers are ready, so we are breaking
-#             break
-#         else:
-#             logger.debug(
-#                 f"Waiting for the connection to become ready {i}/{config.CONNECTION_TIMEOUT}"
-#             )
-#             i = i + 1
-#             sleep(1)
-#             continue
-#     else:
-#         raise TimeoutError(
-#             f"The connection to the cluster could not be established in time (timeout: {config.CONNECTION_TIMEOUT} s)"
-#         )

@@ -20,7 +20,7 @@ class TestOperatorConfigured(TestOperatorBase):
 
     def test_parameters_set(self, kubectl):
         data = self._get_beiboot_data(kubectl)
-        assert data["parameters"]["nodes"] == 1
+        assert data["parameters"]["nodes"] == 2
         assert data["parameters"]["ports"] == ["8080:80", "8443:443"]
         assert data["parameters"]["k8sVersion"] == "1.25.3"
         image = kubectl(

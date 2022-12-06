@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from beiboot.api.utils import stopwatch
 from beiboot.configuration import default_configuration, ClientConfiguration
@@ -24,13 +25,20 @@ def _get_connector(
 def connect(
     beiboot: Beiboot,
     connector_type: ConnectorType,
+    host: Optional[str] = None,
     config: ClientConfiguration = default_configuration,
+    _docker_network: Optional[str] = None,
 ) -> AbstractConnector:
     additional_ports = []
     if BeibootProvider(beiboot.provider) == BeibootProvider.K3S:
         additional_ports = ["6443:6443"]
     connector = _get_connector(connector_type, config)
-    connector.establish(beiboot, additional_ports)
+
+    if connector_type == ConnectorType.GHOSTUNNEL_DOCKER and _docker_network:
+        # this is for local testing purposes
+        connector.set_docker_network(_docker_network)  # type: ignore
+
+    connector.establish(beiboot, additional_ports, host)
     return connector
 
 

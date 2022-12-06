@@ -88,11 +88,13 @@ def test_merged_configuration():
                 "limits": {"memory": "42Gi"},
             },
             "maxLifetime": "2h",
+            "maxSessionTimeout": "5d",
             "clusterReadyTimeout": 80,
             "ports": ["8080:80", "8443:443"],
         }
     )
     assert config.maxLifetime == "2h"
+    assert config.maxSessionTimeout == "5d"
     assert config.clusterReadyTimeout == 80
     assert config.ports == ["8080:80", "8443:443"]
     assert config.nodes == 3
@@ -143,15 +145,18 @@ def test_decode_configuration():
         "serverStartupTimeout": "60",
         "clusterReadyTimeout": "80",
         "gefyra": '{"enabled": false, "endpoint": null}',
+        "tunnel": '{"enabled": true, "endpoint": "192.168.49.2"}',
         "ports": '["8080:80", "8443:443"]',
         "maxLifetime": "2h",
-        "maxSessionTimeout": "null",
+        "maxSessionTimeout": "4d",
     }
     configmap = kubernetes.client.V1ConfigMap(data=serialized)
     config = ClusterConfiguration().decode_cluster_configuration(configmap)
     assert config.maxLifetime == "2h"
+    assert config.maxSessionTimeout == "4d"
     assert config.clusterReadyTimeout == 80
     assert config.ports == ["8080:80", "8443:443"]
     assert config.nodes == 3
     assert config.gefyra.get("enabled") is False
     assert config.tunnel.get("enabled") is True
+    assert config.tunnel.get("endpoint") == "192.168.49.2"

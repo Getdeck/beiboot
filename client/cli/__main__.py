@@ -5,7 +5,7 @@ from beiboot.configuration import ClientConfiguration
 
 from cli.cluster import (
     create_cluster,
-    delete,
+    delete_cluster,
     list_clusters,
     connect,
     inspect,
@@ -48,12 +48,12 @@ def cluster(ctx):
     pass
 
 
-cluster.add_command(create_cluster)
-cluster.add_command(delete)
-cluster.add_command(list_clusters)
-cluster.add_command(connect)
-cluster.add_command(disconnect)
-cluster.add_command(inspect)
+cluster.add_command(create_cluster)  # type: ignore
+cluster.add_command(delete_cluster)  # type: ignore
+cluster.add_command(list_clusters)  # type: ignore
+cluster.add_command(connect)  # type: ignore
+cluster.add_command(disconnect)  # type: ignore
+cluster.add_command(inspect)  # type: ignore
 
 
 cli.add_command(cluster)

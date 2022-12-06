@@ -45,6 +45,9 @@ class TestOperatorBase:
         while _i < timeout:
             data = self._get_beiboot_data(kubectl)
             if data.get("state") == state:
+                logger.info(
+                    f"Done waiting for state {state} (is: {str(data.get('state'))}, {_i}s/{timeout}s)"
+                )
                 break
             if data.get("state") == "ERROR" and state != "ERROR":
                 raise pytest.fail(

@@ -13,7 +13,7 @@ class TestOperatorSunset(TestOperatorBase):
         beiboot = self._get_beiboot_data(kubectl)
         sleep(1)
         assert beiboot["sunset"] is not None
-        sleep(60)
+        sleep(15)
         namespaces = kubectl(["get", "ns"])
         assert (
             beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces

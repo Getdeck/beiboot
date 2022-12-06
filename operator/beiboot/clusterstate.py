@@ -3,12 +3,16 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from json import JSONDecodeError
-from typing import Optional
+from typing import Optional, Tuple
 
 import kubernetes as k8s
 import kopf
 
 import beiboot.comps.ghostunnel as ghostunnel
+from beiboot.comps.client_timeout import (
+    create_clients_heartbeat_configmap,
+    get_latest_client_heartbeat,
+)
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
 from beiboot.provider.factory import cluster_factory, ProviderType
@@ -128,6 +132,41 @@ class BeibootCluster(StateMachine):
         else:
             return None
 
+    @property
+    def should_terminate(self) -> bool:
+        if self.sunset and self.sunset <= datetime.utcnow():
+            # remove this cluster because the sunset time is in the past
+            self.logger.warning(
+                f"Beiboot '{self.name}' should terminate due to reached sunset date"
+            )
+            return True
+        if self.parameters.maxSessionTimeout:
+            # remove this cluster if no heartbeat from any client was received within the timeout window
+            td = parse_timedelta(self.parameters.maxSessionTimeout)
+            latest_heartbeat = get_latest_client_heartbeat(self.namespace)
+            if latest_heartbeat is None and self.completed_transition(
+                BeibootCluster.ready.value
+            ):
+                ready_timestamp = datetime.fromisoformat(
+                    self.completed_transition(BeibootCluster.ready.value).strip("Z")  # type: ignore
+                )
+                if ready_timestamp + td < datetime.utcnow():
+                    self.logger.warning(
+                        f"Beiboot '{self.name}' should terminate due to client timeout (no client connected): "
+                        f"{ready_timestamp + td} < {datetime.utcnow()}"
+                    )
+                    return True
+            elif (
+                latest_heartbeat is not None
+                and latest_heartbeat + td < datetime.utcnow()
+            ):
+                self.logger.warning(
+                    f"Beiboot '{self.name}' should terminate due to client timeout: "
+                    f"{latest_heartbeat + td} < {datetime.utcnow()}"
+                )
+                return True
+        return False
+
     def completed_transition(self, state_value: str) -> Optional[str]:
         """
         Read the stateTransitions attribute, return the value of the stateTransitions timestamp for the given
@@ -164,6 +203,48 @@ class BeibootCluster(StateMachine):
                     timestamps,
                 )
             )
+        else:
+            return None
+
+    def get_latest_state(self) -> Optional[Tuple[str, datetime]]:
+        """
+        It returns the latest state of the cluster, and the timestamp of when it was in that state
+        :return: A tuple of the latest state and the timestamp of the latest state.
+        """
+        states = list(
+            filter(
+                lambda k: k[1] is not None,
+                {
+                    BeibootCluster.creating.value: self.completed_transition(
+                        BeibootCluster.creating.value
+                    ),
+                    BeibootCluster.pending.value: self.completed_transition(
+                        BeibootCluster.pending.value
+                    ),
+                    BeibootCluster.running.value: self.completed_transition(
+                        BeibootCluster.running.value
+                    ),
+                    BeibootCluster.ready.value: self.completed_transition(
+                        BeibootCluster.ready.value
+                    ),
+                    BeibootCluster.error.value: self.completed_transition(
+                        BeibootCluster.error.value
+                    ),
+                }.items(),
+            )
+        )
+        if states:
+            latest_state, latest_timestamp = None, None
+            for state, timestamp in states:
+                if latest_state is None:
+                    latest_state = state
+                    latest_timestamp = datetime.fromisoformat(timestamp.strip("Z"))  # type: ignore
+                else:
+                    _timestamp = datetime.fromisoformat(timestamp.strip("Z"))
+                    if latest_timestamp < _timestamp:
+                        latest_state = state
+                        latest_timestamp = _timestamp
+            return latest_state, latest_timestamp  # type: ignore
         else:
             return None
 
@@ -226,7 +307,7 @@ class BeibootCluster(StateMachine):
 
         # create a service account for this beiboot cluster
         handle_create_beiboot_serviceaccount(self.logger, self.name, self.namespace)
-
+        create_clients_heartbeat_configmap(self.logger, self.namespace)
         # also create the tunnel exports for services
         try:
             await ghostunnel.handle_ghostunnel_components(
@@ -347,7 +428,17 @@ class BeibootCluster(StateMachine):
                     self.ready.value, f"The cluster '{self.name}' is now ready"
                 )
             await self._write_tunnel_data()
-
+            # write the latest client heartbeat to the Beiboot object
+            latest_heartbeat = get_latest_client_heartbeat(self.namespace)
+            if latest_heartbeat:
+                self._patch_object(
+                    {
+                        "lastClientContact": latest_heartbeat.isoformat(
+                            timespec="microseconds"
+                        )
+                        + "Z"
+                    }
+                )
         else:
             # check how long this cluster is not ready
             timestamp_since = self.get_latest_transition()
@@ -402,8 +493,19 @@ class BeibootCluster(StateMachine):
         except k8s.client.ApiException:
             pass
 
-    def on_enter_state(self, *args, **kwargs):
-        self._write_state()
+    def on_enter_state(self, destination, *args, **kwargs):
+        """
+        If the current state value is not the same as the latest state value, write the current state value to the
+        Beiboot object
+
+        :param destination: The state that the machine is transitioning to
+        """
+        if self.get_latest_state():
+            state, _ = self.get_latest_state()
+            if self.current_state_value != state:
+                self._write_state()
+        else:
+            self._write_state()
 
     def _get_now(self) -> str:
         return datetime.utcnow().isoformat(timespec="microseconds") + "Z"

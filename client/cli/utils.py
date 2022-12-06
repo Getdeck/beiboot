@@ -1,4 +1,4 @@
-from cli import console
+from click import ClickException
 
 
 def standard_error_handler(func):
@@ -7,6 +7,7 @@ def standard_error_handler(func):
             result = func(*args, **kwargs)
             return result
         except Exception as e:  # noqa
-            console.error(str(e))
+            ce = ClickException(message=str(e))
+            raise ce
 
     return wrapper
