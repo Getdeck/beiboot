@@ -137,7 +137,7 @@ class BeibootCluster(StateMachine):
         if self.sunset and self.sunset <= datetime.utcnow():
             # remove this cluster because the sunset time is in the past
             self.logger.warning(
-                f"Beiboot {self.name} should terminate due to reached sunset date"
+                f"Beiboot '{self.name}' should terminate due to reached sunset date"
             )
             return True
         if self.parameters.maxSessionTimeout:
@@ -152,7 +152,7 @@ class BeibootCluster(StateMachine):
                 )
                 if ready_timestamp + td < datetime.utcnow():
                     self.logger.warning(
-                        f"Beiboot {self.name} should terminate due to client timeout (no client connected): "
+                        f"Beiboot '{self.name}' should terminate due to client timeout (no client connected): "
                         f"{ready_timestamp + td} < {datetime.utcnow()}"
                     )
                     return True
@@ -161,7 +161,7 @@ class BeibootCluster(StateMachine):
                 and latest_heartbeat + td < datetime.utcnow()
             ):
                 self.logger.warning(
-                    f"Beiboot {self.name} should terminate due to client timeout: "
+                    f"Beiboot '{self.name}' should terminate due to client timeout: "
                     f"{latest_heartbeat + td} < {datetime.utcnow()}"
                 )
                 return True
@@ -428,7 +428,17 @@ class BeibootCluster(StateMachine):
                     self.ready.value, f"The cluster '{self.name}' is now ready"
                 )
             await self._write_tunnel_data()
-
+            # write the latest client heartbeat to the Beiboot object
+            latest_heartbeat = get_latest_client_heartbeat(self.namespace)
+            if latest_heartbeat:
+                self._patch_object(
+                    {
+                        "lastClientContact": latest_heartbeat.isoformat(
+                            timespec="microseconds"
+                        )
+                        + "Z"
+                    }
+                )
         else:
             # check how long this cluster is not ready
             timestamp_since = self.get_latest_transition()

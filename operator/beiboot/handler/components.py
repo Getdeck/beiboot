@@ -9,14 +9,14 @@ extension_api = k8s.client.ApiextensionsV1Api()
 events = k8s.client.EventsV1Api()
 
 
-def handle_crds(logger) -> k8s.client.V1CustomResourceDefinition:
+def handle_crds(logger, namespace: str) -> k8s.client.V1CustomResourceDefinition:
     """
     It creates a custom resource definition for the Beiboot resource
 
     :param logger: a logger object
     :return: The CRD definition
     """
-    bbt_def = create_beiboot_definition()
+    bbt_def = create_beiboot_definition(namespace)
     try:
         extension_api.create_custom_resource_definition(body=bbt_def)
         logger.info("Beiboot CRD created")
@@ -43,7 +43,7 @@ async def check_beiboot_components(logger, **kwargs) -> None:
     #
     # handle Beiboot CRDs and Permissions
     #
-    handle_crds(logger)
+    handle_crds(logger, configuration.NAMESPACE)
 
     #
     # handle Beiboot configuration configmap

@@ -28,6 +28,14 @@ class GefyraParams:
 
 
 @dataclass
+class TunnelParams:
+    # deploy Tunnel components to this Beiboot
+    enabled: bool = field(default_factory=lambda: True)
+    # endpoint for tunnel connection
+    endpoint: Optional[str] = field(default_factory=lambda: None)
+
+
+@dataclass
 class BeibootParameters:
     k8sVersion: Optional[str] = field(default_factory=lambda: None)
     # the ports mapped to local host
@@ -54,6 +62,8 @@ class BeibootParameters:
     nodeStorageRequests: Optional[str] = field(default_factory=lambda: None)
     # Gefyra component requests
     gefyra: GefyraParams = field(default_factory=lambda: GefyraParams())
+    # Tunnel connection params
+    tunnel: TunnelParams = field(default_factory=lambda: TunnelParams())
 
     @classmethod
     def from_raw(cls, data: dict):
@@ -65,7 +75,10 @@ class BeibootParameters:
         params.clusterReadyTimeout = data.get("clusterReadyTimeout")
         params.serverStorageRequests = data.get("serverStorageRequests")
         params.nodeStorageRequests = data.get("nodeStorageRequests")
+        params.nodeResources = data.get("nodeResources")
+        params.serverResources = data.get("serverResources")
         params.gefyra = data.get("gefyra")  # type: ignore
+        params.tunnel = data.get("tunnel")  # type: ignore
         return params
 
     def as_dict(self) -> dict[str, Any]:
@@ -74,8 +87,15 @@ class BeibootParameters:
             if _v := getattr(self, _field.name):
                 if type(_v) == GefyraParams:
                     data["gefyra"] = {"enabled": _v.enabled, "endpoint": _v.endpoint}
+                elif type(_v) == TunnelParams:
+                    data["tunnel"] = {"enabled": _v.enabled, "endpoint": _v.endpoint}
                 else:
                     data[_field.name] = _v
+        if (data.get("tunnel") and data["tunnel"].get("endpoint")) and (
+            data.get("gefyra") and data["gefyra"].get("endpoint") is None
+        ):
+            # if there is a special endpoint for tunnel and not for Gefyra, set it for Gefyra, too
+            data["gefyra"]["endpoint"] = data["tunnel"].get("endpoint")
         return data
 
 
@@ -109,6 +129,8 @@ class Beiboot:
     object_namespace: str
     # the timestamp when this cluster gets removed
     sunset: Optional[str] = None
+    # the timestamp when any client reported its last heartbeat
+    last_client_contact: Optional[str] = None
     # all state transitions
     transitions: Optional[dict[str, str]]
     # the cluster parameters
@@ -129,6 +151,7 @@ class Beiboot:
         self._data = _object
         self.namespace = str(self._data.get("beibootNamespace"))
         self.sunset = self._data.get("sunset")
+        self.last_client_contact = self._data.get("lastClientContact")
         self.transitions = self._data.get("stateTransitions")
         self.parameters = BeibootParameters.from_raw(self._data["parameters"])
 
@@ -158,6 +181,10 @@ class Beiboot:
 
     @property
     def kubeconfig(self) -> Optional[str]:
+        """
+        It returns the kubeconfig of the Beiboot.
+        :return: The kubeconfig object is being returned.
+        """
         from beiboot.utils import decode_kubeconfig
 
         if self.state != BeibootState.READY:
@@ -174,6 +201,10 @@ class Beiboot:
 
     @property
     def mtls_files(self) -> Optional[dict[str, str]]:
+        """
+        It returns the mTLS files for the Beiboot if it's in the READY state
+        :return: The mtls_files property returns a dictionary of the mTLS files.
+        """
         from beiboot.utils import decode_b64_dict
 
         if self.state != BeibootState.READY:
@@ -190,6 +221,10 @@ class Beiboot:
 
     @property
     def serviceaccount_tokens(self) -> Optional[dict[str, Union[str, Any]]]:
+        """
+        It returns a dictionary holding the service account token for the Beiboot
+        :return: A dictionary holding the service account tokens.
+        """
         from beiboot.utils import decode_b64_dict
 
         if self.state != BeibootState.READY:
@@ -212,6 +247,10 @@ class Beiboot:
 
     @property
     def events_by_timestamp(self) -> dict[datetime, Any]:
+        """
+        This function returns a dictionary of events related to this Beiboot, sorted by timestamp
+        :return: A dictionary of events sorted by timestamp.
+        """
         try:
             events = self._config.K8S_CORE_API.list_namespaced_event(
                 namespace=self._config.NAMESPACE
@@ -231,9 +270,21 @@ class Beiboot:
         return dict(sorted(result.items()))
 
     def wait_for_state(self, awaited_state: BeibootState, timeout: int = 60):
+        """
+        > Wait for the state of the Beiboot to be the awaited state, or raise an error if the timeout is reached
+
+        :param awaited_state: The state we're waiting for
+        :type awaited_state: BeibootState
+        :param timeout: The maximum time to wait for the state to change, defaults to 60
+        :type timeout: int (optional)
+        :return: the state of the beiboot.
+        """
         _i = 0
         while _i < timeout:
             if self.state == awaited_state:
+                logger.info(
+                    f"Done waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
+                )
                 return
             else:
                 logger.info(

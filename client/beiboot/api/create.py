@@ -54,11 +54,6 @@ def create(
             raise RuntimeError(
                 "This cluster does probably not support Getdeck Beiboot, or is not ready."
             ) from None
-        elif e.status == 409:
-            # this cluster already exists
-            raise RuntimeError(
-                f"The requested Beiboot cluster {req.name} already exists."
-            ) from None
         elif e.status == 500:
             raise RuntimeError(
                 f"The requested Beiboot cluster {req.name} cannot be created: {json.loads(e.body).get('message')}"
@@ -66,5 +61,5 @@ def create(
         else:
             # TODO handle this case
             raise
-
-    return Beiboot(bbt)
+    _beiboot = Beiboot(bbt)
+    return _beiboot

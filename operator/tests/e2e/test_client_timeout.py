@@ -38,14 +38,15 @@ class TestOperatorSunset(TestOperatorBase):
         self._wait_for_state("READY", kubectl, timeout * 2)
         beiboot = self._get_beiboot_data(kubectl)
         assert beiboot["parameters"]["maxSessionTimeout"] == "10s"
+        assert "lastClientContact" not in beiboot
 
         logging.getLogger().info("Writing heartbeat from client")
-        time = datetime.utcnow().isoformat()
-        logging.info("Writing latest connect: " + str(time))
+        time = datetime.utcnow()
+        logging.info("Writing latest connect: " + str(time.isoformat()))
         configmap = k8s.client.V1ConfigMap(
             api_version="v1",
             kind="ConfigMap",
-            data={"tester": time},
+            data={"tester": time.isoformat()},
             metadata=k8s.client.V1ObjectMeta(
                 name=CONFIGMAP_NAME,
                 namespace="getdeck-bbt-test-beiboot-timeout",
@@ -55,6 +56,12 @@ class TestOperatorSunset(TestOperatorBase):
             name=CONFIGMAP_NAME,
             namespace="getdeck-bbt-test-beiboot-timeout",
             body=configmap,
+        )
+        sleep(8)
+        beiboot = self._get_beiboot_data(kubectl)
+        assert (
+            beiboot["lastClientContact"]
+            == time.isoformat(timespec="microseconds") + "Z"
         )
         sleep(20)
 

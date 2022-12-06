@@ -145,6 +145,7 @@ def test_decode_configuration():
         "serverStartupTimeout": "60",
         "clusterReadyTimeout": "80",
         "gefyra": '{"enabled": false, "endpoint": null}',
+        "tunnel": '{"enabled": true, "endpoint": 192.168.49.2}',
         "ports": '["8080:80", "8443:443"]',
         "maxLifetime": "2h",
         "maxSessionTimeout": "4d",
@@ -158,3 +159,4 @@ def test_decode_configuration():
     assert config.nodes == 3
     assert config.gefyra.get("enabled") is False
     assert config.tunnel.get("enabled") is True
+    assert config.tunnel.get("endpoint") == "192.168.49.2"

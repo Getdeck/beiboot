@@ -11,8 +11,8 @@ class TestConnectionSetup(TestClientBase):
                 parameters=BeibootParameters(
                     nodes=1,
                     serverStorageRequests="500Mi",
-                    serverResources={"requests": {"cpu": "0.5", "memory": "0.5Gi"}},
-                    nodeResources={"requests": {"cpu": "0.5", "memory": "0.5Gi"}},
+                    serverResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
+                    nodeResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
                 ),
             )
         )

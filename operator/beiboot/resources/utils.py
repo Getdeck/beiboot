@@ -203,7 +203,7 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
                     k8s.client.V1PolicyRule(
                         api_groups=[""],
                         resources=["configmaps"],
-                        verbs=["patch"],
+                        verbs=["get", "patch"],
                     ),
                 ],
             ),
