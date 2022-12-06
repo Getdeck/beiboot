@@ -60,5 +60,5 @@ class TestOperatorSunset(TestOperatorBase):
 
         namespaces = kubectl(["get", "ns"])
         assert (
-                beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
+            beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
         )

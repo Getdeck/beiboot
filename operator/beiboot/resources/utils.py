@@ -204,7 +204,7 @@ def handle_create_beiboot_serviceaccount(logger, name: str, namespace: str) -> N
                         api_groups=[""],
                         resources=["configmaps"],
                         verbs=["patch"],
-                    )
+                    ),
                 ],
             ),
         )

@@ -59,6 +59,20 @@ def test_validator_maxlifetime():
         )
 
 
+def test_validator_namespace(kubeconfig, kubectl):
+    from beiboot.handler import validate_namespace
+
+    validate_namespace(
+        "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
+    )
+    kubectl(["create", "ns", "getdeck-bbt-my-default"])
+    sleep(1)
+    with pytest.raises(kopf.AdmissionError):
+        validate_namespace(
+            "my-default", None, ClusterConfiguration(), logging.getLogger()
+        )
+
+
 def test_validator_session_timeout():
     from beiboot.handler import validate_session_timeout
 
@@ -69,9 +83,7 @@ def test_validator_session_timeout():
     validate_session_timeout(
         "", {"maxSessionTimeout": "1h35m20s"}, None, logging.getLogger()
     )
-    validate_session_timeout(
-        "", {"maxSessionTimeout": "1m"}, None, logging.getLogger()
-    )
+    validate_session_timeout("", {"maxSessionTimeout": "1m"}, None, logging.getLogger())
     with pytest.raises(kopf.AdmissionError):
         validate_session_timeout(
             "", {"maxSessionTimeout": "60s"}, None, logging.getLogger()

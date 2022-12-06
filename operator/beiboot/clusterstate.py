@@ -148,7 +148,7 @@ class BeibootCluster(StateMachine):
                 BeibootCluster.ready.value
             ):
                 ready_timestamp = datetime.fromisoformat(
-                    self.completed_transition(BeibootCluster.ready.value).strip("Z")
+                    self.completed_transition(BeibootCluster.ready.value).strip("Z")  # type: ignore
                 )
                 if ready_timestamp + td < datetime.utcnow():
                     self.logger.warning(
@@ -207,15 +207,29 @@ class BeibootCluster(StateMachine):
             return None
 
     def get_latest_state(self) -> Optional[Tuple[str, datetime]]:
+        """
+        It returns the latest state of the cluster, and the timestamp of when it was in that state
+        :return: A tuple of the latest state and the timestamp of the latest state.
+        """
         states = list(
             filter(
                 lambda k: k[1] is not None,
                 {
-                    BeibootCluster.creating.value: self.completed_transition(BeibootCluster.creating.value),
-                    BeibootCluster.pending.value: self.completed_transition(BeibootCluster.pending.value),
-                    BeibootCluster.running.value: self.completed_transition(BeibootCluster.running.value),
-                    BeibootCluster.ready.value: self.completed_transition(BeibootCluster.ready.value),
-                    BeibootCluster.error.value: self.completed_transition(BeibootCluster.error.value),
+                    BeibootCluster.creating.value: self.completed_transition(
+                        BeibootCluster.creating.value
+                    ),
+                    BeibootCluster.pending.value: self.completed_transition(
+                        BeibootCluster.pending.value
+                    ),
+                    BeibootCluster.running.value: self.completed_transition(
+                        BeibootCluster.running.value
+                    ),
+                    BeibootCluster.ready.value: self.completed_transition(
+                        BeibootCluster.ready.value
+                    ),
+                    BeibootCluster.error.value: self.completed_transition(
+                        BeibootCluster.error.value
+                    ),
                 }.items(),
             )
         )
@@ -224,13 +238,13 @@ class BeibootCluster(StateMachine):
             for state, timestamp in states:
                 if latest_state is None:
                     latest_state = state
-                    latest_timestamp = datetime.fromisoformat(timestamp.strip("Z"))
+                    latest_timestamp = datetime.fromisoformat(timestamp.strip("Z"))  # type: ignore
                 else:
                     _timestamp = datetime.fromisoformat(timestamp.strip("Z"))
                     if latest_timestamp < _timestamp:
                         latest_state = state
                         latest_timestamp = _timestamp
-            return latest_state, latest_timestamp
+            return latest_state, latest_timestamp  # type: ignore
         else:
             return None
 
@@ -470,13 +484,18 @@ class BeibootCluster(StateMachine):
             pass
 
     def on_enter_state(self, destination, *args, **kwargs):
+        """
+        If the current state value is not the same as the latest state value, write the current state value to the
+        Beiboot object
+
+        :param destination: The state that the machine is transitioning to
+        """
         if self.get_latest_state():
-            state = self.get_latest_state()[0]
+            state, _ = self.get_latest_state()
             if self.current_state_value != state:
                 self._write_state()
         else:
             self._write_state()
-
 
     def _get_now(self) -> str:
         return datetime.utcnow().isoformat(timespec="microseconds") + "Z"

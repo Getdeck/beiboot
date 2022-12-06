@@ -1,5 +1,7 @@
 import traceback
 from asyncio import sleep
+
+import click
 import kopf
 
 from beiboot.configuration import configuration
@@ -71,7 +73,20 @@ async def beiboot_created(body, logger, **kwargs):
                 raise e from None
 
 
-@kopf.timer("beiboot", interval=5)
+# this is a workaround to get the --dev flag from the CLI for testing
+# https://kopf.readthedocs.io/en/stable/cli/#development-mode
+try:
+    _ctx = click.get_current_context()
+    if "priority" in _ctx.params and _ctx.params["priority"] == 666:
+        RECONCILIATION_INTERVAL = 2
+    else:
+        RECONCILIATION_INTERVAL = 60
+except RuntimeError:
+    # this module is not imported via kopf CLI
+    RECONCILIATION_INTERVAL = 2
+
+
+@kopf.timer("beiboot", interval=RECONCILIATION_INTERVAL)
 async def reconcile_beiboot(body, logger, **kwargs):
     """
     If the cluster is running or ready, it calls the `reconcile` method on it

@@ -9,15 +9,15 @@ parameters:
   ports:
     - 8080:80
   nodes: 1
-  maxLifetime: 20s
+  maxLifetime: 10s
   serverStorageRequests: 500Mi
   nodeStorageRequests: 500Mi
   serverResources:
     requests:
-      cpu: "0.5"
-      memory: 0.5Gi
+      cpu: "0.25"
+      memory: 0.25Gi
   nodeResources:
     requests:
-      cpu: "0.5"
-      memory: 0.5Gi
+      cpu: "0.25"
+      memory: 0.25Gi
 

@@ -9,6 +9,13 @@ core_api = k8s.client.CoreV1Api()
 
 
 def create_clients_heartbeat_configmap(logger, namespace: str) -> None:
+    """
+    It creates a ConfigMap in the namespace where the Beiboot is running
+
+    :param logger: a logger object
+    :param namespace: The namespace where the ConfigMap will be created
+    :type namespace: str
+    """
     configmap = k8s.client.V1ConfigMap(
         api_version="v1",
         kind="ConfigMap",
@@ -26,6 +33,13 @@ def create_clients_heartbeat_configmap(logger, namespace: str) -> None:
 
 
 def get_latest_client_heartbeat(namespace: str) -> Optional[datetime]:
+    """
+    It reads the configmap, and returns the most recent heartbeat
+
+    :param namespace: The namespace that the configmap is in
+    :type namespace: str
+    :return: The most recent heartbeat from the configmap.
+    """
     try:
         configmap = core_api.read_namespaced_config_map(
             name=CONFIGMAP_NAME, namespace=namespace
@@ -38,11 +52,14 @@ def get_latest_client_heartbeat(namespace: str) -> Optional[datetime]:
     clients = configmap.data
     if not clients:
         return None
-    most_recent_connect = None
-    for client, heartbeat in clients.items():
+    most_recent_connect: Optional[str] = None
+    for _, heartbeat in clients.items():
         if not most_recent_connect:
             most_recent_connect = heartbeat
         else:
             if heartbeat > most_recent_connect:
                 most_recent_connect = heartbeat
-    return datetime.fromisoformat(most_recent_connect)
+    if most_recent_connect:
+        return datetime.fromisoformat(most_recent_connect)
+    else:
+        return None

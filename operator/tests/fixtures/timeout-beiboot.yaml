@@ -14,10 +14,10 @@ parameters:
   nodeStorageRequests: 500Mi
   serverResources:
     requests:
-      cpu: "0.5"
-      memory: 0.5Gi
+      cpu: "0.25"
+      memory: 0.25Gi
   nodeResources:
     requests:
-      cpu: "0.5"
-      memory: 0.5Gi
+      cpu: "0.25"
+      memory: 0.25Gi
 

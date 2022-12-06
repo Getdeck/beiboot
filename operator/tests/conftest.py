@@ -95,11 +95,13 @@ def _ensure_namespace(kubectl):
 def operator(request, kubeconfig, kubectl):
 
     _ensure_namespace(kubectl)
-    operator = KopfRunner(["run", "-A", "main.py"])
+    operator = KopfRunner(["run", "-A", "--dev", "main.py"])
     operator.__enter__()
 
     kopf_logger = logging.getLogger("kopf")
     kopf_logger.setLevel(logging.CRITICAL)
+    beiboot_logger = logging.getLogger("beiboot")
+    beiboot_logger.setLevel(logging.CRITICAL)
 
     def teardown():
         beiboots = kubectl(["-n", "getdeck", "get", "bbt"])

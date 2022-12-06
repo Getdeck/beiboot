@@ -74,7 +74,7 @@ def operator(request, kubectl):
     logger.info("Starting the Operator")
     # start the operator
     operator = subprocess.Popen(
-        ["poetry", "run", "kopf", "run", "-A", "main.py"],
+        ["poetry", "run", "kopf", "run", "-A", "--dev", "main.py"],
         cwd=os.path.join("..", "operator"),
         bufsize=1,
         universal_newlines=True,
