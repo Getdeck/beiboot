@@ -31,7 +31,7 @@ def make_exe():
     python_config.run_command = "from cli.__main__ import main; main()"
 
     exe = dist.to_python_executable(
-        name="beiboot",
+        name="beibootctl",
         packaging_policy=policy,
         config=python_config,
     )
@@ -65,7 +65,7 @@ def make_win_exe():
     python_config.run_command = "from cli.__main__ import main; main()"
 
     exe = dist.to_python_executable(
-        name="beiboot",
+        name="beibootctl",
         packaging_policy=policy,
         config=python_config,
     )
