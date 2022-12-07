@@ -1,0 +1,105 @@
+name: CD
+
+env:
+  PYOXIDIZER_DOWNLOAD_LINUX: https://github.com/indygreg/PyOxidizer/releases/download/pyoxidizer%2F0.23.0/pyoxidizer-0.23.0-x86_64-unknown-linux-musl.tar.gz
+
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    tags:
+      - "*"
+    types:
+      - completed
+  workflow_dispatch: {}
+
+jobs:
+  create-k8s-certificates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+    #
+    # Create a new set of certificates for every new build
+    #
+  build-operator-container-image:
+    needs: [ create-k8s-certificates ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to quay.io
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_ROBOT }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+      #
+      # Beiboot operator
+      #
+      - name: Operator Image meta
+        id: operator_meta
+        uses: docker/metadata-action@v3
+        with:
+          flavor: |
+            latest=false
+          images: |
+            quay.io/getdeck/beiboot
+          tags: |
+            type=raw,value=latest,enable=${{ !startsWith(github.ref, 'refs/tags/') }}
+            type=raw,value={{tag}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: operator/
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.operator_meta.outputs.tags }}
+          cache-from: type=registry,ref=${{ steps.operator_meta.outputs.tags }}
+  build-linux-executable:
+    runs-on: ubuntu-20.04
+    needs: [ build-operator-container-image ]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Setup PyOxidizer and build
+        working-directory: client/
+        run: |
+          wget ${PYOXIDIZER_DOWNLOAD_LINUX}
+          tar -xzf pyoxidizer-0.23.0-x86_64-unknown-linux-musl.tar.gz
+          sudo chmod +x ./pyoxidizer-0.23.0-x86_64-unknown-linux-musl/pyoxidizer
+          ./pyoxidizer-0.23.0-x86_64-unknown-linux-musl/pyoxidizer build exe --release
+          cp `find build/ -name "beibootctl"` ../beibootctl
+          strip -s ../beibootctl
+          cp README.md ../README.md
+          cat pyproject.toml | grep version -m 1 | awk '{ print "APP_VERSION="substr($3, 2, length($3) -2)}' >> $GITHUB_ENV
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: beibootctl-${{ env.APP_VERSION }}-linux-amd64
+          path: |
+            beibootctl
+            LICENSE
+            README.md
+          retention-days: 5
+      - name: Create release zip
+        if: ${{ github.event.release && github.event.action == 'published' }}
+        run: zip beibootctl-${{ env.APP_VERSION }}-linux-amd64.zip "beibootctl" "LICENSE" "README.md"
+      - name: Attach files to release
+        uses: softprops/action-gh-release@v1
+        if: ${{ github.event.release && github.event.action == 'published' }}
+        with:
+          files: beibootctl-${{ env.APP_VERSION }}-linux-amd64.zip
+  #
+  # Add builds for Mac and Windows
+  #
