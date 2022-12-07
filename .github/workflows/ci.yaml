@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [ v1.25.3 , v1.24.8, v1.23.14, v1.22.15 ]
+        k8s: [ v1.25.3 , v1.24.8, v1.23.14 ]
     name: E2E-tests Operator K8s ${{ matrix.k8s }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -140,7 +140,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [ v1.25.3 , v1.24.8, v1.23.14, v1.22.15 ]
+        k8s: [ v1.25.3 , v1.24.8, v1.23.14 ]
     name: E2E-tests client K8s ${{ matrix.k8s }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
