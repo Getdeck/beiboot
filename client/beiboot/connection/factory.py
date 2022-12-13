@@ -1,5 +1,6 @@
 from beiboot.configuration import ClientConfiguration
 from beiboot.connection.abstract import AbstractConnector
+from beiboot.connection.dummy import DummyNoConnectBuilder
 from beiboot.connection.ghostunnel import (
     GhostunnelDockerBuilder,
 )
@@ -36,4 +37,7 @@ class ConnectorFactory:
 connector_factory = ConnectorFactory()
 connector_factory.register_builder(
     ConnectorType.GHOSTUNNEL_DOCKER, GhostunnelDockerBuilder()
+)
+connector_factory.register_builder(
+    ConnectorType.DUMMY_NO_CONNECT, DummyNoConnectBuilder()
 )

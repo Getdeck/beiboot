@@ -27,7 +27,7 @@ def kubectl(request):
     return _fn
 
 
-@pytest.fixture(scope="package")
+@pytest.fixture(scope="module")
 def minikube(request, kubectl):
     logger = logging.getLogger()
     if shutil.which("minikube") is None:
@@ -122,6 +122,7 @@ def crds(request, minikube, kubectl):
             logger.info("Beiboot CRD deleted")
         except k8s.client.exceptions.ApiException:
             pass
+        sleep(5)
 
     request.addfinalizer(remove_extensions)
 
