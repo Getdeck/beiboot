@@ -227,7 +227,7 @@ def inspect(ctx, name):
 @click.argument("name")
 @click.option(
     "--connector",
-    type=click.Choice(["ghostunnel_docker"], case_sensitive=False),
+    type=click.Choice(["ghostunnel_docker", "dummy_no_connect"], case_sensitive=False),
     default="ghostunnel_docker",
 )
 @click.option("--host", help="Override the connection endpoint")
@@ -278,7 +278,4 @@ def connect(ctx, name, connector, host):
 @standard_error_handler
 def disconnect(ctx, name):
     info(f"Now disconnecting from Beiboot '{name}'")
-    connector = api.terminate(
-        name, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"]
-    )
-    connector.delete_beiboot_config_directory(name)
+    api.terminate(name, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"])

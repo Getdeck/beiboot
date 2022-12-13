@@ -50,4 +50,5 @@ def terminate(
 ) -> AbstractConnector:
     connector = _get_connector(connector_type, config)
     connector.terminate(name=name)
+    connector.delete_beiboot_config_directory(beiboot_name=name)
     return connector
