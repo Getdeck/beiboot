@@ -1,3 +1,6 @@
+import logging
+import sys
+
 import click
 from prompt_toolkit import print_formatted_text
 
@@ -23,12 +26,21 @@ from cli.install import install, uninstall
     "--context",
     help="Context of the kubeconfig file to use instead of 'default'",
 )
+@click.option("-d", "--debug", default=False, is_flag=True)
 @click.pass_context
-def cli(ctx, kubeconfig, context):
+def cli(ctx, kubeconfig, context, debug):
     ctx.ensure_object(dict)
     ctx.obj["config"] = ClientConfiguration(
         kube_config_file=kubeconfig, kube_context=context
     )
+    if debug:
+        console = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter("[%(levelname)s] %(message)s")
+        console.setFormatter(formatter)
+
+        logger = logging.getLogger("beiboot")
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(console)
 
 
 @click.command()
