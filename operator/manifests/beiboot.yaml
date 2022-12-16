@@ -154,7 +154,7 @@ spec:
       serviceAccountName: beiboot-operator
       containers:
         - name: beiboot
-          image: quay.io/getdeck/beiboot:1.1.0
+          image: quay.io/getdeck/beiboot:1.1.1
           imagePullPolicy: Always
           ports:
             - containerPort: 9443
