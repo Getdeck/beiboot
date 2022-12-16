@@ -22,9 +22,7 @@ def test_write_files(operator, kubectl, timeout):
     bbt.wait_for_state(awaited_state=BeibootState.READY, timeout=timeout)
 
     dirpath = tempfile.mkdtemp()
-
-    config = ClientConfiguration()
-    config.KUBECONFIG_LOCATION = Path(dirpath)
+    config = ClientConfiguration(getdeck_config_root=dirpath)
 
     class TestConnector(AbstractConnector):
         def establish(self) -> None:

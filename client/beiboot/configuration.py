@@ -1,14 +1,13 @@
 import sys
-import os
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 console = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(levelname)s] %(message)s")
 console.setFormatter(formatter)
 
-logger = logging.getLogger("getdeck.beiboot")
+logger = logging.getLogger(__name__)
 logger.addHandler(console)
 
 __VERSION__ = "1.1.0"
@@ -17,16 +16,12 @@ __VERSION__ = "1.1.0"
 class ClientConfiguration(object):
     def __init__(
         self,
+        getdeck_config_root: Optional[Union[str, Path]] = None,
         docker_client=None,
         namespace: str = "getdeck",
         registry_url: Optional[str] = None,
         tooler_image: Optional[str] = None,
         cluster_timeout: int = 180,
-        api_connection_timeout: int = 30,
-        api_port: int = 6443,
-        kube_config_file: Optional[str] = None,
-        kube_context: Optional[str] = None,
-        aws_dir: Optional[str] = None,
     ):
         self.NAMESPACE = namespace
         self.REGISTRY_URL = (
@@ -47,18 +42,13 @@ class ClientConfiguration(object):
         if docker_client:
             self.DOCKER = docker_client
 
-        self.KUBECONFIG_FILE = kube_config_file
-        self.AWS_DIR = aws_dir or os.path.expanduser("~/.aws")
         self.CLUSTER_CREATION_TIMEOUT = (
             cluster_timeout  # cluster timeout for the kubeconfig
         )
-        self.CONNECTION_TIMEOUT = (
-            api_connection_timeout  # timeout for the API connection
-        )
-        self.KUBECONFIG_LOCATION = Path.home().joinpath(".getdeck")
-        self.KUBECONFIG_LOCATION.mkdir(parents=True, exist_ok=True)
-        self.BEIBOOT_API_PORT = api_port
-        self.context = kube_context or None
+        if not getdeck_config_root:
+            self.KUBECONFIG_LOCATION = Path.home().joinpath(".getdeck")
+        else:
+            self.KUBECONFIG_LOCATION = Path(getdeck_config_root)
 
     def _init_docker(self):
         import docker
@@ -71,22 +61,14 @@ class ClientConfiguration(object):
                 "Docker init error. Docker host not running?"
             )
 
-    def _init_kubeapi(self, context=None):
+    def _init_kubeapi(self):
         from kubernetes.client import (
             CoreV1Api,
             RbacAuthorizationV1Api,
             AppsV1Api,
             CustomObjectsApi,
         )
-        from kubernetes.config import load_kube_config, config_exception
 
-        try:
-            if self.KUBECONFIG_FILE:
-                load_kube_config(self.KUBECONFIG_FILE, context=context or self.context)
-            else:
-                load_kube_config(context=context or self.context)
-        except config_exception.ConfigException as e:
-            raise RuntimeError(f"Could not load kubeconfig or context: {e}") from None
         self.K8S_CORE_API = CoreV1Api()
         self.K8S_RBAC_API = RbacAuthorizationV1Api()
         self.K8S_APP_API = AppsV1Api()

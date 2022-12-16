@@ -110,6 +110,7 @@ class GhostunnelDocker(AbstractConnector):
                     network=self._DOCKER_NETWORK_NAME or None,
                 )
             except docker.errors.APIError as e:
+                logger.critical(e)
                 raise RuntimeError(
                     f"Could not run ghostunnel container due to the following error: {e}"
                 ) from None
