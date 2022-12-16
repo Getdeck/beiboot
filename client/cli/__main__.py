@@ -1,5 +1,6 @@
 import logging
 import sys
+from pathlib import Path
 
 import click
 from prompt_toolkit import print_formatted_text
@@ -29,9 +30,17 @@ from cli.install import install, uninstall
 @click.option("-d", "--debug", default=False, is_flag=True)
 @click.pass_context
 def cli(ctx, kubeconfig, context, debug):
+    import kubernetes as k8s
+
     ctx.ensure_object(dict)
+
+    try:
+        k8s.config.load_kube_config(config_file=kubeconfig, context=context)
+    except k8s.config.ConfigException as e:
+        raise RuntimeError(f"Could not load KUBECONFIG: {e}")
+
     ctx.obj["config"] = ClientConfiguration(
-        kube_config_file=kubeconfig, kube_context=context
+        getdeck_config_root=Path.home().joinpath(".getdeck")
     )
     if debug:
         console = logging.StreamHandler(sys.stdout)

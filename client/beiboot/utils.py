@@ -8,7 +8,7 @@ from beiboot.configuration import ClientConfiguration
 
 from beiboot.types import BeibootRequest
 
-logger = logging.getLogger("getdeck.beiboot")
+logger = logging.getLogger(__name__)
 
 
 def create_beiboot_custom_ressource(

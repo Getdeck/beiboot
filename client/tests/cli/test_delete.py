@@ -11,7 +11,7 @@ def test_delete_no_beiboot(minikube):
         ["my-test"],
         obj={"config": ClientConfiguration()},
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 1
 
 
 def test_delete_no_beiboot_object(crds):
