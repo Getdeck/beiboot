@@ -9,7 +9,11 @@ from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Optional, Any, Union
 
-from beiboot.configuration import default_configuration, ClientConfiguration
+from beiboot.configuration import (
+    default_configuration,
+    ClientConfiguration,
+    __VERSION__,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -294,3 +298,11 @@ class Beiboot:
                 _i = _i + 1
         if self.state != awaited_state:
             raise RuntimeError(f"Waiting for state {awaited_state.value} failed")
+
+
+@dataclass
+class InstallOptions:
+    namespace: str = field(default_factory=lambda: "getdeck")
+    version: str = field(default_factory=lambda: __VERSION__)
+    storage_class: str = field(default_factory=lambda: "standard")
+    shelf_storage_class: str = field(default_factory=lambda: "standard")

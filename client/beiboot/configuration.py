@@ -24,6 +24,7 @@ class ClientConfiguration(object):
         cluster_timeout: int = 180,
     ):
         self.NAMESPACE = namespace
+        self.CONFIGMAP_NAME = "beiboot-config"
         self.REGISTRY_URL = (
             registry_url.rstrip("/") if registry_url else "quay.io/getdeck"
         )
@@ -67,12 +68,14 @@ class ClientConfiguration(object):
             RbacAuthorizationV1Api,
             AppsV1Api,
             CustomObjectsApi,
+            ApiextensionsV1Api,
         )
 
         self.K8S_CORE_API = CoreV1Api()
         self.K8S_RBAC_API = RbacAuthorizationV1Api()
         self.K8S_APP_API = AppsV1Api()
         self.K8S_CUSTOM_OBJECT_API = CustomObjectsApi()
+        self.K8S_EXTENSIONS_API = ApiextensionsV1Api()
 
     def __getattr__(self, item):
         if item in [
