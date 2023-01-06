@@ -1,13 +1,13 @@
 from click.testing import CliRunner
 
 from beiboot.configuration import ClientConfiguration
-from cli import cluster
+from cli.cluster import delete_cluster
 
 
 def test_delete_no_beiboot(minikube):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.delete_cluster,  # noqa
+        delete_cluster,  # noqa
         ["my-test"],
         obj={"config": ClientConfiguration()},
     )
@@ -21,7 +21,7 @@ def test_delete_no_beiboot_object(crds):
 
     runner = CliRunner()
     result = runner.invoke(
-        cluster.delete_cluster,  # noqa
+        delete_cluster,  # noqa
         ["my-test-delete"],
         obj={"config": ClientConfiguration()},
     )

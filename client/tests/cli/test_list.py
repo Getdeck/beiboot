@@ -1,13 +1,13 @@
 from click.testing import CliRunner
 
 from beiboot.configuration import ClientConfiguration
-from cli import cluster
+from cli.cluster import list_clusters
 
 
 def test_list_no_beiboot(minikube):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.list_clusters,  # noqa
+        list_clusters,  # noqa
         obj={"config": ClientConfiguration()},
     )
     assert result.exit_code == 1
@@ -16,7 +16,7 @@ def test_list_no_beiboot(minikube):
 def test_list_empty(crds):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.list_clusters,  # noqa
+        list_clusters,  # noqa
         obj={"config": ClientConfiguration()},
     )
     assert result.exit_code == 0
@@ -30,7 +30,7 @@ def test_list_beiboots(crds):
 
     runner = CliRunner()
     result = runner.invoke(
-        cluster.list_clusters,  # noqa
+        list_clusters,  # noqa
         obj={"config": ClientConfiguration()},
     )
     assert result.exit_code == 0
