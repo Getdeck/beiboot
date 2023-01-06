@@ -15,14 +15,14 @@ options = InstallOptions(namespace="getdeck")
 def test_get_all_raw_configs():
 
     d = synthesize_config_as_dict(options)
-    assert len(d) == 7
+    assert len(d) == 8
 
 
 def test_get_custom_version_configs():
     coptions = InstallOptions(namespace="getdeck", version="1.0.0")
     d = synthesize_config_as_dict(coptions)
     assert (
-        d[6]["spec"]["template"]["spec"]["containers"][0]["image"]
+        d[7]["spec"]["template"]["spec"]["containers"][0]["image"]
         == "quay.io/getdeck/beiboot:1.0.0"
     )
 
@@ -47,4 +47,4 @@ def test_get_all_configs_json():
 def test_get_all_configs_yaml():
     y = synthesize_config_as_yaml(options)
     docs = list(yaml.load_all(y, Loader=yaml.FullLoader))
-    assert len(docs) == 7
+    assert len(docs) == 8
