@@ -6,13 +6,13 @@ from click.testing import CliRunner
 from beiboot import api
 from beiboot.configuration import ClientConfiguration
 from beiboot.types import BeibootState
-from cli import cluster
+from cli.cluster import create_cluster, delete_cluster
 
 
 def test_create_delete_beiboot(operator):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,  # noqa
+        create_cluster,  # noqa
         [
             "test1",
             "--nodes",
@@ -32,7 +32,7 @@ def test_create_delete_beiboot(operator):
     assert beiboot.parameters.nodes == 1
 
     result = runner.invoke(
-        cluster.delete_cluster, ["test1"], obj={"config": ClientConfiguration()}  # noqa
+        delete_cluster, ["test1"], obj={"config": ClientConfiguration()}  # noqa
     )
     assert result.exit_code == 0
     assert not result.exception
