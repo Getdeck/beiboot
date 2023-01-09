@@ -103,7 +103,7 @@ jobs:
         with:
           files: beibootctl-${{ env.APP_VERSION }}-linux-amd64.zip
   #
-  # Add builds for Windows
+  # Add builds for MacOS
   #
   build-mac-executable:
       runs-on: macos-11
