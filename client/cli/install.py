@@ -1,18 +1,139 @@
+import dataclasses
+
 import click
-from prompt_toolkit import print_formatted_text
+from prompt_toolkit.shortcuts import ProgressBar
 
-from cli.utils import standard_error_handler
+from beiboot.misc.comps import COMPONENTS
+from beiboot.misc.install import synthesize_config_as_yaml, synthesize_config_as_dict
+from beiboot.misc.uninstall import (
+    remove_all_beiboots,
+    remove_beiboot_crds,
+    remove_beiboot_namespace,
+    remove_remainder_bbts,
+    remove_remainder_beiboot_namespaces,
+    remove_beiboot_rbac,
+    remove_beiboot_webhooks,
+)
+from beiboot.types import InstallOptions
+
+from cli.console import error, info
+from cli.utils import multi_options, standard_error_handler
+from cli.__main__ import cli as _cli
+
+PRESETS = {
+    "gke": InstallOptions(
+        storage_class="standard-rwo", shelf_storage_class="standard-rwo"
+    ),
+}
 
 
-@click.command("install")
+@_cli.command(
+    "install",
+    help="Create and apply the Kubernetes configs for Beiboot",
+)
+@click.option(
+    "--component",
+    "--comp",
+    help=f"Limit config creation to this component (available: {','.join([c.__name__.split('.')[-1] for c in COMPONENTS])})",
+    type=str,
+    multiple=True,
+)
+@click.option(
+    "--preset",
+    help=f"Set configs from a preset (available: {','.join(PRESETS.keys())})",
+    type=str,
+)
+@click.option(
+    "--dry-run",
+    "-o",
+    help="Do not apply the ressources and print it to stdout",
+    is_flag=True,
+)
 @click.pass_context
+@multi_options(InstallOptions.to_cli_options())
 @standard_error_handler
-def install(ctx):
-    print_formatted_text("Installing Beiboot Operator...")
+def install(ctx, component, preset, dry_run, **kwargs):
+    if preset:
+        presetoptions = PRESETS.get(preset)
+        if not presetoptions:
+            raise RuntimeError(f"Preset {preset} not available. ")
+        presetoptions = dataclasses.asdict(presetoptions)
+        presetoptions.update({k: v for k, v in kwargs.items() if v is not None})
+        options = InstallOptions(**presetoptions)
+    else:
+        options = InstallOptions(**{k: v for k, v in kwargs.items() if v is not None})
+    if dry_run:
+        click.echo(synthesize_config_as_yaml(options=options, components=component))
+    else:
+        from kubernetes.utils.create_from_yaml import create_from_dict
+        from kubernetes import client
+
+        api_client = client.ApiClient()
+        objs = synthesize_config_as_dict(options=options, components=component)
+        with ProgressBar(title="Installing Beiboot") as pb:
+            for obj in pb(objs):
+                create_from_dict(api_client, obj)
 
 
-@click.command("uninstall")
+@_cli.command("uninstall")
+@click.option("--force", "-f", help="Delete without promt", is_flag=True)
+@click.option(
+    "--namespace",
+    "-ns",
+    help="The namespace Beiboot was installed to (default: getdeck)",
+    type=str,
+)
 @click.pass_context
-@standard_error_handler
-def uninstall(ctx):
-    print_formatted_text("Removing Beiboot Operator...")
+def uninstall(ctx, force, namespace):
+    if not force:
+        click.confirm(
+            "Do you want to remove all Beiboot components from this cluster?",
+            abort=True,
+        )
+    if namespace:
+        ctx.obj["config"].NAMESPACE = namespace
+    click.echo("Removing all Beiboots")
+    try:
+        remove_all_beiboots(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing remainder Beiboot namespaces")
+    try:
+        namespaces = remove_remainder_beiboot_namespaces(config=ctx.obj["config"])
+        if namespaces:
+            info(
+                f"The following namespaces are not removed: {','.join(namespaces)}. They will be removed in a future version."
+            )
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing remainder Beiboot objects")
+    try:
+        remove_remainder_bbts(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing Beiboot CRDs")
+    try:
+        remove_beiboot_crds(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing RBAC objects")
+    try:
+        remove_beiboot_rbac(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing ValidatingWebhook")
+    try:
+        remove_beiboot_webhooks(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing Beiboot namespace")
+    try:
+        remove_beiboot_namespace(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)

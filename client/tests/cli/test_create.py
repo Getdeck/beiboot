@@ -3,13 +3,13 @@ from click.testing import CliRunner
 from beiboot import api
 from beiboot.configuration import ClientConfiguration
 from beiboot.types import BeibootState
-from cli import cluster
+from cli.cluster import create_cluster
 
 
 def test_create_no_beiboot(minikube):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,  # noqa
+        create_cluster,  # noqa
         ["my-test"],
         obj={"config": ClientConfiguration()},
     )
@@ -19,7 +19,7 @@ def test_create_no_beiboot(minikube):
 def test_a_create_beiboot_object(crds):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,  # noqa
+        create_cluster,  # noqa
         ["my-test", "--nodes", "2", "--max-session-timeout", "8h", "--nowait"],
         obj={"config": ClientConfiguration()},
     )
@@ -35,7 +35,7 @@ def test_a_create_beiboot_object(crds):
 def test_b_create_beiboot_object(crds):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,  # noqa
+        create_cluster,  # noqa
         [
             "my-test1",
             "--server-requests-cpu",
@@ -65,7 +65,7 @@ def test_b_create_beiboot_object(crds):
 def test_c_create_beiboot_object(crds):
     runner = CliRunner()
     result = runner.invoke(
-        cluster.create_cluster,  # noqa
+        create_cluster,  # noqa
         ["my-test1"],
         obj={"config": ClientConfiguration()},
     )

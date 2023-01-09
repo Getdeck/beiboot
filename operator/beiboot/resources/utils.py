@@ -151,6 +151,7 @@ def handle_create_namespace(logger, namespace: str) -> str:
         core_v1_api.create_namespace(
             body=k8s.client.V1Namespace(
                 metadata=k8s.client.V1ObjectMeta(name=namespace)
+                # TODO label these namespaces so we can safely remove then in case of uninstall
             )
         )
         logger.info(f"Created namespace for beiboot: {namespace}")

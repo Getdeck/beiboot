@@ -2,13 +2,11 @@ import time
 
 import click
 from prompt_toolkit import print_formatted_text
-from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.shortcuts import ProgressBar
 from tabulate import tabulate
 
 
 from beiboot import api
-from beiboot.connection.types import ConnectorType
 from beiboot.types import BeibootRequest, BeibootParameters, BeibootState, TunnelParams
 from cli.console import (
     info,
@@ -16,12 +14,12 @@ from cli.console import (
     cluster_create_formatters,
     success,
     heading,
-    styles,
 )
 from cli.utils import standard_error_handler
+from cli.__main__ import cluster
 
 
-@click.command("create")
+@cluster.command("create")
 @click.argument("name")
 @click.option(
     "--k8s-version",
@@ -151,7 +149,7 @@ def create_cluster(
         )
 
 
-@click.command("delete")
+@cluster.command("delete", alias=["rm", "remove"])
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
@@ -160,7 +158,7 @@ def delete_cluster(ctx, name):
     info(f"Beiboot '{name}' marked for deletion")
 
 
-@click.command("list")
+@cluster.command("list", alias=["ls"])
 @click.pass_context
 @standard_error_handler
 def list_clusters(ctx):
@@ -196,7 +194,7 @@ def list_clusters(ctx):
         info("No Beiboot(s) running")
 
 
-@click.command("inspect")
+@cluster.command("inspect", alias=["get"])
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
@@ -221,61 +219,3 @@ def inspect(ctx, name):
         for date, event in beiboot.events_by_timestamp.items()
     ]
     print_formatted_text(tabulate(eventtab, headers=["Date", "Reason", "Message"]))
-
-
-@click.command("connect")
-@click.argument("name")
-@click.option(
-    "--connector",
-    type=click.Choice(["ghostunnel_docker", "dummy_no_connect"], case_sensitive=False),
-    default="ghostunnel_docker",
-)
-@click.option("--host", help="Override the connection endpoint")
-@click.pass_context
-@standard_error_handler
-def connect(ctx, name, connector, host):
-    beiboot = api.read(name=name)
-    connector_type = ConnectorType(connector)
-    info(f"Now connecting to Beiboot '{name}' using connector '{connector_type}'")
-
-    formatted_ports = ", ".join(
-        list(
-            map(
-                lambda p: f"127.0.0.1:{p.split(':')[0]} -> cluster:{p.split(':')[1]}",
-                beiboot.parameters.ports,
-            )
-        )
-    )
-    print_formatted_text(
-        FormattedText(
-            [
-                ("class:info", "Creating port-forwards for the following ports: "),
-                ("class:italic", formatted_ports),
-            ],
-            style=styles,
-        )
-    )
-
-    connector = api.connect(beiboot, connector_type, host, config=ctx.obj["config"])
-
-    location = connector.save_kubeconfig_to_file(beiboot)
-    info(f"The kubeconfig file is written to {location}")
-    print_formatted_text(
-        FormattedText(
-            [
-                ("class:info", "You can now run "),
-                ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
-                ("class:info", "to interact with the cluster"),
-            ],
-            style=styles,
-        )
-    )
-
-
-@click.command("disconnect")
-@click.argument("name")
-@click.pass_context
-@standard_error_handler
-def disconnect(ctx, name):
-    info(f"Now disconnecting from Beiboot '{name}'")
-    api.terminate(name, ConnectorType.GHOSTUNNEL_DOCKER, config=ctx.obj["config"])

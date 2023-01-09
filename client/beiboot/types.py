@@ -2,14 +2,19 @@ import binascii
 import logging
 from datetime import datetime
 from time import sleep
+from cli.utils import TimeDelta
 
 import kubernetes as k8s
 
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union
 
-from beiboot.configuration import default_configuration, ClientConfiguration
+from beiboot.configuration import (
+    default_configuration,
+    ClientConfiguration,
+    __VERSION__,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -294,3 +299,107 @@ class Beiboot:
                 _i = _i + 1
         if self.state != awaited_state:
             raise RuntimeError(f"Waiting for state {awaited_state.value} failed")
+
+
+@dataclass
+class InstallOptions:
+    namespace: str = field(
+        default_factory=lambda: "getdeck",
+        metadata=dict(
+            help="The namespace to install Beiboot into (default: getdeck)", short="ns"
+        ),
+    )
+    version: str = field(
+        default_factory=lambda: __VERSION__,
+        metadata=dict(
+            help="Set the Operator version; components are created according to this beibootctl version"
+        ),
+    )
+    storage_class: str = field(
+        default_factory=lambda: "standard",
+        metadata=dict(
+            help="Set the Kubernetes storageClassName of PVCs created for Beiboot clusters (default: standard)"
+        ),
+    )
+    shelf_storage_class: str = field(
+        default_factory=lambda: "standard",
+        metadata=dict(
+            help="Set the Kubernetes storageClassName of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"
+        ),
+    )
+    node_storage_request: str = field(
+        default_factory=lambda: "1Gi",
+        metadata=dict(
+            help="The default storage request for Beiboot nodes (default: 1Gi)"
+        ),
+    )
+    server_storage_request: str = field(
+        default_factory=lambda: "1Gi",
+        metadata=dict(
+            help="The default storage request for Beiboot servers (default: 1Gi)"
+        ),
+    )
+    nodes: str = field(
+        default_factory=lambda: "1",
+        metadata=dict(help="The default nodes count per Beiboot (default: 1)"),
+    )
+    max_session_timeout: str = field(
+        default_factory=lambda: "null",
+        metadata=dict(
+            help="The default maximum session timeout for a Beiboot cluster before it will be deleted (default: null)",
+            type=TimeDelta(name="max_session_timeout"),
+        ),
+    )
+    max_lifetime: str = field(
+        default_factory=lambda: "null",
+        metadata=dict(
+            help="The default maximum lifetime for a Beiboot cluster before it will be deleted (default: null)",
+            type=TimeDelta(name="max_lifetime"),
+        ),
+    )
+    namespace_prefix: str = field(
+        default_factory=lambda: "getdeck-bbt",
+        metadata=dict(
+            help="The namespace prefix for Beiboot clusters within the host cluster (default: getdeck-bbt)",
+        ),
+    )
+    server_requests_cpu: str = field(
+        default_factory=lambda: "1",
+        metadata=dict(
+            help="The default CPU request for each Beiboot server pod (default: 1)",
+        ),
+    )
+    server_requests_memory: str = field(
+        default_factory=lambda: "1Gi",
+        metadata=dict(
+            help="The default memory request for each Beiboot server pod (default: 1Gi)",
+        ),
+    )
+    node_requests_cpu: str = field(
+        default_factory=lambda: "1",
+        metadata=dict(
+            help="The default CPU request for each Beiboot node pod (default: 1)",
+        ),
+    )
+    node_requests_memory: str = field(
+        default_factory=lambda: "1Gi",
+        metadata=dict(
+            help="The default memory request for each Beiboot node pod (default: 1Gi)",
+        ),
+    )
+
+    @classmethod
+    def to_cli_options(cls) -> List[Dict[str, Union[bool, str, Any, None]]]:
+        result = []
+        for _field in fields(cls):
+            result.append(
+                dict(
+                    name=_field.name,
+                    long=_field.name.replace("_", "-"),
+                    short=_field.metadata.get("short"),
+                    required=False,
+                    help=_field.metadata.get("help"),
+                    type=_field.metadata.get("type") or "string",
+                )
+            )
+        return result
