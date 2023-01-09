@@ -14,7 +14,7 @@ def test_install_beiboot():
             "--server-requests-memory=4Gi",
             "--node-requests-cpu=4",
             "--node-requests-memory=4Gi",
-            "-o"
+            "-o",
         ],
         obj={"config": ClientConfiguration()},
     )
