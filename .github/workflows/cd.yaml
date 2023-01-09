@@ -17,7 +17,6 @@ on:
 
 jobs:
   create-k8s-certificates:
-    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,7 +25,6 @@ jobs:
     # Create a new set of certificates for every new build
     #
   build-operator-container-image:
-    if: ${{ false }}
     needs: [ create-k8s-certificates ]
     runs-on: ubuntu-latest
     steps:
@@ -68,7 +66,6 @@ jobs:
           tags: ${{ steps.operator_meta.outputs.tags }}
           cache-from: type=registry,ref=${{ steps.operator_meta.outputs.tags }}
   build-linux-executable:
-    if: ${{ false }}
     runs-on: ubuntu-20.04
     needs: [ build-operator-container-image ]
     steps:
@@ -110,7 +107,7 @@ jobs:
   #
   build-mac-executable:
       runs-on: macos-11
-      # needs: [ build-operator-container-image ]
+      needs: [ build-operator-container-image ]
       steps:
       - uses: actions/checkout@v3
       - name: Set up Python
