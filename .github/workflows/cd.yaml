@@ -110,7 +110,7 @@ jobs:
   #
   build-mac-executable:
       runs-on: macos-11
-      needs: [ build-operator-container-image ]
+      # needs: [ build-operator-container-image ]
       steps:
       - uses: actions/checkout@v3
       - name: Set up Python
