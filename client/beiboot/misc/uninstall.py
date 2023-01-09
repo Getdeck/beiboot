@@ -72,6 +72,35 @@ def remove_beiboot_crds(config: ClientConfiguration):
             raise e from None
 
 
+def remove_beiboot_rbac(config: ClientConfiguration):
+    try:
+        config.K8S_RBAC_API.delete_cluster_role_binding(name="getdeck-beiboot-operator")
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            pass
+        else:
+            raise e from None
+    try:
+        config.K8S_RBAC_API.delete_cluster_role(name="getdeck:beiboot:operator")
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            pass
+        else:
+            raise e from None
+
+
+def remove_beiboot_webhooks(config: ClientConfiguration):
+    try:
+        config.K8S_ADMISSION_API.delete_validating_webhook_configuration(
+            name="beiboot.getdeck.dev"
+        )
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            pass
+        else:
+            raise e from None
+
+
 def remove_beiboot_namespace(config: ClientConfiguration):
     try:
         config.K8S_CORE_API.delete_namespace(name=config.NAMESPACE)

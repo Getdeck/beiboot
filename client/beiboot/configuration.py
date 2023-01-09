@@ -69,6 +69,7 @@ class ClientConfiguration(object):
             AppsV1Api,
             CustomObjectsApi,
             ApiextensionsV1Api,
+            AdmissionregistrationV1Api,
         )
 
         self.K8S_CORE_API = CoreV1Api()
@@ -76,6 +77,7 @@ class ClientConfiguration(object):
         self.K8S_APP_API = AppsV1Api()
         self.K8S_CUSTOM_OBJECT_API = CustomObjectsApi()
         self.K8S_EXTENSIONS_API = ApiextensionsV1Api()
+        self.K8S_ADMISSION_API = AdmissionregistrationV1Api()
 
     def __getattr__(self, item):
         if item in [
@@ -83,6 +85,8 @@ class ClientConfiguration(object):
             "K8S_RBAC_API",
             "K8S_APP_API",
             "K8S_CUSTOM_OBJECT_API",
+            "K8S_ADMISSION_API",
+            "K8S_EXTENSIONS_API",
         ]:
             try:
                 return self.__getattribute__(item)

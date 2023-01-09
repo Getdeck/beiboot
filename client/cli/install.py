@@ -1,20 +1,23 @@
 import dataclasses
 
 import click
+from prompt_toolkit.shortcuts import ProgressBar
 
 from beiboot.misc.comps import COMPONENTS
-from beiboot.misc.install import synthesize_config_as_yaml
+from beiboot.misc.install import synthesize_config_as_yaml, synthesize_config_as_dict
 from beiboot.misc.uninstall import (
     remove_all_beiboots,
     remove_beiboot_crds,
     remove_beiboot_namespace,
     remove_remainder_bbts,
     remove_remainder_beiboot_namespaces,
+    remove_beiboot_rbac,
+    remove_beiboot_webhooks,
 )
 from beiboot.types import InstallOptions
 
 from cli.console import error, info
-from cli.utils import standard_error_handler
+from cli.utils import multi_options, standard_error_handler
 from cli.__main__ import cli as _cli
 
 PRESETS = {
@@ -26,10 +29,7 @@ PRESETS = {
 
 @_cli.command(
     "install",
-    help="Create the Kubernetes configs for Beiboot. Install it with 'beibootctl install | kubectl apply -f -'",
-)
-@click.option(
-    "--namespace", "--ns", help="The namespace to install Beiboot into", type=str
+    help="Create and apply the Kubernetes configs for Beiboot",
 )
 @click.option(
     "--component",
@@ -43,9 +43,16 @@ PRESETS = {
     help=f"Set configs from a preset (available: {','.join(PRESETS.keys())})",
     type=str,
 )
+@click.option(
+    "--dry-run",
+    "-o",
+    help="Do not apply the ressources and print it to stdout",
+    is_flag=True,
+)
 @click.pass_context
+@multi_options(InstallOptions.to_cli_options())
 @standard_error_handler
-def install(ctx, component, preset, **kwargs):
+def install(ctx, component, preset, dry_run, **kwargs):
     if preset:
         presetoptions = PRESETS.get(preset)
         if not presetoptions:
@@ -54,20 +61,37 @@ def install(ctx, component, preset, **kwargs):
         presetoptions.update({k: v for k, v in kwargs.items() if v is not None})
         options = InstallOptions(**presetoptions)
     else:
-        options = InstallOptions({k: v for k, v in kwargs.items() if v is not None})
-    click.echo(synthesize_config_as_yaml(options=options, components=component))
+        options = InstallOptions(**{k: v for k, v in kwargs.items() if v is not None})
+    if dry_run:
+        click.echo(synthesize_config_as_yaml(options=options, components=component))
+    else:
+        from kubernetes.utils.create_from_yaml import create_from_dict
+        from kubernetes import client
+
+        api_client = client.ApiClient()
+        objs = synthesize_config_as_dict(options=options, components=component)
+        with ProgressBar(title="Installing Beiboot") as pb:
+            for obj in pb(objs):
+                create_from_dict(api_client, obj)
 
 
 @_cli.command("uninstall")
 @click.option("--force", "-f", help="Delete without promt", is_flag=True)
+@click.option(
+    "--namespace",
+    "-ns",
+    help="The namespace Beiboot was installed to (default: getdeck)",
+    type=str,
+)
 @click.pass_context
-def uninstall(ctx, force):
+def uninstall(ctx, force, namespace):
     if not force:
         click.confirm(
             "Do you want to remove all Beiboot components from this cluster?",
             abort=True,
         )
-
+    if namespace:
+        ctx.obj["config"].NAMESPACE = namespace
     click.echo("Removing all Beiboots")
     try:
         remove_all_beiboots(config=ctx.obj["config"])
@@ -93,6 +117,18 @@ def uninstall(ctx, force):
     click.echo("Removing Beiboot CRDs")
     try:
         remove_beiboot_crds(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing RBAC objects")
+    try:
+        remove_beiboot_rbac(config=ctx.obj["config"])
+    except Exception as e:
+        error(e)
+
+    click.echo("Removing ValidatingWebhook")
+    try:
+        remove_beiboot_webhooks(config=ctx.obj["config"])
     except Exception as e:
         error(e)
 

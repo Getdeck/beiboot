@@ -1,7 +1,7 @@
 import logging
 import sys
 from pathlib import Path
-from cli.utils import AliasedGroup
+from .utils import AliasedGroup
 
 import click
 from prompt_toolkit import print_formatted_text
@@ -63,3 +63,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+from .cluster import *  # noqa
+from .install import *  # noqa
+from .connect import *  # noqa
