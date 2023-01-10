@@ -186,8 +186,8 @@ data:
   serverResources: '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}'
   serverStartupTimeout: '60'
   serverStorageRequests: 1Gi
-  shelfStorageClass: standard
-  storageClass: standard
+  shelfStorageClass: standard-rwo
+  storageClass: standard-rwo
   tunnel: '{"enabled": true, "endpoint": null}'
 kind: ConfigMap
 metadata:

@@ -29,14 +29,9 @@ def set_operator_version(part: str):
         capture_output=True,
         text=True,
     ).stdout.rstrip()
-    subprocess.run(
-        [
-            "sed",
-            "-i",
-            f"/^[[:space:]]*image:/ s/:.*/: quay\.io\/getdeck\/beiboot:{version}/",
-            "manifests/beiboot.yaml",
-        ]
-    )
+    os.chdir("../client")
+    subprocess.run("poetry run beibootctl install > ../operator/manifests/beiboot.yaml", shell=True)
+    subprocess.run("poetry run beibootctl install --preset gke > ../operator/manifests/beiboot-gke.yaml", shell=True)
 
 
 if __name__ == "__main__":
