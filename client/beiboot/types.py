@@ -68,7 +68,7 @@ class BeibootParameters:
     # Gefyra component requests
     gefyra: GefyraParams = field(default_factory=lambda: GefyraParams())
     # Tunnel connection params
-    tunnel: TunnelParams = field(default_factory=lambda: TunnelParams())
+    tunnel: Optional[TunnelParams] = field(default_factory=lambda: TunnelParams())
 
     @classmethod
     def from_raw(cls, data: dict):
@@ -111,6 +111,7 @@ class BeibootRequest:
     # the K8s provider running the cluster
     provider: BeibootProvider = field(default_factory=lambda: BeibootProvider.K3S)
     parameters: BeibootParameters = field(default_factory=lambda: BeibootParameters())
+    labels: Dict[str, str] = field(default_factory=lambda: {})
 
 
 class BeibootState(Enum):
@@ -132,6 +133,8 @@ class Beiboot:
     uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
+    # the labels of this Beiboot object
+    labels: Dict[str, str]
     # the timestamp when this cluster gets removed
     sunset: Optional[str] = None
     # the timestamp when any client reported its last heartbeat
@@ -147,6 +150,7 @@ class Beiboot:
     ):
         self.name = beiboot["metadata"]["name"]
         self.uid = beiboot["metadata"]["uid"]
+        self.labels = beiboot["metadata"].get("labels")
         self.object_namespace = beiboot["metadata"]["namespace"]
         self.provider = beiboot["provider"]
         self._init_data(beiboot)

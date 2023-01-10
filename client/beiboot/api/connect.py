@@ -29,6 +29,19 @@ def connect(
     config: ClientConfiguration = default_configuration,
     _docker_network: Optional[str] = None,
 ) -> AbstractConnector:
+    """
+    Connects to a Beiboot instance.
+
+    :param beiboot: The Beiboot instance to connect to.
+    :type beiboot: Beiboot
+    :param connector_type: The connector type to use.
+    :type connector_type: ConnectorType
+    :param host: The host to connect to.
+    :param config: The client configuration to use.
+    :type config: ClientConfiguration
+
+    :return: A AbstractConnector instance
+    """
     additional_ports = []
     if BeibootProvider(beiboot.provider) == BeibootProvider.K3S:
         additional_ports = ["6443:6443"]
@@ -48,6 +61,16 @@ def terminate(
     connector_type: ConnectorType,
     config: ClientConfiguration = default_configuration,
 ) -> AbstractConnector:
+    """
+    Terminate a Beiboot connection and clean up
+
+    :param name: The Beiboot instance name
+    :type name: str
+    :param connector_type: The connector type to use.
+    :type connector_type: ConnectorType
+
+    :return: A AbstractConnector instance
+    """
     connector = _get_connector(connector_type, config)
     connector.terminate(name=name)
     connector.delete_beiboot_config_directory(beiboot_name=name)

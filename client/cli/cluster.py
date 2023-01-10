@@ -23,7 +23,6 @@ from cli.__main__ import cluster
 @click.argument("name")
 @click.option(
     "--k8s-version",
-    multiple=True,
     help="The requested Kubernetes API version (e.g. 1.25.1)",
 )
 @click.option(
@@ -60,6 +59,13 @@ from cli.__main__ import cluster
     "--nowait",
     is_flag=True,
 )
+@click.option(
+    "--label",
+    "-l",
+    type=str,
+    multiple=True,
+    help="Add labels to this Beiboot (use multiple times, e.g. --label label=value)",
+)
 @click.pass_context
 @standard_error_handler
 def create_cluster(
@@ -79,6 +85,7 @@ def create_cluster(
     node_storage,
     tunnel_host,
     nowait,
+    label,
 ):
     server_requests = {}
     node_requests = {}
@@ -107,7 +114,13 @@ def create_cluster(
         serverStorageRequests=server_storage,
         tunnel=tunnel,
     )
-    req = BeibootRequest(name=name, parameters=parameters)
+
+    if label:
+        _labels = dict([_l.split("=") for _l in label])
+    else:
+        _labels = {}
+
+    req = BeibootRequest(name=name, parameters=parameters, labels=_labels)
     start_time = time.time()
     beiboot = api.create(req, config=ctx.obj["config"])
 
@@ -159,10 +172,21 @@ def delete_cluster(ctx, name):
 
 
 @cluster.command("list", alias=["ls"])
+@click.option(
+    "--label",
+    "-l",
+    type=str,
+    multiple=True,
+    help="Filter Beiboots based on the label (use multiple times, e.g. --label label=value)",
+)
 @click.pass_context
 @standard_error_handler
-def list_clusters(ctx):
-    beiboots = api.read_all(config=ctx.obj["config"])
+def list_clusters(ctx, label):
+    if label:
+        _labels = dict([_l.split("=") for _l in label])
+    else:
+        _labels = {}
+    beiboots = api.read_all(_labels, config=ctx.obj["config"])
     if beiboots:
         tab = [
             (
@@ -205,6 +229,7 @@ def inspect(ctx, name):
     info("Name: " + beiboot.name)
     info("UID: " + beiboot.uid)
     info("Namespace: " + beiboot.namespace)
+    info("Labels: " + str(beiboot.labels))
     info("State: " + beiboot.state.value)
 
     heading("\nParameters:")

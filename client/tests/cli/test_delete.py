@@ -14,7 +14,7 @@ def test_delete_no_beiboot(minikube):
     assert result.exit_code == 1
 
 
-def test_delete_no_beiboot_object(crds):
+def test_delete_beiboot_object(crds):
     from tests.utils import create_beiboot_object
 
     create_beiboot_object(name="my-test-delete", parameters={})
@@ -26,3 +26,14 @@ def test_delete_no_beiboot_object(crds):
         obj={"config": ClientConfiguration()},
     )
     assert result.exit_code == 0
+
+
+def test_delete_no_beiboot_object(crds):
+
+    runner = CliRunner()
+    result = runner.invoke(
+        delete_cluster,  # noqa
+        ["my-test-delete1"],
+        obj={"config": ClientConfiguration()},
+    )
+    assert result.exit_code == 1

@@ -7,6 +7,14 @@ from beiboot.types import Beiboot
 
 @stopwatch
 def read(name: str, config: ClientConfiguration = default_configuration) -> Beiboot:
+    """
+    Reads a Beiboot from the Kubernetes API.
+
+    :param name: The name of the Beiboot to read.
+    :param config: The configuration to use.
+    :return: The Beiboot.
+    :raises RuntimeError: If the Beiboot does not exist.
+    """
     try:
         bbt = config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
             group="getdeck.dev",
