@@ -28,7 +28,7 @@ PRESETS = {
 
 @_cli.command(
     "install",
-    help="Create and apply the Kubernetes configs for Beiboot",
+    help="Create and print the Kubernetes configs for Beiboot; use it so 'beibootctl install [options] | kubectl apply -f -",
 )
 @click.option(
     "--component",
@@ -58,7 +58,9 @@ def install(ctx, component, preset, **kwargs):
     click.echo(synthesize_config_as_yaml(options=options, components=component))
 
 
-@_cli.command("uninstall")
+@_cli.command(
+    "uninstall", help="Removes the Beiboot installation from the host cluster"
+)
 @click.option("--force", "-f", help="Delete without promt", is_flag=True)
 @click.option(
     "--namespace",

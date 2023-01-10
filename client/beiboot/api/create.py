@@ -49,7 +49,7 @@ def create(
             version="v1",
         )
         logger.debug(f"Successfully created Beiboot object: {obj['metadata']['name']}")
-    except k8s.client.exceptions.ApiException as e: # type: ignore
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             raise RuntimeError(
                 "This cluster does probably not support Getdeck Beiboot, or is not ready."

@@ -43,7 +43,7 @@ def cli(ctx, kubeconfig, context, debug):
         logger.addHandler(console)
 
 
-@cli.group("cluster", cls=AliasedGroup)
+@cli.group("cluster", cls=AliasedGroup, help="Manage Beiboot clusters")
 @click.pass_context
 def cluster(ctx):
     pass
