@@ -7,7 +7,9 @@ from beiboot.types import Beiboot
 
 
 @stopwatch
-def read_all(labels: Dict[str, str] = {}, config: ClientConfiguration = default_configuration) -> list[Beiboot]:
+def read_all(
+    labels: Dict[str, str] = {}, config: ClientConfiguration = default_configuration
+) -> list[Beiboot]:
     """
     Reads all Beiboots from the cluster.
 
@@ -26,7 +28,7 @@ def read_all(labels: Dict[str, str] = {}, config: ClientConfiguration = default_
             version="v1",
             namespace=config.NAMESPACE,
             plural="beiboots",
-            label_selector=_labels
+            label_selector=_labels,
         )
     except k8s.client.ApiException as e:
         if e.status == 404:

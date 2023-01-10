@@ -1,10 +1,9 @@
 import dataclasses
 
 import click
-from prompt_toolkit.shortcuts import ProgressBar
 
 from beiboot.misc.comps import COMPONENTS
-from beiboot.misc.install import synthesize_config_as_yaml, synthesize_config_as_dict
+from beiboot.misc.install import synthesize_config_as_yaml
 from beiboot.misc.uninstall import (
     remove_all_beiboots,
     remove_beiboot_crds,

@@ -27,8 +27,8 @@ def test_delete_beiboot_object(crds):
     )
     assert result.exit_code == 0
 
+
 def test_delete_no_beiboot_object(crds):
-    from tests.utils import create_beiboot_object
 
     runner = CliRunner()
     result = runner.invoke(

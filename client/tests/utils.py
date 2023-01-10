@@ -7,11 +7,7 @@ def create_beiboot_object(name: str, parameters: dict, labels: dict = {}):
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
         "provider": "k3s",
-        "metadata": {
-            "name": name,
-            "namespace": "getdeck",
-            "labels": labels
-        },
+        "metadata": {"name": name, "namespace": "getdeck", "labels": labels},
         "parameters": parameters,
     }
     custom_api.create_namespaced_custom_object(

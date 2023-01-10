@@ -19,6 +19,7 @@ def test_install_beiboot():
     )
     assert result.exit_code == 0
 
+
 def test_uninstall_beiboot(operator):
     from tests.utils import create_beiboot_object
 

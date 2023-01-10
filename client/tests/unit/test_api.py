@@ -40,7 +40,7 @@ class TestReadBeiboots:
         _filtered1 = api.read_all(labels={"user-id": "123"})
         assert len(_filtered1) == 1
         _filtered2 = api.read_all(labels={"user-id": "456"})
-        assert len(_filtered1) == 1
+        assert len(_filtered2) == 1
 
     def test_d_read_events(self, operator):
         beiboot = api.read("test-read-all")

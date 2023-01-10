@@ -59,7 +59,13 @@ from cli.__main__ import cluster
     "--nowait",
     is_flag=True,
 )
-@click.option("--label", "-l", type=str, multiple=True, help="Add labels to this Beiboot (use multiple times, e.g. --label label=value)")
+@click.option(
+    "--label",
+    "-l",
+    type=str,
+    multiple=True,
+    help="Add labels to this Beiboot (use multiple times, e.g. --label label=value)",
+)
 @click.pass_context
 @standard_error_handler
 def create_cluster(
@@ -79,7 +85,7 @@ def create_cluster(
     node_storage,
     tunnel_host,
     nowait,
-    label
+    label,
 ):
     server_requests = {}
     node_requests = {}
@@ -108,7 +114,7 @@ def create_cluster(
         serverStorageRequests=server_storage,
         tunnel=tunnel,
     )
-    
+
     if label:
         _labels = dict([_l.split("=") for _l in label])
     else:
@@ -166,7 +172,13 @@ def delete_cluster(ctx, name):
 
 
 @cluster.command("list", alias=["ls"])
-@click.option("--label", "-l", type=str, multiple=True, help="Filter Beiboots based on the label (use multiple times, e.g. --label label=value)")
+@click.option(
+    "--label",
+    "-l",
+    type=str,
+    multiple=True,
+    help="Filter Beiboots based on the label (use multiple times, e.g. --label label=value)",
+)
 @click.pass_context
 @standard_error_handler
 def list_clusters(ctx, label):

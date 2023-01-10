@@ -39,7 +39,7 @@ def connect(
     :param host: The host to connect to.
     :param config: The client configuration to use.
     :type config: ClientConfiguration
-    
+
     :return: A AbstractConnector instance
     """
     additional_ports = []
