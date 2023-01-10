@@ -1,3 +1,5 @@
+import pytest 
+
 from click.testing import CliRunner
 
 from beiboot import api
@@ -60,6 +62,9 @@ def test_b_create_beiboot_object(crds):
     assert "requests" in beiboot.parameters.nodeResources
     assert beiboot.parameters.nodeResources["requests"]["cpu"] == "3"
     assert beiboot.parameters.nodeResources["requests"]["memory"] == "4.5Gi"
+
+    with pytest.raises(RuntimeError):
+        beiboot = api.read("my-test2")
 
 
 def test_c_create_beiboot_object(crds):

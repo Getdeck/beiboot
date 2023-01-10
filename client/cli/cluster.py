@@ -23,7 +23,6 @@ from cli.__main__ import cluster
 @click.argument("name")
 @click.option(
     "--k8s-version",
-    multiple=True,
     help="The requested Kubernetes API version (e.g. 1.25.1)",
 )
 @click.option(
@@ -159,10 +158,15 @@ def delete_cluster(ctx, name):
 
 
 @cluster.command("list", alias=["ls"])
+@click.option("--label", "-l", type=str, multiple=True, help="Filter Beiboots based on the label (use multiple times, e.g. --label label=value)")
 @click.pass_context
 @standard_error_handler
-def list_clusters(ctx):
-    beiboots = api.read_all(config=ctx.obj["config"])
+def list_clusters(ctx, label):
+    if label:
+        _labels = dict([_l.split("=") for _l in label])
+    else:
+        _labels = None
+    beiboots = api.read_all(_labels, config=ctx.obj["config"])  # type: ignore
     if beiboots:
         tab = [
             (
@@ -205,6 +209,7 @@ def inspect(ctx, name):
     info("Name: " + beiboot.name)
     info("UID: " + beiboot.uid)
     info("Namespace: " + beiboot.namespace)
+    info("Labels: " + str(beiboot.labels))
     info("State: " + beiboot.state.value)
 
     heading("\nParameters:")

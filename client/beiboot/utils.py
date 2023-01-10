@@ -4,7 +4,7 @@ import socket
 from pathlib import Path
 from typing import List, Optional, Container
 
-from beiboot.configuration import ClientConfiguration
+from beiboot.configuration import ClientConfiguration, __VERSION__
 
 from beiboot.types import BeibootRequest
 
@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 def create_beiboot_custom_ressource(
     req: BeibootRequest, config: ClientConfiguration
 ) -> dict:
+    _labels = req.labels
+    _labels.update({"beiboot.getdeck.dev/client-version": __VERSION__})
     cr = {
         "apiVersion": "getdeck.dev/v1",
         "kind": "beiboot",
@@ -22,6 +24,7 @@ def create_beiboot_custom_ressource(
         "metadata": {
             "name": req.name,
             "namespace": config.NAMESPACE,
+            "labels": _labels,
         },
     }
     return cr

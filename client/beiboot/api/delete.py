@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 
 @stopwatch
 def delete(bbt: Beiboot, config: ClientConfiguration = default_configuration) -> None:
+    """
+    Mark a Beiboot for deletion
+
+    :param bbt: The Beiboot to be marked for deletion
+    :type bbt: Beiboot
+    """
     _delete_bbt(bbt.name, config)
 
 
@@ -19,6 +25,12 @@ def delete(bbt: Beiboot, config: ClientConfiguration = default_configuration) ->
 def delete_by_name(
     name: str, config: ClientConfiguration = default_configuration
 ) -> None:
+    """
+    Mark a Beiboot for deletion
+
+    :param name: The Beiboot name to be marked for deletion
+    :type name: str
+    """
     _delete_bbt(name, config)
 
 

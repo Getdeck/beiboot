@@ -1,4 +1,4 @@
-def create_beiboot_object(name: str, parameters: dict):
+def create_beiboot_object(name: str, parameters: dict, labels: dict = {}):
     import kubernetes as k8s
 
     custom_api = k8s.client.CustomObjectsApi()
@@ -10,6 +10,7 @@ def create_beiboot_object(name: str, parameters: dict):
         "metadata": {
             "name": name,
             "namespace": "getdeck",
+            "labels": labels
         },
         "parameters": parameters,
     }
