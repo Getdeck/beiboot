@@ -48,7 +48,7 @@ def connect(ctx, name, connector, host):
     location = connector.save_kubeconfig_to_file(beiboot)
     info(f"The kubeconfig file is written to {location}")
     print_formatted_text(
-        FormattedText( # type: ignore
+        FormattedText(  # type: ignore
             [
                 ("class:info", "You can now run "),
                 ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
@@ -59,7 +59,9 @@ def connect(ctx, name, connector, host):
     )
 
 
-@_cli.command("disconnect", help="Remove the tunnel connection and files from this host")
+@_cli.command(
+    "disconnect", help="Remove the tunnel connection and files from this host"
+)
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
