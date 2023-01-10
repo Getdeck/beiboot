@@ -111,6 +111,7 @@ class BeibootRequest:
     provider: BeibootProvider = field(default_factory=lambda: BeibootProvider.K3S)
     parameters: BeibootParameters = field(default_factory=lambda: BeibootParameters())
     labels: Dict[str, str] = field(default_factory=lambda: {})
+    from_shelf: str = field(default_factory=lambda: "")
 
 
 class BeibootState(Enum):
