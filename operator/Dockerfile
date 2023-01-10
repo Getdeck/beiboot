@@ -14,15 +14,13 @@ ENV PYTHONUNBUFFERED=1 \
     \
     # poetry
     # https://python-poetry.org/docs/configuration/#using-environment-variables
-    POETRY_VERSION=1.1.5 \
+    POETRY_VERSION=1.1.7 \
     POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_CACHE_DIR='/var/cache/pypoetry' \
     PATH="$PATH:/root/.poetry/bin" \
     # make poetry install to this location
     POETRY_HOME="/opt/poetry" \
-    # make poetry create the virtual environment in the project's root
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
     # do not ask any interactive question
     POETRY_NO_INTERACTION=1 \
     \
@@ -45,12 +43,13 @@ RUN apt-get update \
 RUN curl -sSL https://install.python-poetry.org | python -
 
 RUN python -m venv $VENV_PATH
+
 # copy project requirement files here to ensure they will be cached.
 WORKDIR $PYSETUP_PATH
 COPY poetry.lock pyproject.toml ./
 
 # install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
-RUN poetry install --no-dev
+RUN bash -c 'source $VENV_PATH/bin/activate && poetry install --no-dev'
 
 FROM golang:${GOLANG_VERSION} as certstrap
 WORKDIR /certstrap

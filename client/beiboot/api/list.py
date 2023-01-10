@@ -30,7 +30,7 @@ def read_all(
             plural="beiboots",
             label_selector=_labels,
         )
-    except k8s.client.ApiException as e:
+    except k8s.client.ApiException as e:  # type: ignore
         if e.status == 404:
             raise RuntimeError(
                 "This cluster does probably not support Getdeck Beiboot, or is not ready."
