@@ -10,7 +10,7 @@ from cli.__main__ import cli as _cli
 from cli.utils import standard_error_handler
 
 
-@_cli.command("connect")
+@_cli.command("connect", help="Set up the tunnel connection to a Beiboot cluster")
 @click.argument("name")
 @click.option(
     "--connector",
@@ -29,12 +29,12 @@ def connect(ctx, name, connector, host):
         list(
             map(
                 lambda p: f"127.0.0.1:{p.split(':')[0]} -> cluster:{p.split(':')[1]}",
-                beiboot.parameters.ports,
+                beiboot.parameters.ports,  # type: ignore
             )
         )
     )
     print_formatted_text(
-        FormattedText(
+        FormattedText(  # type: ignore
             [
                 ("class:info", "Creating port-forwards for the following ports: "),
                 ("class:italic", formatted_ports),
@@ -48,7 +48,7 @@ def connect(ctx, name, connector, host):
     location = connector.save_kubeconfig_to_file(beiboot)
     info(f"The kubeconfig file is written to {location}")
     print_formatted_text(
-        FormattedText(
+        FormattedText(  # type: ignore
             [
                 ("class:info", "You can now run "),
                 ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
@@ -59,7 +59,9 @@ def connect(ctx, name, connector, host):
     )
 
 
-@_cli.command("disconnect")
+@_cli.command(
+    "disconnect", help="Remove the tunnel connection and files from this host"
+)
 @click.argument("name")
 @click.pass_context
 @standard_error_handler

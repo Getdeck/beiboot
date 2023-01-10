@@ -19,7 +19,7 @@ from cli.utils import standard_error_handler
 from cli.__main__ import cluster
 
 
-@cluster.command("create")
+@cluster.command("create", help="Create a Beiboot cluster")
 @click.argument("name")
 @click.option(
     "--k8s-version",
@@ -162,7 +162,9 @@ def create_cluster(
         )
 
 
-@cluster.command("delete", alias=["rm", "remove"])
+@cluster.command(
+    "delete", alias=["rm", "remove"], help="Mark a Beiboot cluster for deletion"
+)
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
@@ -171,7 +173,11 @@ def delete_cluster(ctx, name):
     info(f"Beiboot '{name}' marked for deletion")
 
 
-@cluster.command("list", alias=["ls"])
+@cluster.command(
+    "list",
+    alias=["ls"],
+    help="List all Beiboot cluster (filtered when labels option is used)",
+)
 @click.option(
     "--label",
     "-l",
@@ -218,7 +224,9 @@ def list_clusters(ctx, label):
         info("No Beiboot(s) running")
 
 
-@cluster.command("inspect", alias=["get"])
+@cluster.command(
+    "inspect", alias=["get"], help="Display detailed information of one Beiboot"
+)
 @click.argument("name")
 @click.pass_context
 @standard_error_handler

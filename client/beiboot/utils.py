@@ -119,6 +119,6 @@ def _list_containers_by_prefix(
     containers = config.DOCKER.containers.list()
     result = []
     for container in containers:
-        if container.name.startswith(prefix):
+        if container.name.startswith(prefix):  # type: ignore
             result.append(container)
     return result

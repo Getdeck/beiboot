@@ -28,7 +28,7 @@ PRESETS = {
 
 @_cli.command(
     "install",
-    help="Create and apply the Kubernetes configs for Beiboot",
+    help="Create and print the Kubernetes configs for Beiboot; use it so 'beibootctl install [options] | kubectl apply -f -",
 )
 @click.option(
     "--component",
@@ -58,7 +58,9 @@ def install(ctx, component, preset, **kwargs):
     click.echo(synthesize_config_as_yaml(options=options, components=component))
 
 
-@_cli.command("uninstall")
+@_cli.command(
+    "uninstall", help="Removes the Beiboot installation from the host cluster"
+)
 @click.option("--force", "-f", help="Delete without promt", is_flag=True)
 @click.option(
     "--namespace",
@@ -79,7 +81,7 @@ def uninstall(ctx, force, namespace):
     try:
         remove_all_beiboots(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing remainder Beiboot namespaces")
     try:
@@ -89,34 +91,34 @@ def uninstall(ctx, force, namespace):
                 f"The following namespaces are not removed: {','.join(namespaces)}. They will be removed in a future version."
             )
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing remainder Beiboot objects")
     try:
         remove_remainder_bbts(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing Beiboot CRDs")
     try:
         remove_beiboot_crds(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing RBAC objects")
     try:
         remove_beiboot_rbac(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing ValidatingWebhook")
     try:
         remove_beiboot_webhooks(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))
 
     click.echo("Removing Beiboot namespace")
     try:
         remove_beiboot_namespace(config=ctx.obj["config"])
     except Exception as e:
-        error(e)
+        error(str(e))

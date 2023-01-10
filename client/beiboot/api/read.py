@@ -23,8 +23,8 @@ def read(name: str, config: ClientConfiguration = default_configuration) -> Beib
             plural="beiboots",
             name=name,
         )
-    except k8s.client.ApiException as e:
+    except k8s.client.ApiException as e:  # type: ignore
         if e.status == 404:
             raise RuntimeError(f"The Beiboot {name} does not exist")
         raise RuntimeError(str(e)) from None
-    return Beiboot(bbt)
+    return Beiboot(bbt)  # type: ignore

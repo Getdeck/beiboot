@@ -56,12 +56,12 @@ def test_b_create_beiboot_object(crds):
     assert not result.exception
 
     beiboot = api.read("my-test1")
-    assert "requests" in beiboot.parameters.serverResources
-    assert beiboot.parameters.serverResources["requests"]["cpu"] == "2000m"
-    assert beiboot.parameters.serverResources["requests"]["memory"] == "4Gi"
-    assert "requests" in beiboot.parameters.nodeResources
-    assert beiboot.parameters.nodeResources["requests"]["cpu"] == "3"
-    assert beiboot.parameters.nodeResources["requests"]["memory"] == "4.5Gi"
+    assert "requests" in beiboot.parameters.serverResources  # type: ignore
+    assert beiboot.parameters.serverResources["requests"]["cpu"] == "2000m"  # type: ignore
+    assert beiboot.parameters.serverResources["requests"]["memory"] == "4Gi"  # type: ignore
+    assert "requests" in beiboot.parameters.nodeResources  # type: ignore
+    assert beiboot.parameters.nodeResources["requests"]["cpu"] == "3"  # type: ignore
+    assert beiboot.parameters.nodeResources["requests"]["memory"] == "4.5Gi"  # type: ignore
 
     with pytest.raises(RuntimeError):
         beiboot = api.read("my-test2")

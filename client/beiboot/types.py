@@ -179,14 +179,14 @@ class Beiboot:
                 plural="beiboots",
                 name=self.name,
             )
-        except k8s.client.exceptions.ApiException as e:
+        except k8s.client.exceptions.ApiException as e:  # type: ignore
             if e.status == 404:
                 raise RuntimeError(
                     f"The Beiboot '{self.name}' does not exist anymore"
                 ) from None
             else:
                 raise RuntimeError(str(e)) from None
-        self._init_data(bbt)
+        self._init_data(bbt)  # type: ignore
 
     @property
     def kubeconfig(self) -> Optional[str]:
@@ -267,7 +267,7 @@ class Beiboot:
             related_events = list(
                 filter(lambda et: et.involved_object.uid == self.uid, events.items)
             )
-        except k8s.client.ApiException as e:
+        except k8s.client.ApiException as e:  # type: ignore
             raise RuntimeError(str(e)) from None
         result = {}
         for revent in related_events:

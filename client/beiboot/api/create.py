@@ -37,7 +37,7 @@ def create(
         raise RuntimeError(
             f"The requested Beiboot cluster '{req.name}' already exists."
         )
-    except k8s.client.exceptions.ApiException:
+    except k8s.client.exceptions.ApiException:  # type: ignore
         logger.debug("Beiboot object does not exist and can be created")
         pass
     try:
@@ -49,7 +49,7 @@ def create(
             version="v1",
         )
         logger.debug(f"Successfully created Beiboot object: {obj['metadata']['name']}")
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             raise RuntimeError(
                 "This cluster does probably not support Getdeck Beiboot, or is not ready."

@@ -5,7 +5,7 @@ from beiboot import api
 
 
 def remove_all_beiboots(config: ClientConfiguration):
-    bbts = api.read_all(config)
+    bbts = api.read_all(config=config)
     for bbt in bbts:
         api.delete(bbt)
 
@@ -15,11 +15,11 @@ def remove_remainder_beiboot_namespaces(config: ClientConfiguration):
         configmap = config.K8S_CORE_API.read_namespaced_config_map(
             name=config.CONFIGMAP_NAME, namespace=config.NAMESPACE
         )
-    except k8s.client.exceptions.ApiException:
+    except k8s.client.exceptions.ApiException:  # type: ignore
         return []
-    if "namespacePrefix" not in configmap.data:
+    if "namespacePrefix" not in configmap.data:  # type: ignore
         return []
-    namespace_prefix = configmap.data["namespacePrefix"]
+    namespace_prefix = configmap.data["namespacePrefix"]  # type: ignore
     namespaces = config.K8S_CORE_API.list_namespace()
     removed_namespaces = []
     for ns in namespaces.items:
@@ -65,7 +65,7 @@ def remove_beiboot_crds(config: ClientConfiguration):
         config.K8S_EXTENSIONS_API.delete_custom_resource_definition(
             name="beiboots.getdeck.dev"
         )
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             return
         else:
@@ -75,14 +75,14 @@ def remove_beiboot_crds(config: ClientConfiguration):
 def remove_beiboot_rbac(config: ClientConfiguration):
     try:
         config.K8S_RBAC_API.delete_cluster_role_binding(name="getdeck-beiboot-operator")
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             pass
         else:
             raise e from None
     try:
         config.K8S_RBAC_API.delete_cluster_role(name="getdeck:beiboot:operator")
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             pass
         else:
@@ -94,7 +94,7 @@ def remove_beiboot_webhooks(config: ClientConfiguration):
         config.K8S_ADMISSION_API.delete_validating_webhook_configuration(
             name="beiboot.getdeck.dev"
         )
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             pass
         else:
@@ -104,7 +104,7 @@ def remove_beiboot_webhooks(config: ClientConfiguration):
 def remove_beiboot_namespace(config: ClientConfiguration):
     try:
         config.K8S_CORE_API.delete_namespace(name=config.NAMESPACE)
-    except k8s.client.exceptions.ApiException as e:
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
         if e.status == 404:
             return
         else:
