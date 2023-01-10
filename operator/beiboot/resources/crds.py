@@ -9,6 +9,7 @@ def create_beiboot_definition(namespace: str) -> k8s.client.V1CustomResourceDefi
             "provider": k8s.client.V1JSONSchemaProps(type="string", enum=["k3s"]),
             "beibootNamespace": k8s.client.V1JSONSchemaProps(type="string"),
             "nodeToken": k8s.client.V1JSONSchemaProps(type="string"),
+            "fromShelf": k8s.client.V1JSONSchemaProps(type="string"),
             "parameters": k8s.client.V1JSONSchemaProps(
                 type="object",
                 properties={
