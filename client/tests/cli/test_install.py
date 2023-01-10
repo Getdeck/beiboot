@@ -17,6 +17,7 @@ def test_install_beiboot():
         ],
         obj={"config": ClientConfiguration()},
     )
+    print(result.stdout)
     assert result.exit_code == 0
 
 

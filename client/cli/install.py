@@ -45,7 +45,7 @@ PRESETS = {
 @click.pass_context
 @multi_options(InstallOptions.to_cli_options())
 @standard_error_handler
-def install(ctx, component, preset, dry_run, **kwargs):
+def install(ctx, component, preset, **kwargs):
     if preset:
         presetoptions = PRESETS.get(preset)
         if not presetoptions:
