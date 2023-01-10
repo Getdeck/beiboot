@@ -59,6 +59,7 @@ from cli.__main__ import cluster
     "--nowait",
     is_flag=True,
 )
+@click.option("--label", "-l", type=str, multiple=True, help="Add labels to this Beiboot (use multiple times, e.g. --label label=value)")
 @click.pass_context
 @standard_error_handler
 def create_cluster(
@@ -78,6 +79,7 @@ def create_cluster(
     node_storage,
     tunnel_host,
     nowait,
+    label
 ):
     server_requests = {}
     node_requests = {}
@@ -106,7 +108,13 @@ def create_cluster(
         serverStorageRequests=server_storage,
         tunnel=tunnel,
     )
-    req = BeibootRequest(name=name, parameters=parameters)
+    
+    if label:
+        _labels = dict([_l.split("=") for _l in label])
+    else:
+        _labels = {}
+
+    req = BeibootRequest(name=name, parameters=parameters, labels=_labels)
     start_time = time.time()
     beiboot = api.create(req, config=ctx.obj["config"])
 
@@ -165,8 +173,8 @@ def list_clusters(ctx, label):
     if label:
         _labels = dict([_l.split("=") for _l in label])
     else:
-        _labels = None
-    beiboots = api.read_all(_labels, config=ctx.obj["config"])  # type: ignore
+        _labels = {}
+    beiboots = api.read_all(_labels, config=ctx.obj["config"])
     if beiboots:
         tab = [
             (

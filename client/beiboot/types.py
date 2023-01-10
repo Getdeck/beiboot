@@ -68,7 +68,7 @@ class BeibootParameters:
     # Gefyra component requests
     gefyra: GefyraParams = field(default_factory=lambda: GefyraParams())
     # Tunnel connection params
-    tunnel: TunnelParams = field(default_factory=lambda: TunnelParams())
+    tunnel: Optional[TunnelParams] = field(default_factory=lambda: TunnelParams())
 
     @classmethod
     def from_raw(cls, data: dict):

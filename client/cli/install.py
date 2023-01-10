@@ -43,12 +43,6 @@ PRESETS = {
     help=f"Set configs from a preset (available: {','.join(PRESETS.keys())})",
     type=str,
 )
-@click.option(
-    "--dry-run",
-    "-o",
-    help="Do not apply the ressources and print it to stdout",
-    is_flag=True,
-)
 @click.pass_context
 @multi_options(InstallOptions.to_cli_options())
 @standard_error_handler
@@ -62,17 +56,7 @@ def install(ctx, component, preset, dry_run, **kwargs):
         options = InstallOptions(**presetoptions)
     else:
         options = InstallOptions(**{k: v for k, v in kwargs.items() if v is not None})
-    if dry_run:
-        click.echo(synthesize_config_as_yaml(options=options, components=component))
-    else:
-        from kubernetes.utils.create_from_yaml import create_from_dict
-        from kubernetes import client
-
-        api_client = client.ApiClient()
-        objs = synthesize_config_as_dict(options=options, components=component)
-        with ProgressBar(title="Installing Beiboot") as pb:
-            for obj in pb(objs):
-                create_from_dict(api_client, obj)
+    click.echo(synthesize_config_as_yaml(options=options, components=component))
 
 
 @_cli.command("uninstall")
