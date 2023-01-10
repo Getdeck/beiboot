@@ -66,6 +66,11 @@ from cli.__main__ import cluster
     multiple=True,
     help="Add labels to this Beiboot (use multiple times, e.g. --label label=value)",
 )
+@click.option(
+    "--from-shelf",
+    type=str,
+    help="Restore cluster from shelf (use 'shelf list' to list available shelf-objects)"
+)
 @click.pass_context
 @standard_error_handler
 def create_cluster(
@@ -86,6 +91,7 @@ def create_cluster(
     tunnel_host,
     nowait,
     label,
+    from_shelf,
 ):
     server_requests = {}
     node_requests = {}
@@ -113,6 +119,7 @@ def create_cluster(
         nodeStorageRequests=node_storage,
         serverStorageRequests=server_storage,
         tunnel=tunnel,
+        # TODO: should we have from_shelf here, or additionally here?
     )
 
     if label:
@@ -120,7 +127,7 @@ def create_cluster(
     else:
         _labels = {}
 
-    req = BeibootRequest(name=name, parameters=parameters, labels=_labels)
+    req = BeibootRequest(name=name, parameters=parameters, labels=_labels, from_shelf=from_shelf)
     start_time = time.time()
     beiboot = api.create(req, config=ctx.obj["config"])
 

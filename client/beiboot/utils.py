@@ -21,6 +21,7 @@ def create_beiboot_custom_ressource(
         "kind": "beiboot",
         "provider": "k3s",
         "parameters": req.parameters.as_dict(),
+        "fromShelf": req.from_shelf,
         "metadata": {
             "name": req.name,
             "namespace": config.NAMESPACE,
