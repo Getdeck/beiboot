@@ -49,6 +49,12 @@ def cluster(ctx):
     pass
 
 
+@cli.group("shelve", cls=AliasedGroup, help="Shelve Beiboot clusters")
+@click.pass_context
+def shelve(ctx):
+    pass
+
+
 @cli.command()
 @click.pass_context
 def version(ctx):
