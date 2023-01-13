@@ -1,7 +1,7 @@
 import kopf
 import kubernetes as k8s
 
-from beiboot.resources.crds import create_beiboot_definition
+from beiboot.resources.crds import create_beiboot_definition, create_shelf_definition
 
 app = k8s.client.AppsV1Api()
 core_v1_api = k8s.client.CoreV1Api()
@@ -28,6 +28,25 @@ def handle_crds(logger, namespace: str) -> k8s.client.V1CustomResourceDefinition
     return bbt_def
 
 
+def handle_shelf_crds(logger, namespace: str) -> k8s.client.V1CustomResourceDefinition:
+    """
+    It creates a custom resource definition for the Shelf resource
+
+    :param logger: a logger object
+    :return: The CRD definition
+    """
+    shelf_def = create_shelf_definition(namespace)
+    try:
+        extension_api.create_custom_resource_definition(body=shelf_def)
+        logger.info("Shelf CRD created")
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logger.warning("Shelf CRD already available")
+        else:
+            raise e
+    return shelf_def
+
+
 @kopf.on.startup()
 async def check_beiboot_components(logger, **kwargs) -> None:
     """
@@ -49,5 +68,10 @@ async def check_beiboot_components(logger, **kwargs) -> None:
     # handle Beiboot configuration configmap
     #
     configuration.refresh_k8s_config()
+
+    #
+    # handle Shelf CRDs and Permissions
+    #
+    handle_shelf_crds(logger, configuration.NAMESPACE)
 
     logger.info("Beiboot components installed/patched")

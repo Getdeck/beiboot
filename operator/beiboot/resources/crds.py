@@ -153,3 +153,72 @@ def create_beiboot_definition(namespace: str) -> k8s.client.V1CustomResourceDefi
         ),
     )
     return crd
+
+
+def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefinition:
+    schema_props = k8s.client.V1JSONSchemaProps(
+        type="object",
+        properties={
+            # TODO: not yet clear if node is one of [server, agent] or complete node-name
+            # TODO: not yet clear if status is one of [readyToUse, notReadyToUse] or if more are necessary
+            # example of a volumeSnapshotContent:
+            #   name: foo
+            #   snapshotHandle: provider/specific/path/to/handle
+            #   node: server
+            #   status: readyToUse
+            "volumeSnapshotContents": k8s.client.V1JSONSchemaProps(
+                type="array",
+                default=[],
+                items=k8s.client.V1JSONSchemaProps(
+                    type="object",
+                    properties={
+                        "name": k8s.client.V1JSONSchemaProps(type="string"),
+                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
+                        "node": k8s.client.V1JSONSchemaProps(type="string"),
+                        "status": k8s.client.V1JSONSchemaProps(type="string"),
+                    }
+                )
+            ),
+            "kubeconfig": k8s.client.V1JSONSchemaProps(
+                type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
+            "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),
+            "stateTransitions": k8s.client.V1JSONSchemaProps(
+                type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
+            "status": k8s.client.V1JSONSchemaProps(
+                type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
+        },
+    )
+
+    def_spec = k8s.client.V1CustomResourceDefinitionSpec(
+        group="beiboots.getdeck.dev",
+        names=k8s.client.V1CustomResourceDefinitionNames(
+            kind="shelf",
+            plural="shelves",
+        ),
+        scope="Namespaced",
+        versions=[
+            k8s.client.V1CustomResourceDefinitionVersion(
+                name="v1",
+                served=True,
+                storage=True,
+                schema=k8s.client.V1CustomResourceValidation(
+                    open_apiv3_schema=schema_props
+                ),
+            )
+        ],
+    )
+
+    crd = k8s.client.V1CustomResourceDefinition(
+        api_version="apiextensions.k8s.io/v1",
+        kind="CustomResourceDefinition",
+        spec=def_spec,
+        metadata=k8s.client.V1ObjectMeta(
+            name="shelves.beiboots.getdeck.dev",
+            namespace=namespace,
+            finalizers=[],
+        ),
+    )
+    return crd
