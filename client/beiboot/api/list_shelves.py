@@ -3,7 +3,7 @@ import kubernetes as k8s
 
 from beiboot.api import stopwatch
 from beiboot.configuration import ClientConfiguration, default_configuration
-from beiboot.types import Beiboot
+from beiboot.types import Shelf
 
 
 @stopwatch
@@ -11,11 +11,11 @@ def read_all_shelves(
     labels: Dict[str, str] = {}, config: ClientConfiguration = default_configuration
 ) -> list[Shelf]:
     """
-    Reads all Beiboots from the cluster.
+    Reads all Shelves.
 
-    :param labels: A dictionary of labels to filter the Beiboots by.
+    :param labels: A dictionary of labels to filter the Shelves by.
     :param config: The configuration to use.
-    :return: A list of Beiboots.
+    :return: A list of Shelves.
     """
     result = []
     if labels:
@@ -23,11 +23,11 @@ def read_all_shelves(
     else:
         _labels = ""
     try:
-        bbts = config.K8S_CUSTOM_OBJECT_API.list_namespaced_custom_object(
-            group="getdeck.dev",
+        shelves = config.K8S_CUSTOM_OBJECT_API.list_namespaced_custom_object(
+            group="beiboots.getdeck.dev",
             version="v1",
             namespace=config.NAMESPACE,
-            plural="beiboots",
+            plural="shelves",
             label_selector=_labels,
         )
     except k8s.client.ApiException as e:  # type: ignore
@@ -38,6 +38,6 @@ def read_all_shelves(
         else:
             raise RuntimeError(str(e)) from None
     else:
-        for bbt in bbts["items"]:
-            result.append(Beiboot(bbt))
+        for shelf in shelves["items"]:
+            result.append(Shelf(shelf))
     return result

@@ -49,9 +49,9 @@ def cluster(ctx):
     pass
 
 
-@cli.group("shelve", cls=AliasedGroup, help="Shelve Beiboot clusters")
+@cli.group("shelf", cls=AliasedGroup, help="Shelve Beiboot clusters")
 @click.pass_context
-def shelve(ctx):
+def shelf(ctx):
     pass
 
 
@@ -73,3 +73,4 @@ if __name__ == "__main__":
 from .cluster import *  # noqa
 from .install import *  # noqa
 from .connect import *  # noqa
+from .shelf import *  # noqa

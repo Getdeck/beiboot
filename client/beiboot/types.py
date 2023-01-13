@@ -320,8 +320,6 @@ class Beiboot(StateAndEventsMixin):
         return None
 
 
-
-
 @dataclass
 class InstallOptions:
     namespace: str = field(
@@ -419,7 +417,7 @@ class VolumeSnapshotContentStatus(Enum):
 class VolumeSnapshotContent:
     name: str
     snapshot_handle: str
-    # TODO: not yet clear if it's one of [server, node], or if complete node-name is needed
+    # TODO: not yet clear if it's one of [server, agent], or if complete node-name is needed
     node: str
     status: VolumeSnapshotContentStatus = field(default_factory=lambda: VolumeSnapshotContentStatus.NOT_READY_TO_USE)
 
@@ -470,7 +468,6 @@ class Shelf(StateAndEventsMixin):
 
     def _init_data(self, _object: dict[str, Any]):
         self._data = _object
-        self.namespace = str(self._data.get("beibootNamespace"))
         self.transitions = self._data.get("stateTransitions")
         self.volume_snapshot_contents = self._data.get("volumeSnapshotContents")
 
@@ -478,7 +475,7 @@ class Shelf(StateAndEventsMixin):
         logger.debug(f"Fetching object Shelf {self.name}")
         try:
             shelf = self._config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
-                group="beiboot.getdeck.dev",
+                group="beiboots.getdeck.dev",
                 version="v1",
                 namespace=self._config.NAMESPACE,
                 plural="shelves",
