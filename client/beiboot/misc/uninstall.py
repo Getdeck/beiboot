@@ -70,6 +70,15 @@ def remove_beiboot_crds(config: ClientConfiguration):
             return
         else:
             raise e from None
+    try:
+        config.K8S_EXTENSIONS_API.delete_custom_resource_definition(
+            name="shelves.beiboots.getdeck.dev"
+        )
+    except k8s.client.exceptions.ApiException as e:  # type: ignore
+        if e.status == 404:
+            return
+        else:
+            raise e from None
 
 
 def remove_beiboot_rbac(config: ClientConfiguration):

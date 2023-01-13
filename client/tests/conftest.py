@@ -40,14 +40,39 @@ def minikube(request, kubectl):
     logger.info("Setting up Minikube")
 
     ps = subprocess.run(
-        f"minikube start -p {CLUSTER_NAME} --cpus=max --memory=4000 --driver=docker --kubernetes-version={k8s_version} "
-        "--addons=default-storageclass storage-provisioner",
+        f"minikube start -p {CLUSTER_NAME} --cpus=max --memory=4000 --driver=docker "
+        f"--kubernetes-version={k8s_version} ",
         shell=True,
         stdout=subprocess.DEVNULL,
     )
     assert ps.returncode == 0
     subprocess.run(
         f"minikube profile {CLUSTER_NAME}",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    # enable/disable addons for volume snapshot capabilities
+    subprocess.run(
+        "minikube addons enable volumesnapshots",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons enable csi-hostpath-driver",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons disable default-storageclass",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons disable storage-provisioner",
         shell=True,
         check=True,
         stdout=subprocess.DEVNULL,
@@ -60,6 +85,10 @@ def minikube(request, kubectl):
             k8s.config.load_kube_config()
             core_api = k8s.client.CoreV1Api()
             core_api.list_namespace()
+            # patch storage class from csi-hostpath-driver to make it default
+            storage_api = k8s.client.StorageV1Api()
+            body = {"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}
+            storage_api.patch_storage_class(name="csi-hostpath-sc", body=body)
             break
         except Exception:  # noqa
             sleep(1)
@@ -105,21 +134,35 @@ def crds(request, minikube, kubectl):
     module_path = os.path.join("..", "operator", "beiboot", "resources", "crds.py")
     with open(module_path, "r") as f:
         data = f.read()
-    exec(data, globals())  # imports create_beiboot_definition(namespace: str)
-    bbt_def = create_beiboot_definition("default")  # noqa
-    try:
-        extension_api.create_custom_resource_definition(body=bbt_def)
-        logger.info("Beiboot CRD created")
-    except k8s.client.exceptions.ApiException as e:
-        if e.status == 409:
-            logger.warning("Beiboot CRD already available")
-        else:
-            raise e
+    # imports create_func for _crd(...), i.e. create_beiboot_definition(namespace: str) and
+    # create_shelf_definition(namespace: str))
+    exec(data, globals())
+
+    def _crd(create_func_name, crd_name):
+        create_func = globals()[create_func_name]
+        crd_def = create_func("default")  # noqa
+        try:
+            extension_api.create_custom_resource_definition(body=crd_def)
+            logger.info(f"{crd_name} CRD created")
+        except k8s.client.exceptions.ApiException as e:
+            if e.status == 409:
+                logger.warning(f"{crd_name} CRD already available")
+            else:
+                raise e
+        return crd_def
+
+    bbt_def = _crd("create_beiboot_definition", "Beiboot")
+    shelf_def = _crd("create_shelf_definition", "Shelf")
 
     def remove_extensions():
         try:
             extension_api.delete_custom_resource_definition(name=bbt_def.metadata.name)
             logger.info("Beiboot CRD deleted")
+        except k8s.client.exceptions.ApiException:
+            pass
+        try:
+            extension_api.delete_custom_resource_definition(name=shelf_def.metadata.name)
+            logger.info("Shelf CRD deleted")
         except k8s.client.exceptions.ApiException:
             pass
         sleep(5)
@@ -175,12 +218,22 @@ def operator(request, minikube, kubectl):
             bbt_name = beiboot.split(" ")[0]
             kubectl(["-n", "getdeck", "delete", "bbt", bbt_name])
             sleep(5)
+        shelves = kubectl(["-n", "getdeck", "get", "shelf"])
+        for shelf in shelves.split("\n"):
+            shelf_name = shelf.split(" ")[0]
+            kubectl(["-n", "getdeck", "delete", "shelf", shelf_name])
+            sleep(5)
         logger.info("Stopping the Operator")
         operator.terminate()
         operator.kill()
         try:
             extension_api.delete_custom_resource_definition(name="beiboots.getdeck.dev")
             logger.info("Beiboot CRD deleted")
+        except k8s.client.exceptions.ApiException:
+            pass
+        try:
+            extension_api.delete_custom_resource_definition(name="shelves.beiboots.getdeck.dev")
+            logger.info("Shelf CRD deleted")
         except k8s.client.exceptions.ApiException:
             pass
 
