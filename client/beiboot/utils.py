@@ -6,7 +6,7 @@ from typing import List, Optional, Container
 
 from beiboot.configuration import ClientConfiguration, __VERSION__
 
-from beiboot.types import BeibootRequest
+from beiboot.types import BeibootRequest, ShelfRequest
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,24 @@ def create_beiboot_custom_ressource(
         "provider": "k3s",
         "parameters": req.parameters.as_dict(),
         "fromShelf": req.from_shelf,
+        "metadata": {
+            "name": req.name,
+            "namespace": config.NAMESPACE,
+            "labels": _labels,
+        },
+    }
+    return cr
+
+
+def create_shelf_custom_ressource(
+    req: ShelfRequest, config: ClientConfiguration
+) -> dict:
+    _labels = req.labels
+    _labels.update({"beiboot.getdeck.dev/client-version": __VERSION__})
+    cr = {
+        "apiVersion": "beiboots.getdeck.dev/v1",
+        "kind": "shelf",
+        "volumeSnapshotContents": req.volume_snapshot_contents,
         "metadata": {
             "name": req.name,
             "namespace": config.NAMESPACE,
