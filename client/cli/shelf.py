@@ -7,7 +7,7 @@ from tabulate import tabulate
 from beiboot import api
 from beiboot.types import ShelfRequest
 from cli.__main__ import shelf
-from cli.console import info
+from cli.console import info, success, heading
 from cli.utils import standard_error_handler
 
 
@@ -30,7 +30,7 @@ from cli.utils import standard_error_handler
 )
 @click.pass_context
 @standard_error_handler
-def shelve_cluster(
+def create_shelf(
         ctx,
         cluster_name,
         shelf_name,
@@ -41,7 +41,7 @@ def shelve_cluster(
     if shelf_name:
         _shelf_name = shelf_name
     else:
-        _shelf_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}_{cluster_name}"
+        _shelf_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_name}"
 
     # TODO: get namespace from cluster_name
 
@@ -54,11 +54,13 @@ def shelve_cluster(
 
     req = ShelfRequest(
         name=_shelf_name,
-        namespace="foo",
         labels=_labels,
         volume_snapshot_contents=volume_snapshot_contents
     )
     shelf = api.create_shelf(req, config=ctx.obj["config"])
+
+    # TODO: maybe we want to wait until it's ready?
+    success(f"Shelf '{_shelf_name}' is being requested. You can check it's status with 'beibootctl shelf ls'.")
 
 
 @shelf.command(
@@ -111,3 +113,32 @@ def list_shelves(ctx, label):
         )
     else:
         info("No Shelves available")
+
+
+@shelf.command(
+    "inspect", alias=["get"], help="Display detailed information of one Shelf"
+)
+@click.argument("name")
+@click.pass_context
+@standard_error_handler
+def inspect(ctx, name):
+    shelf = api.read_shelf(name=name)
+    info("Name: " + shelf.name)
+    info("UID: " + shelf.uid)
+    info("Labels: " + str(shelf.labels))
+    info("State: " + shelf.state.value)
+
+    heading("\nvolumeSnapshotContents:")
+    for volume_snapshot_content in shelf.volume_snapshot_contents:
+        paramtab = [
+            (str(key), str(value))
+            for key, value in volume_snapshot_content.items()
+        ]
+        print_formatted_text(tabulate(paramtab, headers=["Key", "Value"]), end="\n\n")
+
+    heading("\nEvents:")
+    eventtab = [
+        (str(date), event.get("reason") or "-", event.get("message")[:100] or "-")
+        for date, event in shelf.events_by_timestamp.items()
+    ]
+    print_formatted_text(tabulate(eventtab, headers=["Date", "Reason", "Message"]))
