@@ -7,3 +7,4 @@ from .list import *  # noqa
 from .list_shelves import *  # noqa
 from .read import *  # noqa
 from .heartbeat import *  # noqa
+from .read_shelf import *  # noqa
