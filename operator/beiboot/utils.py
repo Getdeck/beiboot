@@ -2,7 +2,7 @@ import inspect
 import logging
 import string
 import random
-from typing import List
+from typing import List, Optional
 from datetime import timedelta
 
 import kubernetes as k8s
@@ -159,6 +159,26 @@ def get_beiboot_for_namespace(
             return AttrDict(bbt)
     else:
         return None
+
+
+def get_beiboot_by_name(name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"):
+    """Return the Beiboot object of the given name
+
+    :param name: name of the beiboot
+    :type name: str
+    :param namespace: the namespace of the beiboot
+    :type namespace: str
+    :param api_instance: the kubernetes client
+    :type api_instance: k8s.client.CustomObjectsApi
+    """
+    beiboot = api_instance.get_namespaced_custom_object(
+        group="getdeck.dev",
+        version="v1",
+        namespace=namespace,
+        plural="beiboots",
+        name=name,
+    )
+    return beiboot
 
 
 def get_label_selector(labels: dict[str, str]) -> str:

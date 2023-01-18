@@ -24,6 +24,32 @@ class AbstractClusterProvider(ABC):
         """
         raise NotImplementedError
 
+    # @abstractmethod
+    # async def create(self, from_shelf_name: str = None) -> bool:
+    #     """
+    #     Create the workloads for the Beiboot cluster and apply them, return the result
+    #     """
+    #     if from_shelf_name:
+    #         await self.restore_from_shelf()
+    #     else:
+    #         await self.create_new()
+    #     raise NotImplementedError
+
+    # @abstractmethod
+    # async def create_new(self) -> bool:
+    #     """
+    #     Create the workloads for the Beiboot cluster and apply them, return the result
+    #     """
+    #     raise NotImplementedError
+    #
+    # @abstractmethod
+    # async def restore_from_shelf(self, shelf_name: str) -> bool:
+    #     """
+    #     Restore the persistent volumes from the Shelf and create the workloads as persisted in the Shelf for the
+    #     Beiboot cluster and apply them, return the result
+    #     """
+    #     raise NotImplementedError
+
     @abstractmethod
     async def delete(self) -> bool:
         """

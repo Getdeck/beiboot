@@ -265,3 +265,136 @@ async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
     if data is None:
         raise kopf.TemporaryError("Serviceaccount token not yet generated", delay=1)
     return data
+
+
+def create_volume_snapshot_from_pvc_resource(
+        name: str,
+        namespace: str,
+        volume_snapshot_class: str,
+        pvc_name: str
+) -> dict:
+    """
+    Return VolumeSnapshot for PVC K8s resource as dict.
+
+    :param name: The name of the VolumeSnapshot that is to be created
+    :param namespace: The namespace that the PVC is located in and in that the VolumeSnapshot is to be created
+    :param volume_snapshot_class: The VolumeSnapshotClass to use for the VolumeSnapshotContent
+    :param pvc_name: The name of the PersistentVolumeClaim for which the VolumeSnapshot is to be created
+    """
+    return {
+        "apiVersion": "snapshot.storage.k8s.io/v1",
+        "kind": "VolumeSnapshot",
+        "metadata": {
+            "name": f"{name}",
+            "namespace": f"{namespace}",
+        },
+        "spec": {
+            "volumeSnapshotClassName": f"{volume_snapshot_class}",
+            "source": {
+                "persistentVolumeClaimName": f"{pvc_name}"
+            }
+        }
+    }
+
+
+def create_volume_snapshot_pre_provisioned_resource(name: str, namespace: str, volume_snapshot_content: str) -> dict:
+    """
+    Return pre-provisioned VolumeSnapshot K8s resource as dict.
+
+    :param name: The name of the VolumeSnapshot that is to be created
+    :param namespace: The namespace that the PVC is located in and in that the VolumeSnapshot is to be created
+    :param volume_snapshot_content: The associated pre-provisioned VolumeSnapshotContent
+    """
+    return {
+        "apiVersion": "snapshot.storage.k8s.io/v1",
+        "kind": "VolumeSnapshot",
+        "metadata": {
+            "name": f"{name}",
+            "namespace": f"{namespace}",
+        },
+        "spec": {
+            "source": {
+                "volumeSnapshotContentName": f"{volume_snapshot_content}",
+            },
+        }
+    }
+
+
+def handle_create_volume_snapshot(logger, body: dict):
+    """
+    :param logger: a logger object
+    :param body: The dict that describes the K8s resource
+    """
+    # FIXME: python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it here
+    namespace = body.get('metadata').get('namespace')
+    k8s.client.CustomObjectsApi().create_namespaced_custom_object(
+        group="snapshot.storage.k8s.io",
+        version="v1beta1",
+        namespace=f"{namespace}",
+        plural="volumesnapshots",
+        body=body,
+    )
+    logger.debug(
+        f"VolumeSnapshot {body.get('metadata').get('name')} in namespace {namespace} created."
+    )
+
+
+def create_volume_snapshot_content_pre_provisioned_resource(
+        name: str,
+        driver: str,
+        snapshot_handle: str,
+        volume_snapshot_ref_name: str,
+        volume_snapshot_ref_namespace: str,
+        deletion_policy: str = "Delete",
+        source_volume_mode: str = "Filesystem",
+) -> dict:
+    """
+    Return pre-provisioned VolumeSnapshot K8s resource as dict.
+
+    :param name: The name of the VolumeSnapshot that is to be created
+    :param driver: CSI Driver Name (e.g. see https://kubernetes-csi.github.io/docs/drivers.html)
+    :param snapshot_handle: The snapshot handle of the CSI-driver, where the content is located at
+    :param volume_snapshot_ref_name: The name of the pre-provisioned VolumeSnapshot that the VolumeSnapshotContent will
+        be associated with
+    :param volume_snapshot_ref_namespace: The namespace of the pre-provisioned VolumeSnapshot that the
+        VolumeSnapshotContent will be associated with
+    :param deletion_policy: deletionPolicy of the VolumeSnapshotContent, either "Delete" or "Retain"
+    :param source_volume_mode: sourceVolumeMode of the VolumeSnapshotContent, either "Filesystem" or "Block"
+    """
+    return {
+        "apiVersion": "snapshot.storage.k8s.io/v1",
+        "kind": "VolumeSnapshotContent",
+        "metadata": {
+            "name": f"{name}",
+        },
+        "spec": {
+            "deletionPolicy": f"{deletion_policy}",
+            "driver": f"{driver}",
+            "source": {
+                "snapshotHandle": f"{snapshot_handle}",
+            },
+            "sourceVolumeMode": f"{source_volume_mode}",
+            "volumeSnapshotRef": {
+                "name": f"{volume_snapshot_ref_name}",
+                "namespace": f"{volume_snapshot_ref_namespace}"
+            }
+        }
+    }
+
+
+def handle_create_volume_snapshot_content(logger, body: dict):
+    """
+    :param logger: a logger object
+    :param body: The dict that describes the K8s resource
+    """
+    # FIXME: python-kubernetes doesn't support VolumeSnapshotContents; if it does support them one day, we can change
+    #  it here
+    k8s.client.CustomObjectsApi().create_cluster_custom_object(
+        group="snapshot.storage.k8s.io",
+        version="v1beta1",
+        plural="volumesnapshotcontents",
+        body=body,
+    )
+    logger.debug(
+        f"VolumeSnapshotContent {body.get('metadata').get('name')} created."
+    )

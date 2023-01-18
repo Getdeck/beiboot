@@ -178,3 +178,8 @@ class BeibootConfiguration:
 
 
 configuration = BeibootConfiguration()
+
+
+class ShelfConfiguration:
+    def __init__(self):
+        self.NAMESPACE = config("SHELF_NAMESPACE", default="getdeck")
