@@ -426,6 +426,8 @@ class VolumeSnapshotContent:
 class ShelfRequest:
     # a unique name for this Shelf
     name: str
+    cluster_name: str
+    volume_snapshot_class: str = ""
     volume_snapshot_contents: list[VolumeSnapshotContent] = field(default_factory=lambda: [])
     labels: Dict[str, str] = field(default_factory=lambda: {})
 

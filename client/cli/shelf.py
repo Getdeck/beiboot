@@ -54,8 +54,10 @@ def create_shelf(
 
     req = ShelfRequest(
         name=_shelf_name,
+        cluster_name=cluster_name,
         labels=_labels,
-        volume_snapshot_contents=volume_snapshot_contents
+        volume_snapshot_contents=volume_snapshot_contents,
+        volume_snapshot_class=volume_snapshot_class
     )
     shelf = api.create_shelf(req, config=ctx.obj["config"])
 
