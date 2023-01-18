@@ -39,11 +39,13 @@ class K3s(AbstractClusterProvider):
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        # from_shelf: str = None
     ):
         super().__init__(name, namespace, ports)
         self.configuration = configuration
         self.parameters = cluster_parameter
         self.logger = logger
+        # self.from_shelf = from_shelf
 
     def _check_image_exists(self, k8s_version: str) -> Optional[str]:
         _b = k8s_version.lower().replace("v", "")
@@ -135,6 +137,7 @@ class K3s(AbstractClusterProvider):
             self.logger.error(str(e))
             raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
 
+    # async def create_new(self) -> bool:
     async def create(self) -> bool:
         from beiboot.utils import generate_token
         from beiboot.resources.utils import (
@@ -153,6 +156,7 @@ class K3s(AbstractClusterProvider):
                 self.kubeconfig_from_location,
                 self.api_server_container_name,
                 self.parameters,
+                # TODO: add VolumeSnapshot-name (specific one!)
             )
         ]
         node_workloads = [
@@ -164,6 +168,7 @@ class K3s(AbstractClusterProvider):
                 self.k3s_image_pullpolicy,
                 self.parameters,
                 node,
+                # TODO: add VolumeSnapshot-name (specific one!)
             )
             for node in range(
                 1, self.parameters.nodes
@@ -186,6 +191,63 @@ class K3s(AbstractClusterProvider):
             self.logger.debug("Creating: " + str(svc))
             handle_create_service(self.logger, svc, self.namespace)
         return True
+
+    # async def restore_from_shelf(self) -> bool:
+    #     from beiboot.utils import generate_token
+    #     from beiboot.resources.utils import (
+    #         handle_create_statefulset,
+    #         handle_create_service,
+    #     )
+    #
+    #     # TODO: at this stage we should have a mapping of node -> VolumeSnapshot-name (i.e. the VolumeSnapshotContents
+    #     #  and VolumeSnapshot need to be already created from the Shelf)
+    #
+    #     node_token = generate_token()
+    #     server_workloads = [
+    #         create_k3s_server_workload(
+    #             self.namespace,
+    #             node_token,
+    #             self.k3s_image,
+    #             self.k3s_image_tag,
+    #             self.k3s_image_pullpolicy,
+    #             self.kubeconfig_from_location,
+    #             self.api_server_container_name,
+    #             self.parameters,
+    #             # TODO: add VolumeSnapshot-name (specific one!)
+    #         )
+    #     ]
+    #     node_workloads = [
+    #         create_k3s_agent_workload(
+    #             self.namespace,
+    #             node_token,
+    #             self.k3s_image,
+    #             self.k3s_image_tag,
+    #             self.k3s_image_pullpolicy,
+    #             self.parameters,
+    #             node,
+    #             # TODO: add VolumeSnapshot-name (specific one!)
+    #         )
+    #         for node in range(
+    #             1, self.parameters.nodes
+    #         )  # (no +1 ) since the server deployment already runs one node
+    #     ]
+    #     services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
+    #
+    #     #
+    #     # Create the workloads
+    #     #
+    #     workloads = server_workloads + node_workloads
+    #     for sts in workloads:
+    #         self.logger.debug("Creating: " + str(sts))
+    #         handle_create_statefulset(self.logger, sts, self.namespace)
+    #
+    #     #
+    #     # Create the services
+    #     #
+    #     for svc in services:
+    #         self.logger.debug("Creating: " + str(svc))
+    #         handle_create_service(self.logger, svc, self.namespace)
+    #     return True
 
     async def delete(self) -> bool:
         try:
@@ -338,6 +400,7 @@ class K3sBuilder:
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        # from_shelf: str = None,
         **_ignored,
     ):
         instance = K3s(
@@ -347,5 +410,6 @@ class K3sBuilder:
             namespace=namespace,
             ports=ports,
             logger=logger,
+            # from_shelf=from_shelf,
         )
         return instance

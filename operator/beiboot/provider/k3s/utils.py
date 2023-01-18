@@ -12,6 +12,7 @@ def create_k3s_server_workload(
     kubeconfig_from_location: str,
     api_server_container_name: str,
     parameters: ClusterConfiguration,
+    volume_snapshot: str = None,
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a StatefulSet that runs the k3s server
@@ -32,6 +33,8 @@ def create_k3s_server_workload(
     :type api_server_container_name: str
     :param parameters: ClusterConfiguration
     :type parameters: ClusterConfiguration
+    :param volume_snapshot: The name of the VolumeSnapshot to use when restoring from a shelf.
+    :type volume_snapshot: str
     :return: A V1StatefulSet object
     """
     container = k8s.client.V1Container(
@@ -104,6 +107,14 @@ def create_k3s_server_workload(
         ),
     )
 
+    if volume_snapshot:
+        data_source = {
+            "name": volume_snapshot,
+            "kind": "VolumeSnapshot",
+            "apiGroup": "snapshot.storage.k8s.io"
+        }
+    else:
+        data_source = None
     volume = k8s.client.V1PersistentVolumeClaimTemplate(
         metadata=k8s.client.V1ObjectMeta(name="k8s-server-data"),
         spec=k8s.client.V1PersistentVolumeClaimSpec(
@@ -111,6 +122,7 @@ def create_k3s_server_workload(
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": parameters.serverStorageRequests}
             ),
+            data_source=data_source
         ),
     )
 
@@ -141,6 +153,7 @@ def create_k3s_agent_workload(
     k3s_image_pullpolicy: str,
     parameters: ClusterConfiguration,
     node_index: int = 1,
+    volume_snapshot: str = None,
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a Kubernetes StatefulSet that runs the k3s agent
@@ -159,6 +172,8 @@ def create_k3s_agent_workload(
     :type parameters: ClusterConfiguration
     :param node_index: The index of the node. This is used to create a unique name for the node, defaults to 1
     :type node_index: int (optional)
+    :param volume_snapshot: The name of the VolumeSnapshot to use when restoring from a shelf.
+    :type volume_snapshot: str
     """
     container = k8s.client.V1Container(
         name="agent",
@@ -207,6 +222,14 @@ def create_k3s_agent_workload(
         ),
     )
 
+    if volume_snapshot:
+        data_source = {
+            "name": volume_snapshot,
+            "kind": "VolumeSnapshot",
+            "apiGroup": "snapshot.storage.k8s.io"
+        }
+    else:
+        data_source = None
     volume = k8s.client.V1PersistentVolumeClaimTemplate(
         metadata=k8s.client.V1ObjectMeta(name=f"k8s-node-data-{node_index}"),
         spec=k8s.client.V1PersistentVolumeClaimSpec(
@@ -214,6 +237,7 @@ def create_k3s_agent_workload(
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": parameters.nodeStorageRequests}
             ),
+            data_source=data_source
         ),
     )
 
