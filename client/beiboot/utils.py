@@ -39,6 +39,8 @@ def create_shelf_custom_ressource(
     cr = {
         "apiVersion": "beiboots.getdeck.dev/v1",
         "kind": "shelf",
+        "clusterName": req.cluster_name,
+        "volumeSnapshotClass": req.volume_snapshot_class,
         "volumeSnapshotContents": req.volume_snapshot_contents,
         "metadata": {
             "name": req.name,
