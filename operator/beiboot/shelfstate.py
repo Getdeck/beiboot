@@ -6,6 +6,7 @@ import kubernetes as k8s
 import kopf
 
 from beiboot.configuration import ShelfConfiguration
+from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot
 from beiboot.utils import StateMachine, AsyncState
 
 
@@ -35,6 +36,7 @@ class Shelf(StateMachine):
         model=None,
         logger=None,
         persistent_volume_claims: dict = None,
+        volume_snapshot_class: str = None,
     ):
         super(Shelf, self).__init__()
         self.configuration = configuration
@@ -42,12 +44,16 @@ class Shelf(StateMachine):
         self.current_state_value = model.get("state")
         self.logger = logger
         self.persistent_volume_claims = persistent_volume_claims
+        self._volume_snapshot_class = volume_snapshot_class
         self.custom_api = k8s.client.CustomObjectsApi()
         self.core_api = k8s.client.CoreV1Api()
         self.events_api = k8s.client.EventsV1Api()
 
     def set_persistent_volume_claims(self, persistent_volume_claims: dict):
         self.persistent_volume_claims = persistent_volume_claims
+
+    def set_volume_snapshot_class(self, volume_snapshot_class: str):
+        self._volume_snapshot_class = volume_snapshot_class
 
     @property
     def name(self) -> str:
@@ -57,6 +63,23 @@ class Shelf(StateMachine):
         """
         # TODO: refactor with clusterstate
         return self.model["metadata"]["name"]
+
+    @property
+    def pvc_mapping(self) -> dict:
+        """
+        Return mapping of node-name to PVC that node uses
+        """
+        if self.persistent_volume_claims:
+            return self.persistent_volume_claims
+        else:
+            pvc_mapping = {}
+            for volume_snapshot_content in self.model["volumeSnapshotContents"]:
+                pvc_mapping[volume_snapshot_content.get("node")] = volume_snapshot_content.get("pvc")
+            return pvc_mapping
+
+    @property
+    def volume_snapshot_class(self):
+        return self.model["volumeSnapshotClass"]
 
     def completed_transition(self, state_value: str) -> Optional[str]:
         """
@@ -173,13 +196,11 @@ class Shelf(StateMachine):
 
     async def on_enter_creating(self):
         """
-        It creates the VolumeSnapshots
+        Set necessary fields in shelf CRD if needed.
+
+        - store the node- and PVC-names on the shelf CRD
+        - set volumeSnapshotClass if not set
         """
-        # - find out provider
-        # - get parameters to store on CRD
-        # - get list of PVCs to shelve from provider
-        # - create VolumeSnapshot for each PVC
-        # - find out associated VolumeSnapshotContent and store on CRD
         self.logger.debug(f"pvc_mapping: {self.persistent_volume_claims}")
         volume_snapshot_contents = []
         for sts_name, pvc_name in self.persistent_volume_claims.items():
@@ -190,7 +211,29 @@ class Shelf(StateMachine):
         data = {
             "volumeSnapshotContents": volume_snapshot_contents
         }
+
+        if not self.volume_snapshot_class:
+            if self._volume_snapshot_class:
+                data["volumeSnapshotClass"] = self._volume_snapshot_class
+            else:
+                raise ValueError("Can't set volumeSnapshotClass, as it's empty!")
+
         self._patch_object(data)
+
+    def on_shelve(self):
+        """
+        Create VolumeSnapshots
+        """
+        self.logger.info("in on_shelve")
+        self.logger.info(f"self.persistent_volume_claims: {self.persistent_volume_claims}")
+        for node_name, pvc_name in self.pvc_mapping.items():
+            volume_snapshot_resource = create_volume_snapshot_from_pvc_resource(
+                name=node_name,
+                namespace=self.configuration.NAMESPACE,
+                volume_snapshot_class=self.volume_snapshot_class,
+                pvc_name=pvc_name
+            )
+            handle_create_volume_snapshot(self.logger, body=volume_snapshot_resource)
 
     def _get_now(self) -> str:
         # TODO: refactor with clusterstate

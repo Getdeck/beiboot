@@ -25,17 +25,27 @@ async def shelf_created(body, logger, **kwargs):
     configuration = ShelfConfiguration()
     shelf = Shelf(configuration, model=body, logger=logger)
 
-    # get beiboot cluster from beiboot CRD to determine provider
-    # TODO: this might not be necessary here, but only for some states
-    bbt = get_beiboot_by_name(body["clusterName"], api_instance=objects_api, namespace=configuration.NAMESPACE)
-    bbt = Body(bbt)
-    parameters = bbt_configuration.refresh_k8s_config(body.get("parameters"))
-    logger.debug(parameters)
-    cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
-    pvcs = await cluster.provider.get_pvc_mapping()
-    shelf.set_persistent_volume_claims(pvcs)
-
     if shelf.is_requested:
+        # get beiboot cluster from beiboot CRD to determine provider and get PVC names
+        bbt = get_beiboot_by_name(body["clusterName"], api_instance=objects_api, namespace=configuration.NAMESPACE)
+        bbt = Body(bbt)
+        parameters = bbt_configuration.refresh_k8s_config(body.get("parameters"))
+        logger.debug(parameters)
+        cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
+        logger.info(f"cluster.configuration: {cluster.configuration}")
+        logger.info(f"cluster.parameters: {cluster.parameters}")
+        logger.info(f"cluster.model: {cluster.model}")
+        pvcs = await cluster.provider.get_pvc_mapping()
+        shelf.set_persistent_volume_claims(pvcs)
+        # figure out whether volumeSnapshotClass needs to be set and to which value
+        if not shelf.volume_snapshot_class:
+            configmap_name = cluster.configuration.CONFIGMAP_NAME
+            configmap = core_api.read_namespaced_config_map(
+                name=configmap_name,
+                namespace=cluster.configuration.NAMESPACE
+            )
+            shelf.set_volume_snapshot_class(configmap.data["shelfStorageClass"])
+
         try:
             await shelf.create()
         except kopf.PermanentError as e:
