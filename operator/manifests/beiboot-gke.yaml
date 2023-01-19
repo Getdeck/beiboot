@@ -176,12 +176,12 @@ data:
   maxLifetime: 'null'
   maxSessionTimeout: 'null'
   namespacePrefix: getdeck-bbt
-  nodeLabels: '{"app": "beiboot", "beiboot.dev/is-node": "true"}'
+  nodeLabels: '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true"}'
   nodeResources: '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}'
   nodeStorageRequests: 1Gi
   nodes: '1'
   ports: 'null'
-  serverLabels: '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server":
+  serverLabels: '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server":
     "true"}'
   serverResources: '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}'
   serverStartupTimeout: '60'

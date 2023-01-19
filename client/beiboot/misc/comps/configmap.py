@@ -17,12 +17,12 @@ def data(params: InstallOptions) -> list[dict]:
                 "maxLifetime": params.max_lifetime,
                 "maxSessionTimeout": params.max_session_timeout,
                 "namespacePrefix": params.namespace_prefix,
-                "nodeLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true"}',
+                "nodeLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true"}',
                 "nodeResources": f'{{"requests": {{"cpu": "{params.node_requests_cpu}", "memory": "{params.node_requests_memory}"}}, "limits": {{}}}}',  # noqa
                 "nodeStorageRequests": params.node_storage_request,
                 "nodes": params.nodes,
                 "ports": "null",
-                "serverLabels": '{"app": "beiboot", "beiboot.dev/is-node": "true", "beiboot.dev/is-server": "true"}',
+                "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',
                 "serverResources": f'{{"requests": {{"cpu": "{params.server_requests_cpu}", "memory": "{params.server_requests_memory}"}}, "limits": {{}}}}',  # noqa
                 "serverStartupTimeout": "60",
                 "serverStorageRequests": params.server_storage_request,
