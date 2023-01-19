@@ -24,7 +24,6 @@ async def shelf_created(body, logger, **kwargs):
     logger.info(f"shelf_created body: {body}")
     configuration = ShelfConfiguration()
     shelf = Shelf(configuration, model=body, logger=logger)
-    logger.info(f"initial shelf state: {shelf.current_state}")
 
     # get beiboot cluster from beiboot CRD to determine provider
     # TODO: this might not be necessary here, but only for some states
@@ -33,8 +32,7 @@ async def shelf_created(body, logger, **kwargs):
     parameters = bbt_configuration.refresh_k8s_config(body.get("parameters"))
     logger.debug(parameters)
     cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
-    logger.info(f"BeibootCluster: {cluster}")
-    pvcs = {}
+    pvcs = await cluster.provider.get_pvc_mapping()
     shelf.set_persistent_volume_claims(pvcs)
 
     if shelf.is_requested:
@@ -54,7 +52,7 @@ async def shelf_created(body, logger, **kwargs):
     if shelf.is_creating:
         logger.info("shelf.is_creating")
         logger.info(f"shelf state before shelve(): {shelf.current_state}")
-        # await shelf.shelve()
+        await shelf.shelve()
         logger.info(f"shelf state after shelve(): {shelf.current_state}")
 
     if shelf.is_pending:

@@ -1,6 +1,6 @@
 import re
 from datetime import timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 import urllib
 
 import kopf
@@ -14,6 +14,8 @@ from .utils import (
     create_k3s_server_workload,
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
+    PVC_PREFIX_SERVER,
+    PVC_PREFIX_NODE
 )
 from ...resources.utils import handle_delete_statefulset, handle_delete_service
 
@@ -386,6 +388,34 @@ class K3s(AbstractClusterProvider):
         else:
             ports.append("6443:6443")
         return ports
+
+    async def get_pvc_mapping(self) -> Dict:
+        """
+        Return a mapping of node-names to the PVC that node uses.
+
+        Example:
+        {
+            "server": "k8s-server-data-server-0",
+            "agent-1": "k8s-node-data-1-agent-1-0",
+            "agent-2": "k8s-node-data-2-agent-2-0",
+        }
+        """
+        pods = core_api.list_namespaced_pod(
+            self.namespace,
+            label_selector=get_label_selector(self.parameters.nodeLabels),
+        )
+        pvc_mapping = {}
+        for pod in pods.items:
+            sts_name = pod.metadata.owner_references[0].name
+            for volume in pod.spec.volumes:
+                try:
+                    claim_name = volume.persistent_volume_claim.claim_name
+                    if claim_name.startswith(PVC_PREFIX_SERVER) or claim_name.startswith(PVC_PREFIX_NODE):
+                        pvc_mapping[sts_name] = claim_name
+                except AttributeError:
+                    # not every volume as a claim_name
+                    continue
+        return pvc_mapping
 
 
 class K3sBuilder:

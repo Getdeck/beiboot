@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class AbstractClusterProvider(ABC):
@@ -91,3 +91,9 @@ class AbstractClusterProvider(ABC):
         Return the published ports
         """
         return self.ports
+
+    async def get_pvc_mapping(self) -> Dict:
+        """
+        Return a mapping of node-names to the PVC that node uses.
+        """
+        raise NotImplementedError
