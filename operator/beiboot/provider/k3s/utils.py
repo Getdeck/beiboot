@@ -1,6 +1,14 @@
+import logging
+
 import kubernetes as k8s
 
 from beiboot.configuration import ClusterConfiguration
+
+
+PVC_PREFIX_NODE = "k8s-node-data"
+PVC_PREFIX_SERVER = "k8s-server-data"
+
+logger = logging.getLogger(__name__)
 
 
 def create_k3s_server_workload(
@@ -116,7 +124,7 @@ def create_k3s_server_workload(
     else:
         data_source = None
     volume = k8s.client.V1PersistentVolumeClaimTemplate(
-        metadata=k8s.client.V1ObjectMeta(name="k8s-server-data"),
+        metadata=k8s.client.V1ObjectMeta(name=f"{PVC_PREFIX_SERVER}"),
         spec=k8s.client.V1PersistentVolumeClaimSpec(
             access_modes=["ReadWriteOnce"],
             resources=k8s.client.V1ResourceRequirements(
@@ -141,6 +149,8 @@ def create_k3s_server_workload(
         ),
         spec=spec,
     )
+
+    logger.info(f"server workload: {workload}")
 
     return workload
 
@@ -231,7 +241,7 @@ def create_k3s_agent_workload(
     else:
         data_source = None
     volume = k8s.client.V1PersistentVolumeClaimTemplate(
-        metadata=k8s.client.V1ObjectMeta(name=f"k8s-node-data-{node_index}"),
+        metadata=k8s.client.V1ObjectMeta(name=f"{PVC_PREFIX_NODE}-{node_index}"),
         spec=k8s.client.V1PersistentVolumeClaimSpec(
             access_modes=["ReadWriteOnce"],
             resources=k8s.client.V1ResourceRequirements(
@@ -258,6 +268,8 @@ def create_k3s_agent_workload(
         ),
         spec=spec,
     )
+
+    logger.info(f"agent workload {workload}")
 
     return workload
 

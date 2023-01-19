@@ -158,7 +158,6 @@ class Shelf(StateMachine):
         > The function `on_enter_requested` is called when the state machine enters the `requested` state
         """
         # post CRD object create hook
-        self.logger.info("in on_enter_requested")
         self.post_event(
             self.requested.value,
             f"The shelf request for '{self.name}' has been accepted",
@@ -168,7 +167,6 @@ class Shelf(StateMachine):
         """
         > The function posts an event to the Kubernetes API
         """
-        self.logger.info("in on_create")
         self.post_event(
             self.creating.value, f"The shelf '{self.name}' is now being created"
         )
@@ -182,8 +180,17 @@ class Shelf(StateMachine):
         # - get list of PVCs to shelve from provider
         # - create VolumeSnapshot for each PVC
         # - find out associated VolumeSnapshotContent and store on CRD
-        self.logger.info("in on_enter_creating")
-        pass
+        self.logger.debug(f"pvc_mapping: {self.persistent_volume_claims}")
+        volume_snapshot_contents = []
+        for sts_name, pvc_name in self.persistent_volume_claims.items():
+            volume_snapshot_contents.append({
+                "node": sts_name,
+                "pvc": pvc_name,
+            })
+        data = {
+            "volumeSnapshotContents": volume_snapshot_contents
+        }
+        self._patch_object(data)
 
     def _get_now(self) -> str:
         # TODO: refactor with clusterstate

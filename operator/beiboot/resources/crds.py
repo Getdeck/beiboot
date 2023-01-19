@@ -167,6 +167,7 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
             #   name: foo
             #   snapshotHandle: provider/specific/path/to/handle
             #   node: server
+            #   pvc: k8s-server-data-server-0
             #   status: readyToUse
             "volumeSnapshotContents": k8s.client.V1JSONSchemaProps(
                 type="array",
@@ -177,6 +178,7 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
                         "name": k8s.client.V1JSONSchemaProps(type="string"),
                         "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
                         "node": k8s.client.V1JSONSchemaProps(type="string"),
+                        "pvc": k8s.client.V1JSONSchemaProps(type="string"),
                         # "status": k8s.client.V1JSONSchemaProps(type="string"),
                     }
                 )
