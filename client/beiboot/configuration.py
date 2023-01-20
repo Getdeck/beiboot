@@ -25,6 +25,7 @@ class ClientConfiguration(object):
     ):
         self.NAMESPACE = namespace
         self.CONFIGMAP_NAME = "beiboot-config"
+        self.CLIENT_HEARTBEAT_CONFIGMAP_NAME = "beiboot-clients"
         self.REGISTRY_URL = (
             registry_url.rstrip("/") if registry_url else "quay.io/getdeck"
         )
