@@ -2,13 +2,12 @@ import binascii
 import logging
 from datetime import datetime
 from time import sleep
-from cli.utils import TimeDelta
 
 import kubernetes as k8s
 
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, Optional, Any, Union
 
 from beiboot.configuration import (
     default_configuration,
@@ -350,15 +349,13 @@ class InstallOptions:
     max_session_timeout: str = field(
         default_factory=lambda: "null",
         metadata=dict(
-            help="The default maximum session timeout for a Beiboot cluster before it will be deleted (default: null)",
-            type=TimeDelta(name="max_session_timeout"),
+            help="The default maximum session timeout for a Beiboot cluster before it will be deleted (default: null)"
         ),
     )
     max_lifetime: str = field(
         default_factory=lambda: "null",
         metadata=dict(
-            help="The default maximum lifetime for a Beiboot cluster before it will be deleted (default: null)",
-            type=TimeDelta(name="max_lifetime"),
+            help="The default maximum lifetime for a Beiboot cluster before it will be deleted (default: null)"
         ),
     )
     namespace_prefix: str = field(
@@ -391,19 +388,3 @@ class InstallOptions:
             help="The default memory request for each Beiboot node pod (default: 1Gi)",
         ),
     )
-
-    @classmethod
-    def to_cli_options(cls) -> List[Dict[str, Union[bool, str, Any, None]]]:
-        result = []
-        for _field in fields(cls):
-            result.append(
-                dict(
-                    name=_field.name,
-                    long=_field.name.replace("_", "-"),
-                    short=_field.metadata.get("short"),
-                    required=False,
-                    help=_field.metadata.get("help"),
-                    type=_field.metadata.get("type") or "string",
-                )
-            )
-        return result

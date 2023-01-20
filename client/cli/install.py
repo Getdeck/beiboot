@@ -16,7 +16,11 @@ from beiboot.misc.uninstall import (
 from beiboot.types import InstallOptions
 
 from cli.console import error, info
-from cli.utils import multi_options, standard_error_handler
+from cli.utils import (
+    installoptions_to_cli_options,
+    multi_options,
+    standard_error_handler,
+)
 from cli.__main__ import cli as _cli
 
 PRESETS = {
@@ -43,7 +47,7 @@ PRESETS = {
     type=str,
 )
 @click.pass_context
-@multi_options(InstallOptions.to_cli_options())
+@multi_options(installoptions_to_cli_options())
 @standard_error_handler
 def install(ctx, component, preset, **kwargs):
     if preset:

@@ -1,4 +1,7 @@
+from dataclasses import fields
 from datetime import timedelta
+from typing import Any, Dict, List, Union
+from beiboot.types import InstallOptions
 import click
 from click import ClickException
 
@@ -221,3 +224,28 @@ def multi_options(options):
         return f
 
     return decorator
+
+
+def installoptions_to_cli_options() -> List[Dict[str, Union[bool, str, Any, None]]]:
+    result = []
+    for _field in fields(InstallOptions):
+        if _field.name in ["max_session_timeout", "max_lifetime"]:
+            _data = dict(
+                name=_field.name,
+                long=_field.name.replace("_", "-"),
+                short=_field.metadata.get("short"),
+                required=False,
+                help=_field.metadata.get("help"),
+                type=TimeDelta(name=_field.name),
+            )
+        else:
+            _data = dict(
+                name=_field.name,
+                long=_field.name.replace("_", "-"),
+                short=_field.metadata.get("short"),
+                required=False,
+                help=_field.metadata.get("help"),
+                type=_field.metadata.get("type") or "string",
+            )
+        result.append(_data)
+    return result
