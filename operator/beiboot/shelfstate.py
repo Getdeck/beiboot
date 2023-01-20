@@ -45,6 +45,7 @@ class Shelf(StateMachine):
         self.current_state_value = model.get("state")
         self.logger = logger
         self.persistent_volume_claims = persistent_volume_claims
+        self.volume_snapshot_names = []
         self.cluster_default_volume_snapshot_class = cluster_default_volume_snapshot_class
         self.cluster_namespace = cluster_namespace
         self.custom_api = k8s.client.CustomObjectsApi()
@@ -72,15 +73,21 @@ class Shelf(StateMachine):
     @property
     def pvc_mapping(self) -> dict:
         """
-        Return mapping of node-name to PVC that node uses
+        Return mapping of node-name to PVC that node uses and set internal list of VolumeSnapshot-names
         """
         if self.persistent_volume_claims:
-            return self.persistent_volume_claims
+            pvc_mapping = self.persistent_volume_claims
+            volume_snapshot_names = [f"{self.name}-{pvc_name}" for pvc_name in pvc_mapping.keys()]
         else:
             pvc_mapping = {}
+            volume_snapshot_names = []
             for volume_snapshot_content in self.model["volumeSnapshotContents"]:
-                pvc_mapping[volume_snapshot_content.get("node")] = volume_snapshot_content.get("pvc")
-            return pvc_mapping
+                pvc_name = volume_snapshot_content.get("pvc")
+                pvc_mapping[volume_snapshot_content.get("node")] = pvc_name
+                volume_snapshot_names.append(f"{self.name}-{pvc_name}")
+        # TODO: this only works if all states are traversed!
+        self.volume_snapshot_names = volume_snapshot_names
+        return pvc_mapping
 
     @property
     def volume_snapshot_class(self):
@@ -305,8 +312,71 @@ class Shelf(StateMachine):
             version="v1",
         )
 
-    def volume_snapshots_ready(self, objects_ap: k8s.client.CustomObjectsApi):
-        pass
+    def volume_snapshots_ready(self, objects_api: k8s.client.CustomObjectsApi):
+        volume_snapshots = objects_api.list_namespaced_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            namespace=self.cluster_namespace,
+            plural="volumesnapshots",
+        )
+        volume_snapshot_contents = objects_api.list_cluster_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            plural="volumesnapshotcontents",
+        )
+        # store data that we might want to update on the CRD
+        data_volume_snapshot_contents = []
+        all_ready = True
+        self.logger.info(f"type(volume_snapshots): {type(volume_snapshots)}")
+        self.logger.info(f"volume_snapshots: {volume_snapshots}")
+        for volume_snapshot in volume_snapshots["items"]:
+            self.logger.info(f"volume_snapshot: {volume_snapshot}")
+            volume_snapshot_name = volume_snapshot["metadata"]["name"]
+            if volume_snapshot_name in self.volume_snapshot_names:
+                if not volume_snapshot["status"].get("readyToUse"):
+                    all_ready = False
+                crd_data = self._get_crd_volume_snapshot_content_from_list(
+                    self.model["volumeSnapshotContents"],
+                    volume_snapshot_name
+                )
+                volume_snapshot_content_name = volume_snapshot["status"].get("boundVolumeSnapshotContentName")
+                volume_snapshot_content = self._get_volume_snapshot_content_from_list(
+                    volume_snapshot_contents["items"],
+                    volume_snapshot_content_name
+                )
+                if not crd_data or not volume_snapshot_content:
+                    raise kopf.TemporaryError(
+                        f"volume_snapshot_content not found in shelf CRD, or in VolumeSnapshotContents, for "
+                        f"VolumeSnapshot {volume_snapshot_name}",
+                        delay=1,
+                    )
+                data_volume_snapshot_contents.append({
+                    "snapshotHandle": volume_snapshot_content["status"].get("snapshotHandle", ""),
+                    "node": crd_data["node"],
+                    "pvc": crd_data["pvc"],
+                    "name": volume_snapshot_content_name,
+                })
 
-    def set_volume_snapshot_contents(self, objects_ap: k8s.client.CustomObjectsApi):
+        if data_volume_snapshot_contents != self.model["volumeSnapshotContents"]:
+            data = {
+                "volumeSnapshotContent": data_volume_snapshot_contents
+            }
+            self._patch_object(data)
+        return all_ready
+
+    def _get_volume_snapshot_content_from_list(self, iterable: list, name: str):
+        """Return VolumeSnapshotContent from list that was returned bei k8s api."""
+        for element in iterable:
+            if element["metadata"]["name"] == name:
+                return element
+        return None
+
+    def _get_crd_volume_snapshot_content_from_list(self, iterable: list, name: str):
+        """Return volumeSnapshotContent from list that is stored in shelf crd."""
+        for element in iterable:
+            if element["name"] == name:
+                return element
+        return None
+
+    def set_volume_snapshot_contents(self, objects_api: k8s.client.CustomObjectsApi):
         pass
