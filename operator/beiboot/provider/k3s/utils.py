@@ -150,8 +150,6 @@ def create_k3s_server_workload(
         spec=spec,
     )
 
-    logger.info(f"server workload: {workload}")
-
     return workload
 
 
@@ -268,8 +266,6 @@ def create_k3s_agent_workload(
         ),
         spec=spec,
     )
-
-    logger.info(f"agent workload {workload}")
 
     return workload
 

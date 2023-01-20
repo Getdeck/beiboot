@@ -329,7 +329,7 @@ def handle_create_volume_snapshot(logger, body: dict):
     namespace = body.get('metadata').get('namespace')
     k8s.client.CustomObjectsApi().create_namespaced_custom_object(
         group="snapshot.storage.k8s.io",
-        version="v1beta1",
+        version="v1",
         namespace=f"{namespace}",
         plural="volumesnapshots",
         body=body,
@@ -391,7 +391,7 @@ def handle_create_volume_snapshot_content(logger, body: dict):
     #  it here
     k8s.client.CustomObjectsApi().create_cluster_custom_object(
         group="snapshot.storage.k8s.io",
-        version="v1beta1",
+        version="v1",
         plural="volumesnapshotcontents",
         body=body,
     )

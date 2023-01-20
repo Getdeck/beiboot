@@ -1,4 +1,5 @@
 import traceback
+from asyncio import sleep
 
 import kubernetes as k8s
 import kopf
@@ -32,19 +33,20 @@ async def shelf_created(body, logger, **kwargs):
         parameters = bbt_configuration.refresh_k8s_config(body.get("parameters"))
         logger.debug(parameters)
         cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
-        logger.info(f"cluster.configuration: {cluster.configuration}")
-        logger.info(f"cluster.parameters: {cluster.parameters}")
-        logger.info(f"cluster.model: {cluster.model}")
         pvcs = await cluster.provider.get_pvc_mapping()
         shelf.set_persistent_volume_claims(pvcs)
+        shelf.set_cluster_namespace(cluster.namespace)
         # figure out whether volumeSnapshotClass needs to be set and to which value
+        logger.info(f"shelf.volume_snapshot_class: {shelf.volume_snapshot_class}")
         if not shelf.volume_snapshot_class:
             configmap_name = cluster.configuration.CONFIGMAP_NAME
             configmap = core_api.read_namespaced_config_map(
                 name=configmap_name,
                 namespace=cluster.configuration.NAMESPACE
             )
-            shelf.set_volume_snapshot_class(configmap.data["shelfStorageClass"])
+            logger.info(f"configmap.data['shelfStorageClass']: {configmap.data['shelfStorageClass']}")
+            # TODO: raise permanent error if shelfStorageClass is not set
+            shelf.set_cluster_default_volume_snapshot_class(configmap.data["shelfStorageClass"])
 
         try:
             await shelf.create()
@@ -61,21 +63,37 @@ async def shelf_created(body, logger, **kwargs):
 
     if shelf.is_creating:
         logger.info("shelf.is_creating")
-        logger.info(f"shelf state before shelve(): {shelf.current_state}")
-        await shelf.shelve()
-        logger.info(f"shelf state after shelve(): {shelf.current_state}")
+        try:
+            await shelf.shelve()
+        except kopf.PermanentError as e:
+            await shelf.impair(str(e))
+            raise e from None
+        except Exception as e:  # noqa
+            logger.error(traceback.format_exc())
+            logger.error(
+                "Could not create shelf due to the following error: " + str(e)
+            )
+            await shelf.impair(str(e))
+            raise kopf.PermanentError(str(e))
 
     if shelf.is_pending:
-        logger.info(f"shelf state before reconcile(): {shelf.current_state}")
         logger.info("shelf.is_pending")
-        # await shelf.reconcile()
-        logger.info(f"shelf state after reconcile(): {shelf.current_state}")
+        if shelf.volume_snapshots_ready() is None:
+            # this means we don't yet have the reference to the VolumeSnapshotContents stored in the shelf CRD
+            shelf.set_volume_snapshot_contents(objects_api)
+        try:
+            await shelf.operate()
+            await sleep(1)
+        except kopf.PermanentError as e:
+            await shelf.impair(str(e))
+            raise e from None
 
     if shelf.is_ready:
         logger.info("shelf.is_ready")
-
-    if shelf.is_error:
+        await shelf.reconcile()
+    elif shelf.is_error:
         logger.info("shelf.is_error")
+        await shelf.reconcile()
 
     if shelf.is_terminating:
         logger.info("shelf.is_terminating")
