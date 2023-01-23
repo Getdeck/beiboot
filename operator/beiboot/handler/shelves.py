@@ -62,7 +62,6 @@ async def shelf_created(body, logger, **kwargs):
             raise kopf.PermanentError(str(e))
 
     if shelf.is_creating:
-        logger.info("shelf.is_creating")
         try:
             await shelf.shelve()
         except kopf.PermanentError as e:
@@ -77,10 +76,6 @@ async def shelf_created(body, logger, **kwargs):
             raise kopf.PermanentError(str(e))
 
     if shelf.is_pending:
-        logger.info("shelf.is_pending")
-        if await shelf.volume_snapshots_ready() is None:
-            # this means we don't yet have the reference to the VolumeSnapshotContents stored in the shelf CRD
-            shelf.set_volume_snapshot_contents()
         try:
             await shelf.operate()
             await sleep(1)
@@ -97,3 +92,17 @@ async def shelf_created(body, logger, **kwargs):
 
     if shelf.is_terminating:
         logger.info("shelf.is_terminating")
+
+
+@kopf.on.delete("shelf")
+async def shelf_deleted(body, logger, **kwargs):
+    """
+    It deletes the shelf if it's not REQUESTED state
+
+    :param body: thh body of the request
+    :param logger: a logger object
+    """
+    configuration = ShelfConfiguration()
+    shelf = Shelf(configuration, model=body, logger=logger)
+    if not shelf.is_requested:
+        await shelf.terminate()

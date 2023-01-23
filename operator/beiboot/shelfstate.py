@@ -6,7 +6,8 @@ import kubernetes as k8s
 import kopf
 
 from beiboot.configuration import ShelfConfiguration
-from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot
+from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot, \
+    handle_delete_volume_snapshot, handle_delete_volume_snapshot_content
 from beiboot.utils import StateMachine, AsyncState
 
 objects_api = k8s.client.CustomObjectsApi()
@@ -47,7 +48,7 @@ class Shelf(StateMachine):
         self.current_state_value = model.get("state")
         self.logger = logger
         self.persistent_volume_claims = persistent_volume_claims
-        self.volume_snapshot_names = []
+        self._volume_snapshot_names = []
         self.cluster_default_volume_snapshot_class = cluster_default_volume_snapshot_class
         self._cluster_namespace = cluster_namespace
         self.custom_api = k8s.client.CustomObjectsApi()
@@ -79,16 +80,17 @@ class Shelf(StateMachine):
         """
         if self.persistent_volume_claims:
             pvc_mapping = self.persistent_volume_claims
-            volume_snapshot_names = [f"{self.name}-{pvc_name}" for pvc_name in pvc_mapping.keys()]
+            volume_snapshot_names = [f"{self.name}-{node_name}" for node_name in pvc_mapping.keys()]
         else:
             pvc_mapping = {}
             volume_snapshot_names = []
             for volume_snapshot_content in self.model["volumeSnapshotContents"]:
                 pvc_name = volume_snapshot_content.get("pvc")
-                pvc_mapping[volume_snapshot_content.get("node")] = pvc_name
-                volume_snapshot_names.append(f"{self.name}-{pvc_name}")
-        # TODO: this only works if all states are traversed!
-        self.volume_snapshot_names = volume_snapshot_names
+                node_name = volume_snapshot_content.get("node")
+                pvc_mapping[node_name] = pvc_name
+                volume_snapshot_names.append(f"{self.name}-{node_name}")
+        # we need this as self.model is not updated immediately
+        self._volume_snapshot_names = volume_snapshot_names
         return pvc_mapping
 
     @property
@@ -98,6 +100,19 @@ class Shelf(StateMachine):
     @property
     def cluster_namespace(self):
         return self.model["clusterNamespace"] or self._cluster_namespace
+
+    @property
+    def volume_snapshot_names(self):
+        if self._volume_snapshot_names:
+            return self._volume_snapshot_names
+        else:
+            names = []
+            for volume_snapshot_content in self.model["volumeSnapshotContents"]:
+                try:
+                    names.append(volume_snapshot_content["volumeSnapshotName"])
+                except KeyError:
+                    continue
+            return names
 
     def completed_transition(self, state_value: str) -> Optional[str]:
         """
@@ -224,6 +239,7 @@ class Shelf(StateMachine):
             volume_snapshot_contents.append({
                 "node": sts_name,
                 "pvc": pvc_name,
+                "volumeSnapshotName": f"{self.name}-{sts_name}",
             })
         data = {
             "clusterNamespace": self.cluster_namespace,
@@ -244,21 +260,32 @@ class Shelf(StateMachine):
                 volume_snapshot_class=self.volume_snapshot_class,
                 pvc_name=pvc_name
             )
-            self.logger.info(f"volume_snapshot_resource: {volume_snapshot_resource}")
             handle_create_volume_snapshot(self.logger, body=volume_snapshot_resource)
 
     async def on_operate(self):
         """If shelf is ready (i.e. VolumeSnapshots and VolumeSnapshotContents have readyToUse=True), post the event
         and return. If the shelf is pending, check if it's been pending for longer than the timeout."""
-        if await self.volume_snapshots_ready():
+        if await self._volume_snapshots_ready():
             self.logger.info(f"snapshots are ready")
-            # TODO: add event posting
+            self.post_event(
+                self.requested.value,
+                f"The shelf is ready to use (i.e. all VolumeSnapshotContents for '{self.name}' are readyToUse)"
+            )
         else:
             # TODO: add timeout logic
             raise kopf.TemporaryError(
-                f"Waiting for shelf '{self.name}' to enter ready state (i.e. for all VolumeSnapshots to be readyToUse",
+                f"Waiting for shelf '{self.name}' to enter ready state (i.e. for all VolumeSnapshots to be readyToUse)",
                 delay=1,
             )
+
+    async def on_enter_terminating(self):
+        """
+        Try to delete VolumeSnapshots, delete VolumeSnapshotContents
+        """
+        try:
+            await self._delete()
+        except k8s.client.ApiException:
+            pass
 
     def _get_now(self) -> str:
         # TODO: refactor with clusterstate
@@ -319,7 +346,10 @@ class Shelf(StateMachine):
             version="v1",
         )
 
-    async def volume_snapshots_ready(self):
+    async def _volume_snapshots_ready(self):
+        """
+        Check whether VolumeSnapshots/VolumeSnapshotContents are readyToUse and update shelf CRD data if necessary.
+        """
         volume_snapshots = objects_api.list_namespaced_custom_object(
             group="snapshot.storage.k8s.io",
             version="v1",
@@ -338,60 +368,76 @@ class Shelf(StateMachine):
             )
         # store data that we might want to update on the CRD
         data_volume_snapshot_contents = []
-        all_ready = True
-        self.logger.info(f"type(volume_snapshots): {type(volume_snapshots)}")
-        self.logger.info(f"volume_snapshots: {volume_snapshots}")
+        ready = []
         for volume_snapshot in volume_snapshots["items"]:
-            self.logger.info(f"volume_snapshot: {volume_snapshot}")
             volume_snapshot_name = volume_snapshot["metadata"]["name"]
             if volume_snapshot_name in self.volume_snapshot_names:
-                if not volume_snapshot["status"].get("readyToUse"):
-                    all_ready = False
+                if volume_snapshot.get("status", {}).get("readyToUse"):
+                    ready.append(True)
+                else:
+                    ready.append(False)
                 crd_data = self._get_crd_volume_snapshot_content_from_list(
                     self.model["volumeSnapshotContents"],
                     volume_snapshot_name
                 )
-                volume_snapshot_content_name = volume_snapshot["status"].get("boundVolumeSnapshotContentName")
+                volume_snapshot_content_name = volume_snapshot.get("status", {}).get("boundVolumeSnapshotContentName")
                 volume_snapshot_content = self._get_volume_snapshot_content_from_list(
                     volume_snapshot_contents["items"],
                     volume_snapshot_content_name
                 )
                 if not crd_data or not volume_snapshot_content:
                     self.logger.info(
-                        f"CRD volumeSnapshotContent: {crd_data} | K8s VolumeSnapshotContent: {volume_snapshot_content}"
+                        f"CRD volumeSnapshotContent: {crd_data} | "
+                        f"K8s VolumeSnapshotContent: {volume_snapshot_content}"
                     )
                     raise kopf.TemporaryError(
                         f"volume_snapshot_content not found in shelf CRD, or in VolumeSnapshotContents, for "
                         f"VolumeSnapshot {volume_snapshot_name}",
                         delay=1,
                     )
-                data_volume_snapshot_contents.append({
-                    "snapshotHandle": volume_snapshot_content["status"].get("snapshotHandle", ""),
-                    "node": crd_data["node"],
-                    "pvc": crd_data["pvc"],
-                    "name": volume_snapshot_content_name,
-                })
+                data = crd_data.copy()
+                data["snapshotHandle"] = volume_snapshot_content.get("status", {}).get("snapshotHandle", "")
+                data["name"] = volume_snapshot_content_name
+                data_volume_snapshot_contents.append(data)
 
-        if data_volume_snapshot_contents != self.model["volumeSnapshotContents"]:
+        if data_volume_snapshot_contents and data_volume_snapshot_contents != self.model["volumeSnapshotContents"]:
             data = {
-                "volumeSnapshotContent": data_volume_snapshot_contents
+                "volumeSnapshotContents": data_volume_snapshot_contents
             }
             self._patch_object(data)
-        return all_ready
+
+        return all(ready)
 
     def _get_volume_snapshot_content_from_list(self, iterable: list, name: str):
         """Return VolumeSnapshotContent from list that was returned bei k8s api."""
-        for element in iterable:
-            if element["metadata"]["name"] == name:
-                return element
+        if name:
+            for element in iterable:
+                if element["metadata"]["name"] == name:
+                    return element
         return None
 
     def _get_crd_volume_snapshot_content_from_list(self, iterable: list, name: str):
         """Return volumeSnapshotContent from list that is stored in shelf crd."""
         for element in iterable:
-            if element["name"] == name:
+            if element.get("volumeSnapshotName") == name:
                 return element
         return None
 
-    def set_volume_snapshot_contents(self):
-        pass
+    async def _delete(self):
+        for crd_data in self.model["volumeSnapshotContents"]:
+            pvc_name = crd_data.get("pvc")
+            volume_snapshot_name = f"{self.name}-{pvc_name}"
+            self.logger.info(f"Deleting VolumeSnapshot {volume_snapshot_name}")
+            r = handle_delete_volume_snapshot(
+                logger=self.logger,
+                name=volume_snapshot_name,
+                namespace=self.cluster_namespace
+            )
+            self.logger.info(f"result: {r}")
+            self.logger.info(f"Deleting VolumeSnapshotContent {volume_snapshot_name}")
+            volume_snapshot_content_name = crd_data.get("name")
+            r = handle_delete_volume_snapshot_content(
+                logger=self.logger,
+                name=volume_snapshot_content_name,
+            )
+            self.logger.info(f"result: {r}")
