@@ -175,11 +175,11 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
                 items=k8s.client.V1JSONSchemaProps(
                     type="object",
                     properties={
-                        "name": k8s.client.V1JSONSchemaProps(type="string"),
-                        "node": k8s.client.V1JSONSchemaProps(type="string"),
-                        "pvc": k8s.client.V1JSONSchemaProps(type="string"),
-                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
-                        "volumeSnapshotName": k8s.client.V1JSONSchemaProps(type="string"),
+                        "name": k8s.client.V1JSONSchemaProps(type="string", default=""),
+                        "node": k8s.client.V1JSONSchemaProps(type="string", default=""),
+                        "pvc": k8s.client.V1JSONSchemaProps(type="string", default=""),
+                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string", default=""),
+                        "volumeSnapshotName": k8s.client.V1JSONSchemaProps(type="string", default=""),
                     }
                 )
             ),

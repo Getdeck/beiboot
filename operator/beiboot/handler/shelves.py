@@ -22,7 +22,6 @@ async def shelf_created(body, logger, **kwargs):
     :param body: The body of the Kubernetes resource that triggered the event
     :param logger: the logger object
     """
-    logger.info(f"shelf_created body: {body}")
     configuration = ShelfConfiguration()
     shelf = Shelf(configuration, model=body, logger=logger)
 
@@ -37,14 +36,12 @@ async def shelf_created(body, logger, **kwargs):
         shelf.set_persistent_volume_claims(pvcs)
         shelf.set_cluster_namespace(cluster.namespace)
         # figure out whether volumeSnapshotClass needs to be set and to which value
-        logger.info(f"shelf.volume_snapshot_class: {shelf.volume_snapshot_class}")
         if not shelf.volume_snapshot_class:
             configmap_name = cluster.configuration.CONFIGMAP_NAME
             configmap = core_api.read_namespaced_config_map(
                 name=configmap_name,
                 namespace=cluster.configuration.NAMESPACE
             )
-            logger.info(f"configmap.data['shelfStorageClass']: {configmap.data['shelfStorageClass']}")
             # TODO: raise permanent error if shelfStorageClass is not set
             shelf.set_cluster_default_volume_snapshot_class(configmap.data["shelfStorageClass"])
 
