@@ -325,28 +325,39 @@ def handle_create_volume_snapshot(logger, body: dict):
     :param logger: a logger object
     :param body: The dict that describes the K8s resource
     """
-    # FIXME: python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it here
-    namespace = body.get('metadata').get('namespace')
-    k8s.client.CustomObjectsApi().create_namespaced_custom_object(
-        group="snapshot.storage.k8s.io",
-        version="v1",
-        namespace=f"{namespace}",
-        plural="volumesnapshots",
-        body=body,
-    )
-    logger.debug(
-        f"VolumeSnapshot {body.get('metadata').get('name')} in namespace {namespace} created."
-    )
+    try:
+        # FIXME: python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it 
+        #  here
+        namespace = body.get('metadata').get('namespace')
+        k8s.client.CustomObjectsApi().create_namespaced_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            namespace=f"{namespace}",
+            plural="volumesnapshots",
+            body=body,
+        )
+        logger.info(
+            f"Created VolumeSnapshot {body.get('metadata').get('name')} in namespace {namespace}."
+        )
+    except k8s.client.exceptions.ApiException as e:
+        raise e
 
 
-def handle_delete_volume_snapshot(logger, name: str, namespace: str):
-    k8s.client.CustomObjectsApi().delete_namespaced_custom_object(
-        group="snapshot.storage.k8s.io",
-        version="v1",
-        namespace=f"{namespace}",
-        plural="volumesnapshots",
-        name=name,
-    )
+async def handle_delete_volume_snapshot(logger, name: str, namespace: str) -> Optional[k8s.client.V1Status]:
+    try:
+        # FIXME: python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it 
+        #  here
+        status = k8s.client.CustomObjectsApi().delete_namespaced_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            namespace=f"{namespace}",
+            plural="volumesnapshots",
+            name=name,
+        )
+        logger.info(f"Deleted VolumeSnapshot {name} in namespace {namespace}")
+        return status
+    except k8s.client.exceptions.ApiException:
+        return None
 
 
 def create_volume_snapshot_content_pre_provisioned_resource(
@@ -397,23 +408,33 @@ def handle_create_volume_snapshot_content(logger, body: dict):
     :param logger: a logger object
     :param body: The dict that describes the K8s resource
     """
-    # FIXME: python-kubernetes doesn't support VolumeSnapshotContents; if it does support them one day, we can change
-    #  it here
-    k8s.client.CustomObjectsApi().create_cluster_custom_object(
-        group="snapshot.storage.k8s.io",
-        version="v1",
-        plural="volumesnapshotcontents",
-        body=body,
-    )
-    logger.debug(
-        f"VolumeSnapshotContent {body.get('metadata').get('name')} created."
-    )
+    try:
+        # FIXME: python-kubernetes doesn't support VolumeSnapshotContents; if it does support them one day, we can 
+        #  change it here
+        k8s.client.CustomObjectsApi().create_cluster_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            plural="volumesnapshotcontents",
+            body=body,
+        )
+        logger.info(
+            f"VolumeSnapshotContent {body.get('metadata').get('name')} created."
+        )
+    except k8s.client.exceptions.ApiException as e:
+        raise e
 
 
-def handle_delete_volume_snapshot_content(logger, name: str):
-    k8s.client.CustomObjectsApi().delete_cluster_custom_object(
-        group="snapshot.storage.k8s.io",
-        version="v1",
-        plural="volumesnapshots",
-        name=name,
-    )
+async def handle_delete_volume_snapshot_content(logger, name: str) -> Optional[k8s.client.V1Status]:
+    try:
+        # FIXME: python-kubernetes doesn't support VolumeSnapshotContents; if it does support them one day, we can 
+        #  change it here
+        status = k8s.client.CustomObjectsApi().delete_cluster_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            plural="volumesnapshotcontents",
+            name=name,
+        )
+        logger.info(f"Deleted VolumeSnapshotContent {name}")
+        return status
+    except k8s.client.exceptions.ApiException:
+        return None
