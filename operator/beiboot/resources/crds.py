@@ -176,15 +176,15 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
                     type="object",
                     properties={
                         "name": k8s.client.V1JSONSchemaProps(type="string"),
-                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
                         "node": k8s.client.V1JSONSchemaProps(type="string"),
                         "pvc": k8s.client.V1JSONSchemaProps(type="string"),
-                        # "status": k8s.client.V1JSONSchemaProps(type="string"),
+                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
                     }
                 )
             ),
             "volumeSnapshotClass": k8s.client.V1JSONSchemaProps(type="string", default=""),
-            "clusterName": k8s.client.V1JSONSchemaProps(type="string"),
+            "clusterName": k8s.client.V1JSONSchemaProps(type="string", default=""),
+            "clusterNamespace": k8s.client.V1JSONSchemaProps(type="string", default=""),
             # copy of the parameters with which the beiboot cluster originally was provisioned
             "parameters": BEIBOOT_PARAMETERS,
             "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),

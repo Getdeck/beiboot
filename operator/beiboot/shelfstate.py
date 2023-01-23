@@ -9,6 +9,8 @@ from beiboot.configuration import ShelfConfiguration
 from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot
 from beiboot.utils import StateMachine, AsyncState
 
+objects_api = k8s.client.CustomObjectsApi()
+
 
 class Shelf(StateMachine):
     """
@@ -47,7 +49,7 @@ class Shelf(StateMachine):
         self.persistent_volume_claims = persistent_volume_claims
         self.volume_snapshot_names = []
         self.cluster_default_volume_snapshot_class = cluster_default_volume_snapshot_class
-        self.cluster_namespace = cluster_namespace
+        self._cluster_namespace = cluster_namespace
         self.custom_api = k8s.client.CustomObjectsApi()
         self.core_api = k8s.client.CoreV1Api()
         self.events_api = k8s.client.EventsV1Api()
@@ -56,7 +58,7 @@ class Shelf(StateMachine):
         self.persistent_volume_claims = persistent_volume_claims
 
     def set_cluster_namespace(self, namespace: str):
-        self.cluster_namespace = namespace
+        self._cluster_namespace = namespace
 
     def set_cluster_default_volume_snapshot_class(self, volume_snapshot_class: str):
         self.cluster_default_volume_snapshot_class = volume_snapshot_class
@@ -92,6 +94,10 @@ class Shelf(StateMachine):
     @property
     def volume_snapshot_class(self):
         return self.model["volumeSnapshotClass"] or self.cluster_default_volume_snapshot_class
+
+    @property
+    def cluster_namespace(self):
+        return self.model["clusterNamespace"] or self._cluster_namespace
 
     def completed_transition(self, state_value: str) -> Optional[str]:
         """
@@ -220,6 +226,7 @@ class Shelf(StateMachine):
                 "pvc": pvc_name,
             })
         data = {
+            "clusterNamespace": self.cluster_namespace,
             "volumeSnapshotContents": volume_snapshot_contents,
             "volumeSnapshotClass": self.volume_snapshot_class
         }
@@ -243,7 +250,7 @@ class Shelf(StateMachine):
     async def on_operate(self):
         """If shelf is ready (i.e. VolumeSnapshots and VolumeSnapshotContents have readyToUse=True), post the event
         and return. If the shelf is pending, check if it's been pending for longer than the timeout."""
-        if await self._volume_snapshots_ready():
+        if await self.volume_snapshots_ready():
             self.logger.info(f"snapshots are ready")
             # TODO: add event posting
         else:
@@ -312,7 +319,7 @@ class Shelf(StateMachine):
             version="v1",
         )
 
-    def volume_snapshots_ready(self, objects_api: k8s.client.CustomObjectsApi):
+    async def volume_snapshots_ready(self):
         volume_snapshots = objects_api.list_namespaced_custom_object(
             group="snapshot.storage.k8s.io",
             version="v1",
@@ -324,6 +331,11 @@ class Shelf(StateMachine):
             version="v1",
             plural="volumesnapshotcontents",
         )
+        if not volume_snapshot_contents["items"]:
+            raise kopf.TemporaryError(
+                f"No VolumeSnapshotContents available.",
+                delay=1,
+            )
         # store data that we might want to update on the CRD
         data_volume_snapshot_contents = []
         all_ready = True
@@ -345,6 +357,9 @@ class Shelf(StateMachine):
                     volume_snapshot_content_name
                 )
                 if not crd_data or not volume_snapshot_content:
+                    self.logger.info(
+                        f"CRD volumeSnapshotContent: {crd_data} | K8s VolumeSnapshotContent: {volume_snapshot_content}"
+                    )
                     raise kopf.TemporaryError(
                         f"volume_snapshot_content not found in shelf CRD, or in VolumeSnapshotContents, for "
                         f"VolumeSnapshot {volume_snapshot_name}",
@@ -378,5 +393,5 @@ class Shelf(StateMachine):
                 return element
         return None
 
-    def set_volume_snapshot_contents(self, objects_api: k8s.client.CustomObjectsApi):
+    def set_volume_snapshot_contents(self):
         pass

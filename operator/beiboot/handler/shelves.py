@@ -78,9 +78,9 @@ async def shelf_created(body, logger, **kwargs):
 
     if shelf.is_pending:
         logger.info("shelf.is_pending")
-        if shelf.volume_snapshots_ready(objects_api) is None:
+        if await shelf.volume_snapshots_ready() is None:
             # this means we don't yet have the reference to the VolumeSnapshotContents stored in the shelf CRD
-            shelf.set_volume_snapshot_contents(objects_api)
+            shelf.set_volume_snapshot_contents()
         try:
             await shelf.operate()
             await sleep(1)
