@@ -42,7 +42,11 @@ async def shelf_created(body, logger, **kwargs):
                 name=configmap_name,
                 namespace=cluster.configuration.NAMESPACE
             )
-            # TODO: raise permanent error if shelfStorageClass is not set
+            if not configmap.data["shelfStorageClass"]:
+                error_msg = f"Neither volumeSnapshotClass is set on shelf CRD '{shelf.name}, nor shelfStorageClass " \
+                            f"is configured for beiboot cluster {cluster.name}"
+                shelf.impair(error_msg)
+                raise kopf.PermanentError(error_msg)
             shelf.set_cluster_default_volume_snapshot_class(configmap.data["shelfStorageClass"])
 
         try:

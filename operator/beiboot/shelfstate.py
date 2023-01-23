@@ -290,6 +290,9 @@ class Shelf(StateMachine):
         except k8s.client.ApiException:
             pass
 
+    async def on_impair(self, reason: str):
+        self.post_event(self.error.value, f"The shelf has become defective: {reason}")
+
     def _get_now(self) -> str:
         # TODO: refactor with clusterstate
         return datetime.utcnow().isoformat(timespec="microseconds") + "Z"
