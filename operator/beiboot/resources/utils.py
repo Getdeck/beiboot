@@ -339,6 +339,16 @@ def handle_create_volume_snapshot(logger, body: dict):
     )
 
 
+def handle_delete_volume_snapshot(logger, name: str, namespace: str):
+    k8s.client.CustomObjectsApi().delete_namespaced_custom_object(
+        group="snapshot.storage.k8s.io",
+        version="v1",
+        namespace=f"{namespace}",
+        plural="volumesnapshots",
+        name=name,
+    )
+
+
 def create_volume_snapshot_content_pre_provisioned_resource(
         name: str,
         driver: str,
@@ -397,4 +407,13 @@ def handle_create_volume_snapshot_content(logger, body: dict):
     )
     logger.debug(
         f"VolumeSnapshotContent {body.get('metadata').get('name')} created."
+    )
+
+
+def handle_delete_volume_snapshot_content(logger, name: str):
+    k8s.client.CustomObjectsApi().delete_cluster_custom_object(
+        group="snapshot.storage.k8s.io",
+        version="v1",
+        plural="volumesnapshots",
+        name=name,
     )

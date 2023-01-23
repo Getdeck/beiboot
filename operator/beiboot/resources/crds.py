@@ -179,6 +179,7 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
                         "node": k8s.client.V1JSONSchemaProps(type="string"),
                         "pvc": k8s.client.V1JSONSchemaProps(type="string"),
                         "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string"),
+                        "volumeSnapshotName": k8s.client.V1JSONSchemaProps(type="string"),
                     }
                 )
             ),
