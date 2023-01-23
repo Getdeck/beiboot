@@ -17,6 +17,17 @@ def write_heartbeat(
     timestamp: Optional[datetime] = None,
     config: ClientConfiguration = default_configuration,
 ) -> datetime:
+    """
+    Create a client contact entry to the heartbeat configmap for a Beiboot. Returns the timestamp written to the
+    configmap.
+
+    :param client_id: The client id to write the contact entry on behalf of
+    :type client_id: str
+    :param bbt: The Beiboot to write a heartbeat for
+    :type bbt: Beiboot
+    :param timestamp: Optional timestamp to write to the configmap
+    :type timestamp: datetime
+    """
 
     if timestamp is None:
         timestamp = datetime.utcnow()
