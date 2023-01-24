@@ -25,6 +25,7 @@ exclude = ["cli"]
 python = "^3.9"
 kubernetes = "^23.3.0"
 docker = "^6.0.0"
+chardet = "^5.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.1"
