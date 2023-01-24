@@ -213,7 +213,7 @@ spec:
         app: beiboot-operator
     spec:
       containers:
-      - image: quay.io/getdeck/beiboot:1.2.0
+      - image: quay.io/getdeck/beiboot:1.3.0
         imagePullPolicy: Always
         name: beiboot
         ports:
