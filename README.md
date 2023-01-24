@@ -19,9 +19,9 @@
   <h3 align="center">Getdeck Beiboot</h3>
 
   <p align="center">
-    Getdeck Beiboot is a Kubernetes-in-Kubernetes solution. It allows creating multiple logical Kubernetes environments within one physical host cluster.
+    Getdeck Beiboot is a Kubernetes-in-Kubernetes solution. It allows managing, snapshotting, and restoring many logical Kubernetes environments running on top of one physical host cluster.
     <br />
-    <a href="https://getdeck.dev/docs/"><strong>Explore the docs »</strong></a>
+    <a href="https://getdeck.dev/beiboot/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://github.com/Getdeck/beiboot/issues">Report Bug</a>
@@ -60,34 +60,27 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About the project
-_Getdeck Beiboot_ (or just Beiboot for brevity) is a Kubernetes-in-Kubernetes solution. It was born from the idea to 
-provide Getdeck users a simple yet flexible solution to spin up **hybrid cloud development** infrastructure. This is 
-useful for development workloads which grew too large to run on a development machine (or with pony workloads on MacOS 
-and Windows machines).
+**The Problem**  
+With complex application landscapes, running Kubernetes-based workloads locally becomes infeasible. Swiftly testing applications with different Kubernetes versions can be impossible depending on organizational policies. Spinning up a Kubernetes cluster with Terraform or Cloud providers takes to long for a convenient development workflow or CI pipelines.
+
+**The Solution**  
+With Beiboot you only need one host Kubernetes cluster that runs the Getdeck Beiboot operator. Beiboot creates Kubernetes clusters as deployments in a matter of seconds. The operator creates several ways to connect to that cluster and makes it simple to get started working with Kubernetes.
 
 ### Features
 Beiboot offers:
-- to create a fresh ad-hoc Kubernetes cluster in seconds (much faster than Terraform or your favorite cloud-provider)
-- run isolated workloads within Kubernetes; cheap with the best resource utilization
-- automatic distribution of _kubeconfig_ and proxied connection on clients
+- to create a fresh ad-hoc Kubernetes cluster in seconds (much faster than Terraform or Cloud-provider)
+- automatic management of Beiboot clusters (via lifetime, inactivity, etc.)
+- shelve ("snapshot") a running Beiboot cluster with state and restore them as often as needed
+- run isolated workloads within Kubernetes; cheap and with the best resource utilization
+- automatic distribution of kubeconfig and tunnel connection to clients (using the Beiboot client package)
 - built-in support for [Gefyra](https://gefyra.dev)
 
-### What is **hybrid cloud development**?  
-For an efficient Kubernetes-based development workflow it is important to run as many dependant (or attached) services of
-the application under development in Kubernetes - even during development time. Almost all the attached services run in a
-Kubernetes cluster somewhere in the cloud. However, the application currently under development runs on the developer's machine
-and behaves as it would run directly in that Kubernetes cluster.  
-The developed application: runs locally - all the rest of the development workload: runs in the cloud = hybrid cloud development.  
-Check out [Gefyra](https://gefyra.dev) to see how this works.
 
 ### Kubernetes-in-Kubernetes
-There are a couple of aspects why a logical ("virtual") Kubernetes cluster running within a physical Kubernetes cluster 
-is beneficial. The main focus currently is spinning up on demand Kubernetes clusters for development and testing 
-purposes, although Beiboot has potential for other scenarios, too (e.g. strong workload isolation, multi-tenancy 
-and security).    
+There are many use-cases running a logical ("virtual") Kubernetes cluster within a physical Kubernetes cluster. The main focus of Beiboot is the on-demand creation of Kubernetes clusters for development and testing purposes. Beiboot has potential for other scenarios, too. For example, strong workload isolation, multi-tenancy, CI, security and more.   
   
-Beiboot comes with a Kubernetes operator which handles the ad-hoc logical clusters based on the requested parameters. 
-This includes the Kubernetes version, the way of exposing the cluster, lifetime and so on.  
+Beiboot comes with a Kubernetes operator that handles the ad-hoc logical clusters based on the requested parameters. 
+This includes the Kubernetes version, the way of exposing the cluster, lifetime and so on. It can also snapshop ("shelve") and restore a cluster many times.
 
 <div align="center">
     <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-ops.png" alt="Beiboot operator"/>
@@ -104,57 +97,53 @@ Beiboot builds on top of the following popular open-source technologies:
 ### Docker
 [*Docker*](https://docker.io) is currently used in order to run the proxy setup for clients.
 
+### Kopf Framework
+[*Kopf*](https://github.com/nolar/kopf) a framework to write Python-based Kubernetes operators.
+
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
 ## Getting Started
+### `beibootctl`
+Please download the latest version of `beibootctl` from [the GitHub release section](https://github.com/Getdeck/beiboot/releases/latest/) and add it to your path.
 
 ### Install the operator to the Kubernetes host cluster
 Install the Getdeck Beiboot operator with:
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/Getdeck/beiboot/main/operator/manifests/beiboot.yaml
+beibootctl install | kubectl apply -f -
 ```
 This creates the target namespace `getdeck` for the operator and kubernetes extension (CRD) `beiboot, beiboots, bbt`.
 
+[For more information about the installation, check out the docs.](https://getdeck.dev/beiboot/installation/basics/)
+
 
 ### Usage
-There are multiple ways you can manage Beiboot in a Kubernetes host cluster.
+There are multiple ways you can manage Beiboot in a Kubernetes host cluster. The clients of Beiboot create a mTLS secured connection, making the Beiboot cluster become available on *localhost*. That way,
+Beiboot feels like it would run on the developer's machiene.
+
+<div align="center">
+    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-client-connection.png" alt="Beiboot client connect"/>
+</div>
+
+
+#### Using `beibootctl`
+The static binary `beibootctl` is created for Beiboot administrators. It allows to create, delete, inspect Beiboot clusters and connect to them. [Please check out the documentation.](https://getdeck.dev/beiboot/beibootctl/)
+
+<div align="center">
+    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-demo.gif" alt="beibootctl demo"/>
+</div>
 
 #### Beiboot Python client
-Getdeck Beiboot comes with a Python client. You find it in this repository under `client/` or on PyPI. The API offers
-a couple of functions to manage Beiboot and establish a local connection to logical Kubernetes clusters.
+Getdeck Beiboot comes with a Python client. You find it in this repository under `client/` or [on PyPI](https://pypi.org/project/beiboot/). The API offers many functions to manage Beiboot and establish a local connection to Beiboot clusters.
 
 ##### Using Poetry
 **Important:** Using Poetry is only intended for development and testing purposes of Beiboot itself.
-In order to create a Beiboot and automatically connect to it, run from the `client/` directory:
+You can use it like so:
 ```bash
-poetry run create cluster-1
-```
-and it will output:
-```
-[INFO] Now creating Beiboot cluster-1
-[INFO] Waiting for the cluster to become ready
-[INFO] KUBECONFIG file for cluster-1 written to: /home/<user>/.getdeck/cluster-1.yaml.
-[INFO] You can now run 'export KUBECONFIG=/home/<user>/.getdeck/cluster-1.yaml' and work with the cluster.
+portry run beibootctl ...
 ```
 
-A local Docker container has been started to proxy the Kubernes API to you local host.
-```
-> docker ps
-CONTAINER ID   IMAGE                            COMMAND                  CREATED         STATUS         PORTS  NAMES
-e17...1b9db2   quay.io/getdeck/tooler:latest    "kubectl port-forwar…"   2 minutes ago   Up 2 minutes          getdeck-proxy-cluster-1
-```
-
-The following system architecture has been set up with this example.
-<div align="center">
-    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-client.png" alt="Beiboot client"/>
-</div>
-
-Delete the logical Kubernetes cluster again with:
-```bash
-poetry run remove cluster-1
-```
 
 ##### API documentation
 Coming soon.
@@ -163,43 +152,8 @@ Coming soon.
 Beiboot will soon be integrated with [Getdeck](https://getdeck.dev/docs/deckfile/specs#provider) as a new "provider", so
 you can use _Deckfiles_ as origin for Beiboots.
 
-#### With bare kubectl 
-Creating a logical Kubernetes cluster using Beiboot is very easy:
-```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: getdeck.dev/v1
-kind: beiboot
-metadata:
-  name: cluster-1
-  namespace: getdeck
-provider: k3s
-EOF
-```
-It creates an object of type `beiboot`. Required fields are `name` and `provider` (currently only _k3s_ is supported). 
-```bash
-> kubectl -n getdeck get bbt 
-NAME        AGE
-cluster-1   1m22s
-```
-The cluster is going to be created in namespace `getdeck-bbt-cluster-1` of the host cluster. Once the cluster is ready
-you can retrive the _kubeconfig_ from the `beiboot` object running
-```bash
-kubectl -n getdeck get bbt cluster-1 --no-headers -o=custom-columns=:.kubeconfig.source | base64 -d > cluster-1.yaml
-```
-**Important:** Please note that this _kubeconfig_ specifies the server to be reachable at `https://127.0.0.1:6443`.
-To reach this logical Kubernetes cluster you have to set up a `kubectl port-forward` on your local machine.
-```bash
-kubectl port-forward -n getdeck-bbt-cluster-1 svc/kubeapi 6443:6443
-```
-Now, in a different terminal you can set `export KUBECONFIG=<path>/cluster-1.yaml` and you are ready to go. In this
-terminal session you can now use `kubectl` just as usual.  
-
-If you wish to remove the logical Kubernetes cluster, please type
-```bash
-kubectl -n getdeck delete bbt cluster-1
-```
-and the entire namespace in the host cluster will be gone in a matter of seconds.
-
+#### Beiboot Desktop
+We're currently working on releasing [a desktop client](https://github.com/Getdeck/beiboot-desktop) for end users  of Beiboot, e.g. developers and testers.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
