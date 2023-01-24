@@ -26,13 +26,14 @@ class ClusterFactory:
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        shelf_name,
         **kwargs
     ):
         builder = self._builders.get(provider_type.value)
         if not builder:
             raise ValueError(provider_type)
         return builder(
-            configuration, cluster_parameter, name, namespace, ports, logger, **kwargs
+            configuration, cluster_parameter, name, namespace, ports, logger, shelf_name, **kwargs
         )
 
     def get(
@@ -44,6 +45,7 @@ class ClusterFactory:
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        shelf_name: str = None,
         **kwargs
     ) -> AbstractClusterProvider:
         return self.__create(
@@ -54,6 +56,7 @@ class ClusterFactory:
             namespace,
             ports,
             logger,
+            shelf_name,
             **kwargs
         )
 

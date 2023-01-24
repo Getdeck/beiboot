@@ -289,3 +289,40 @@ class AsyncStateMachine(BaseStateMachine):
 
 
 StateMachine = StateMachineMetaclass("StateMachine", (AsyncStateMachine,), {})
+
+
+def get_shelf_by_name(name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"):
+    """Return the Shelf object of the given name
+
+    :param name: name of the shelf
+    :type name: str
+    :param namespace: the namespace of the shelf
+    :type namespace: str
+    :param api_instance: the kubernetes client
+    :type api_instance: k8s.client.CustomObjectsApi
+    """
+    shelf = api_instance.get_namespaced_custom_object(
+        namespace=namespace,
+        name=name,
+        group="beiboots.getdeck.dev",
+        plural="shelves",
+        version="v1",
+    )
+    return shelf
+
+
+def get_volume_snapshot_class_by_name(name: str, api_instance: k8s.client.CustomObjectsApi):
+    """Return the VolumeSnapshotClass object of the given name
+
+    :param name: name of the VolumeSnapshotClass
+    :type name: str
+    :param api_instance: the kubernetes client
+    :type api_instance: k8s.client.CustomObjectsApi
+    """
+    volume_snapshot_class = api_instance.get_cluster_custom_object(
+        name=name,
+        group="snapshot.storage.k8s.io",
+        plural="volumesnapshotclasses",
+        version="v1",
+    )
+    return volume_snapshot_class

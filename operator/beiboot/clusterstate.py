@@ -103,6 +103,7 @@ class BeibootCluster(StateMachine):
             self.namespace,
             self.parameters.ports,
             self.logger,
+            self.model.get("fromShelf"),
         )
         if provider is None:
             raise kopf.PermanentError(

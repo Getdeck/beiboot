@@ -8,7 +8,7 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod, get_label_selector
+from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name
 
 from .utils import (
     create_k3s_server_workload,
@@ -17,10 +17,11 @@ from .utils import (
     PVC_PREFIX_SERVER,
     PVC_PREFIX_NODE
 )
-from ...resources.utils import handle_delete_statefulset, handle_delete_service
+from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf
 
 core_api = k8s.client.CoreV1Api()
 app_api = k8s.client.AppsV1Api()
+custom_api = k8s.client.CustomObjectsApi()
 
 
 class K3s(AbstractClusterProvider):
@@ -41,13 +42,18 @@ class K3s(AbstractClusterProvider):
         namespace: str,
         ports: Optional[List[str]],
         logger,
-        # from_shelf: str = None
+        shelf_name: str = None,
     ):
-        super().__init__(name, namespace, ports)
+        super().__init__(name, namespace, ports, shelf_name)
         self.configuration = configuration
-        self.parameters = cluster_parameter
+        if shelf_name:
+            shelf = get_shelf_by_name(name=shelf_name, api_instance=custom_api, namespace=configuration.NAMESPACE)
+            self.shelf = shelf
+            self.parameters = shelf["clusterParameters"]
+        else:
+            self.shelf = None
+            self.parameters = cluster_parameter
         self.logger = logger
-        # self.from_shelf = from_shelf
 
     def _check_image_exists(self, k8s_version: str) -> Optional[str]:
         _b = k8s_version.lower().replace("v", "")
@@ -139,13 +145,14 @@ class K3s(AbstractClusterProvider):
             self.logger.error(str(e))
             raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
 
-    # async def create_new(self) -> bool:
-    async def create(self) -> bool:
+    async def create_new(self) -> bool:
         from beiboot.utils import generate_token
         from beiboot.resources.utils import (
             handle_create_statefulset,
             handle_create_service,
         )
+
+        self.logger.info(f"create_new")
 
         node_token = generate_token()
         server_workloads = [
@@ -158,7 +165,6 @@ class K3s(AbstractClusterProvider):
                 self.kubeconfig_from_location,
                 self.api_server_container_name,
                 self.parameters,
-                # TODO: add VolumeSnapshot-name (specific one!)
             )
         ]
         node_workloads = [
@@ -170,7 +176,6 @@ class K3s(AbstractClusterProvider):
                 self.k3s_image_pullpolicy,
                 self.parameters,
                 node,
-                # TODO: add VolumeSnapshot-name (specific one!)
             )
             for node in range(
                 1, self.parameters.nodes
@@ -194,62 +199,67 @@ class K3s(AbstractClusterProvider):
             handle_create_service(self.logger, svc, self.namespace)
         return True
 
-    # async def restore_from_shelf(self) -> bool:
-    #     from beiboot.utils import generate_token
-    #     from beiboot.resources.utils import (
-    #         handle_create_statefulset,
-    #         handle_create_service,
-    #     )
-    #
-    #     # TODO: at this stage we should have a mapping of node -> VolumeSnapshot-name (i.e. the VolumeSnapshotContents
-    #     #  and VolumeSnapshot need to be already created from the Shelf)
-    #
-    #     node_token = generate_token()
-    #     server_workloads = [
-    #         create_k3s_server_workload(
-    #             self.namespace,
-    #             node_token,
-    #             self.k3s_image,
-    #             self.k3s_image_tag,
-    #             self.k3s_image_pullpolicy,
-    #             self.kubeconfig_from_location,
-    #             self.api_server_container_name,
-    #             self.parameters,
-    #             # TODO: add VolumeSnapshot-name (specific one!)
-    #         )
-    #     ]
-    #     node_workloads = [
-    #         create_k3s_agent_workload(
-    #             self.namespace,
-    #             node_token,
-    #             self.k3s_image,
-    #             self.k3s_image_tag,
-    #             self.k3s_image_pullpolicy,
-    #             self.parameters,
-    #             node,
-    #             # TODO: add VolumeSnapshot-name (specific one!)
-    #         )
-    #         for node in range(
-    #             1, self.parameters.nodes
-    #         )  # (no +1 ) since the server deployment already runs one node
-    #     ]
-    #     services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
-    #
-    #     #
-    #     # Create the workloads
-    #     #
-    #     workloads = server_workloads + node_workloads
-    #     for sts in workloads:
-    #         self.logger.debug("Creating: " + str(sts))
-    #         handle_create_statefulset(self.logger, sts, self.namespace)
-    #
-    #     #
-    #     # Create the services
-    #     #
-    #     for svc in services:
-    #         self.logger.debug("Creating: " + str(svc))
-    #         handle_create_service(self.logger, svc, self.namespace)
-    #     return True
+    async def restore_from_shelf(self) -> bool:
+        from beiboot.utils import generate_token
+        from beiboot.resources.utils import (
+            handle_create_statefulset,
+            handle_create_service,
+        )
+
+        self.logger.info(f"restore_from_shelf")
+
+        node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+            self.logger, self.shelf, cluster_name=self.name, cluster_namespace=self.namespace
+        )
+
+        node_token = generate_token()
+        server_workloads = [
+            create_k3s_server_workload(
+                self.namespace,
+                node_token,
+                self.k3s_image,
+                self.k3s_image_tag,
+                self.k3s_image_pullpolicy,
+                self.kubeconfig_from_location,
+                self.api_server_container_name,
+                self.parameters,
+                # TODO: what when that doesn't exist?
+                node_to_snapshot_mapping["server"]
+            )
+        ]
+        node_workloads = [
+            create_k3s_agent_workload(
+                self.namespace,
+                node_token,
+                self.k3s_image,
+                self.k3s_image_tag,
+                self.k3s_image_pullpolicy,
+                self.parameters,
+                node,
+                # TODO: what when that doesn't exist?
+                node_to_snapshot_mapping[f"agent-{node}"]
+            )
+            for node in range(
+                1, self.parameters.nodes
+            )  # (no +1 ) since the server deployment already runs one node
+        ]
+        services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
+
+        #
+        # Create the workloads
+        #
+        workloads = server_workloads + node_workloads
+        for sts in workloads:
+            self.logger.debug("Creating: " + str(sts))
+            handle_create_statefulset(self.logger, sts, self.namespace)
+
+        #
+        # Create the services
+        #
+        for svc in services:
+            self.logger.debug("Creating: " + str(svc))
+            handle_create_service(self.logger, svc, self.namespace)
+        return True
 
     async def delete(self) -> bool:
         try:
@@ -430,7 +440,7 @@ class K3sBuilder:
         namespace: str,
         ports: Optional[List[str]],
         logger,
-        # from_shelf: str = None,
+        shelf_name: str = None,
         **_ignored,
     ):
         instance = K3s(
@@ -440,6 +450,6 @@ class K3sBuilder:
             namespace=namespace,
             ports=ports,
             logger=logger,
-            # from_shelf=from_shelf,
+            shelf_name=shelf_name,
         )
         return instance

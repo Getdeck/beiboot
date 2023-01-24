@@ -29,12 +29,12 @@ async def shelf_created(body, logger, **kwargs):
         # get beiboot cluster from beiboot CRD to determine provider and get PVC names
         bbt = get_beiboot_by_name(body["clusterName"], api_instance=objects_api, namespace=configuration.NAMESPACE)
         bbt = Body(bbt)
-        parameters = bbt_configuration.refresh_k8s_config(body.get("parameters"))
-        logger.debug(parameters)
+        parameters = bbt_configuration.refresh_k8s_config(bbt.get("parameters"))
         cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
         pvcs = await cluster.provider.get_pvc_mapping()
         shelf.set_persistent_volume_claims(pvcs)
         shelf.set_cluster_namespace(cluster.namespace)
+        shelf.set_cluster_parameters(parameters)
         # figure out whether volumeSnapshotClass needs to be set and to which value
         if not shelf.volume_snapshot_class:
             configmap_name = cluster.configuration.CONFIGMAP_NAME
@@ -59,7 +59,7 @@ async def shelf_created(body, logger, **kwargs):
             logger.error(
                 "Could not create shelf due to the following error: " + str(e)
             )
-            await cluster.impair(str(e))
+            await shelf.impair(str(e))
             raise kopf.PermanentError(str(e))
 
     if shelf.is_creating:
