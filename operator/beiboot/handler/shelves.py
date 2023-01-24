@@ -91,9 +91,6 @@ async def shelf_created(body, logger, **kwargs):
         logger.info("shelf.is_error")
         await shelf.reconcile()
 
-    if shelf.is_terminating:
-        logger.info("shelf.is_terminating")
-
 
 @kopf.on.delete("shelf")
 async def shelf_deleted(body, logger, **kwargs):
