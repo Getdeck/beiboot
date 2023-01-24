@@ -27,14 +27,39 @@ def kubeconfig(request):
     logging.getLogger().info("Setting up Minikube")
 
     ps = subprocess.run(
-        f"minikube start -p {CLUSTER_NAME} --cpus=max --memory=4000 --driver=docker --kubernetes-version={k8s_version} "
-        "--addons=default-storageclass storage-provisioner",
+        f"minikube start -p {CLUSTER_NAME} --cpus=max --memory=4000 --driver=docker "
+        f"--kubernetes-version={k8s_version}",
         shell=True,
         stdout=subprocess.DEVNULL,
     )
     assert ps.returncode == 0
     subprocess.run(
         f"minikube profile {CLUSTER_NAME}",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    # enable/disable addons for volume snapshot capabilities
+    subprocess.run(
+        "minikube addons enable volumesnapshots",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons enable csi-hostpath-driver",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons disable default-storageclass",
+        shell=True,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        "minikube addons disable storage-provisioner",
         shell=True,
         check=True,
         stdout=subprocess.DEVNULL,
@@ -57,6 +82,11 @@ def kubeconfig(request):
 
     request.addfinalizer(teardown)
     import kubernetes as k8s
+
+    # patch storage class from csi-hostpath-driver to make it default
+    storage_api = k8s.client.StorageV1Api()
+    body = {"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}
+    storage_api.patch_storage_class(name="csi-hostpath-sc", body=body)
 
     for _i in range(0, 10):
         try:
