@@ -60,7 +60,7 @@ def validate_ports(name: str, parameters: dict, _: ClusterConfiguration, logger)
             raise kopf.AdmissionError(f"ports parameter is not valid: {e}")
 
 
-# TODO: additional validator(s) [shelf-exists, shelf-readyToUse]
+# TODO: additional validator(s) [shelf-exists, shelf-readyToUse, volumeSnapshotClass-exists]
 
 VALIDATORS = [validate_namespace, validate_maxlifetime, validate_session_timeout]
 

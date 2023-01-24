@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import kubernetes as k8s
 import kopf
 
-from beiboot.configuration import ShelfConfiguration
+from beiboot.configuration import ShelfConfiguration, ClusterConfiguration
 from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot, \
     handle_delete_volume_snapshot, handle_delete_volume_snapshot_content
 from beiboot.utils import StateMachine, AsyncState
@@ -51,6 +51,7 @@ class Shelf(StateMachine):
         self._volume_snapshot_names = []
         self.cluster_default_volume_snapshot_class = cluster_default_volume_snapshot_class
         self._cluster_namespace = cluster_namespace
+        self.cluster_parameters = None
         self.custom_api = k8s.client.CustomObjectsApi()
         self.core_api = k8s.client.CoreV1Api()
         self.events_api = k8s.client.EventsV1Api()
@@ -60,6 +61,9 @@ class Shelf(StateMachine):
 
     def set_cluster_namespace(self, namespace: str):
         self._cluster_namespace = namespace
+
+    def set_cluster_parameters(self, cluster_parameters: ClusterConfiguration):
+        self.cluster_parameters = cluster_parameters
 
     def set_cluster_default_volume_snapshot_class(self, volume_snapshot_class: str):
         self.cluster_default_volume_snapshot_class = volume_snapshot_class
@@ -221,11 +225,17 @@ class Shelf(StateMachine):
 
     def on_create(self):
         """
-        > The function posts an event to the Kubernetes API
+        > The function posts an event to the Kubernetes API, and then patches the custom resource with the parameters
         """
+        import dataclasses
+
         self.post_event(
             self.creating.value, f"The shelf '{self.name}' is now being created"
         )
+
+        self._patch_object({
+                "clusterParameters": dataclasses.asdict(self.cluster_parameters),
+            })
 
     async def on_enter_creating(self):
         """

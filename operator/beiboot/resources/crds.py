@@ -162,13 +162,12 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
     schema_props = k8s.client.V1JSONSchemaProps(
         type="object",
         properties={
-            # TODO: not yet clear if node is one of [server, agent] or complete node-name
             # example of a volumeSnapshotContent:
-            #   name: foo
-            #   snapshotHandle: provider/specific/path/to/handle
+            #   name: snapcontent-155f3d59-d89f-41de-9135-31eba2d2c3ef
+            #   snapshotHandle: provider/specific/path/to/handle/155f3d59-d89f-41de-9135-31eba2d2c3ef
             #   node: server
             #   pvc: k8s-server-data-server-0
-            #   status: readyToUse
+            #   volumeSnapshotName: example-server
             "volumeSnapshotContents": k8s.client.V1JSONSchemaProps(
                 type="array",
                 default=[],
@@ -187,7 +186,7 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
             "clusterName": k8s.client.V1JSONSchemaProps(type="string", default=""),
             "clusterNamespace": k8s.client.V1JSONSchemaProps(type="string", default=""),
             # copy of the parameters with which the beiboot cluster originally was provisioned
-            "parameters": BEIBOOT_PARAMETERS,
+            "clusterParameters": BEIBOOT_PARAMETERS,
             "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),
             "stateTransitions": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True

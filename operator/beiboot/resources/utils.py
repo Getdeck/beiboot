@@ -3,10 +3,10 @@ from typing import Optional
 import kopf
 import kubernetes as k8s
 
-
 app_v1_api = k8s.client.AppsV1Api()
 core_v1_api = k8s.client.CoreV1Api()
 rbac_v1_api = k8s.client.RbacAuthorizationV1Api()
+custom_api = k8s.client.CustomObjectsApi()
 
 
 def handle_create_statefulset(
@@ -438,3 +438,47 @@ async def handle_delete_volume_snapshot_content(logger, name: str) -> Optional[k
         return status
     except k8s.client.exceptions.ApiException:
         return None
+
+
+async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_name: str, cluster_namespace: str) -> dict:
+    """
+    Create pre-provisioned VolumeSnapshotContents and VolumeSnapshots from the data that is stored in the shelf.
+
+    This assumes that the shelf is valid, i.e. volumeSnapshotContents are populated and state is ready.
+    This assumes that the volumeSnapshotClass of the shelf exists.
+
+    :param logger: logger instance
+    :param shelf: shelf object as retrieved from K8s
+    :param cluster_name: name of the beiboot cluster
+    :param cluster_namespace: namespace of the beiboot cluster
+    :return: mapping of node-name to name of the VolumeSnapshot
+    """
+    from beiboot.utils import get_volume_snapshot_class_by_name
+
+    volume_snapshot_class = get_volume_snapshot_class_by_name(shelf["volumeSnapshotClass"], api_instance=custom_api)
+    driver = volume_snapshot_class["driver"]
+    mapping = {}
+    for volume_snapshot_content in shelf["volumeSnapshotContents"]:
+        node_name = volume_snapshot_content['node']
+        volume_snapshot_content_name = f"{cluster_namespace}-{cluster_name}-{node_name}"
+        volume_snapshot_name = volume_snapshot_content_name
+        vsc_resource = create_volume_snapshot_content_pre_provisioned_resource(
+            name=volume_snapshot_content_name,
+            driver=driver,
+            snapshot_handle=volume_snapshot_content["snapshotHandle"],
+            volume_snapshot_ref_name=volume_snapshot_name,
+            volume_snapshot_ref_namespace=cluster_namespace,
+            deletion_policy="Delete"
+        )
+        handle_create_volume_snapshot_content(logger, body=vsc_resource)
+
+        vs_resource = create_volume_snapshot_pre_provisioned_resource(
+            name=volume_snapshot_name,
+            namespace=cluster_namespace,
+            volume_snapshot_content=volume_snapshot_content_name
+        )
+        handle_create_volume_snapshot(logger, body=vs_resource)
+
+        mapping[node_name] = volume_snapshot_name
+
+    return mapping
