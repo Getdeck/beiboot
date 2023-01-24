@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime
 
 from beiboot import api
 from beiboot.types import BeibootRequest
@@ -46,3 +47,9 @@ class TestReadBeiboots:
         beiboot = api.read("test-read-all")
         events = beiboot.events_by_timestamp
         assert type(events) == dict
+
+    def test_e_write_heartbeat(self, operator, kubectl):
+        bbt = api.read(name="test-read")
+        timestamp = datetime.utcnow()
+        with pytest.raises(RuntimeError):
+            api.write_heartbeat("test-client", bbt, timestamp)
