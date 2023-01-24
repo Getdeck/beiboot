@@ -10,7 +10,7 @@ console.setFormatter(formatter)
 logger = logging.getLogger(__name__)
 logger.addHandler(console)
 
-__VERSION__ = "1.3.0"
+__VERSION__ = "1.3.1"
 
 
 class ClientConfiguration(object):
