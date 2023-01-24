@@ -40,7 +40,7 @@ def make_exe():
     exe.add_python_resources(exe.read_package_root(CWD, ["cli", "beiboot"]))
     exe.add_python_resources(exe.pip_install(["docker==6.0.0"]))
     # certifi from version 2022.06.15.1 does not work
-    exe.add_python_resources(exe.pip_install(["certifi==2022.06.15", "kubernetes", "tabulate", "cli-tracker", "prompt-toolkit", "click"]))
+    exe.add_python_resources(exe.pip_install(["chardet", "certifi==2022.06.15", "kubernetes", "tabulate", "cli-tracker", "prompt-toolkit", "click"]))
     return exe
 
 def make_win_exe():
@@ -74,7 +74,7 @@ def make_win_exe():
     exe.add_python_resources(exe.read_package_root(CWD, ["cli", "beiboot"]))
     exe.add_python_resources(exe.pip_install(["docker==6.0.0"]))
     # certifi from version 2022.06.15.1 does not work
-    exe.add_python_resources(exe.pip_install(["certifi==2022.06.15", "kubernetes", "tabulate", "cli-tracker", "prompt-toolkit", "click"]))
+    exe.add_python_resources(exe.pip_install(["chardet", "certifi==2022.06.15", "kubernetes", "tabulate", "cli-tracker", "prompt-toolkit", "click"]))
     exe.windows_runtime_dlls_mode = "always"
     return exe
 
