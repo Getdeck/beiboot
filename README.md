@@ -141,7 +141,7 @@ Getdeck Beiboot comes with a Python client. You find it in this repository under
 **Important:** Using Poetry is only intended for development and testing purposes of Beiboot itself.
 You can use it like so:
 ```bash
-portry run beibootctl ...
+poetry run beibootctl ...
 ```
 
 
