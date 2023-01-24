@@ -149,7 +149,7 @@ poetry run beibootctl ...
 Coming soon.
 
 #### Getdeck CLI
-Beiboot will soon be integrated with [Getdeck](https://getdeck.dev/docs/deckfile/specs#provider) as a new "provider", so
+Beiboot will soon be integrated with [Getdeck](https://getdeck.dev/docs/deckfile-specs/#nativeconfig) as a new "provider", so
 you can use _Deckfiles_ as origin for Beiboots.
 
 #### Beiboot Desktop
