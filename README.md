@@ -131,7 +131,7 @@ Beiboot feels like it would run on the developer's machiene.
 The static binary `beibootctl` is created for Beiboot administrators. It allows to create, delete, inspect Beiboot clusters and connect to them. [Please check out the documentation.](https://getdeck.dev/beiboot/beibootctl/)
 
 <div align="center">
-    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beiboot-demo.gif" alt="beibootctl demo"/>
+    <img src="https://github.com/Getdeck/beiboot/raw/main/docs/static/img/beibootctl-demo.gif" alt="beibootctl demo"/>
 </div>
 
 #### Beiboot Python client
