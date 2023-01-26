@@ -49,7 +49,9 @@ class K3s(AbstractClusterProvider):
         if shelf_name:
             shelf = get_shelf_by_name(name=shelf_name, api_instance=custom_api, namespace=configuration.NAMESPACE)
             self.shelf = shelf
-            self.parameters = shelf["clusterParameters"]
+            parameters = ClusterConfiguration()
+            parameters.update(shelf["clusterParameters"])
+            self.parameters = parameters
         else:
             self.shelf = None
             self.parameters = cluster_parameter
@@ -152,8 +154,6 @@ class K3s(AbstractClusterProvider):
             handle_create_service,
         )
 
-        self.logger.info(f"create_new")
-
         node_token = generate_token()
         server_workloads = [
             create_k3s_server_workload(
@@ -205,8 +205,6 @@ class K3s(AbstractClusterProvider):
             handle_create_statefulset,
             handle_create_service,
         )
-
-        self.logger.info(f"restore_from_shelf")
 
         node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
             self.logger, self.shelf, cluster_name=self.name, cluster_namespace=self.namespace

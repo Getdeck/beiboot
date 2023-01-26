@@ -440,7 +440,7 @@ async def handle_delete_volume_snapshot_content(logger, name: str) -> Optional[k
         return None
 
 
-async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_name: str, cluster_namespace: str) -> dict:
+async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namespace: str) -> dict:
     """
     Create pre-provisioned VolumeSnapshotContents and VolumeSnapshots from the data that is stored in the shelf.
 
@@ -449,7 +449,6 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_name: 
 
     :param logger: logger instance
     :param shelf: shelf object as retrieved from K8s
-    :param cluster_name: name of the beiboot cluster
     :param cluster_namespace: namespace of the beiboot cluster
     :return: mapping of node-name to name of the VolumeSnapshot
     """
@@ -460,7 +459,7 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_name: 
     mapping = {}
     for volume_snapshot_content in shelf["volumeSnapshotContents"]:
         node_name = volume_snapshot_content['node']
-        volume_snapshot_content_name = f"{cluster_namespace}-{cluster_name}-{node_name}"
+        volume_snapshot_content_name = f"{cluster_namespace}-{node_name}"
         volume_snapshot_name = volume_snapshot_content_name
         vsc_resource = create_volume_snapshot_content_pre_provisioned_resource(
             name=volume_snapshot_content_name,
