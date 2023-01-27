@@ -49,12 +49,10 @@ class K3s(AbstractClusterProvider):
         if shelf_name:
             shelf = get_shelf_by_name(name=shelf_name, api_instance=custom_api, namespace=configuration.NAMESPACE)
             self.shelf = shelf
-            parameters = ClusterConfiguration()
-            parameters.update(shelf["clusterParameters"])
-            self.parameters = parameters
+            cluster_parameter.update(shelf["clusterParameters"])
         else:
             self.shelf = None
-            self.parameters = cluster_parameter
+        self.parameters = cluster_parameter
         self.logger = logger
 
     def _check_image_exists(self, k8s_version: str) -> Optional[str]:
@@ -85,7 +83,7 @@ class K3s(AbstractClusterProvider):
     def _parse_kubectl_nodes_output(self, string: str) -> dict:
 
         regex = re.compile(
-            r"((?P<hours>\d+?)hr)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
+            r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
         )
 
         def parse_time(time_str):
@@ -207,7 +205,7 @@ class K3s(AbstractClusterProvider):
         )
 
         node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
-            self.logger, self.shelf, cluster_name=self.name, cluster_namespace=self.namespace
+            self.logger, self.shelf, cluster_namespace=self.namespace
         )
 
         node_token = generate_token()

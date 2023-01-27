@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import kopf
@@ -459,15 +460,17 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namesp
     mapping = {}
     for volume_snapshot_content in shelf["volumeSnapshotContents"]:
         node_name = volume_snapshot_content['node']
-        volume_snapshot_content_name = f"{cluster_namespace}-{node_name}"
+        volume_snapshot_content_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_namespace}-{node_name}"
         volume_snapshot_name = volume_snapshot_content_name
+        # we must use deletionPolicy=Retain, otherwise the VolumeSnapshotContent and the snapshotHandle will be deleted
+        # when the cluster is deleted, rendering the shelf not usable
         vsc_resource = create_volume_snapshot_content_pre_provisioned_resource(
             name=volume_snapshot_content_name,
             driver=driver,
             snapshot_handle=volume_snapshot_content["snapshotHandle"],
             volume_snapshot_ref_name=volume_snapshot_name,
             volume_snapshot_ref_namespace=cluster_namespace,
-            deletion_policy="Delete"
+            deletion_policy="Retain"
         )
         handle_create_volume_snapshot_content(logger, body=vsc_resource)
 
