@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 import kubernetes as k8s
 import kopf
 
+from beiboot.clusterstate import BeibootCluster
 from beiboot.configuration import ShelfConfiguration, ClusterConfiguration
 from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot, \
     handle_delete_volume_snapshot, handle_delete_volume_snapshot_content
@@ -21,17 +22,19 @@ class Shelf(StateMachine):
 
     requested = AsyncState("Shelf requested", initial=True, value="REQUESTED")
     creating = AsyncState("Shelf creating", value="CREATING")
+    preparing = AsyncState("Shelf preparing (cluster-specific stuff)", value="PREPARING")
     pending = AsyncState("Shelf pending", value="PENDING")
     ready = AsyncState("Shelf ready", value="READY")
     error = AsyncState("Shelf error", value="ERROR")
     terminating = AsyncState("Shelf terminating", value="TERMINATING")
 
     create = requested.to(creating) | error.to(creating)
-    shelve = creating.to(pending)
+    pre_shelve = creating.to(preparing)
+    shelve = preparing.to(pending)
     operate = pending.to(ready)
     reconcile = ready.to.itself() | error.to(ready)
-    impair = error.from_(ready, pending, creating, requested, error)
-    terminate = terminating.from_(pending, creating, ready, error, terminating)
+    impair = error.from_(ready, pending, preparing, creating, requested, error)
+    terminate = terminating.from_(pending, preparing, creating, ready, error, terminating)
 
     def __init__(
         self,
@@ -259,6 +262,13 @@ class Shelf(StateMachine):
 
         self._patch_object(data)
 
+    async def on_pre_shelve(self, cluster: BeibootCluster):
+        """
+        Call cluster providers hook before shelf is actually created
+        """
+        self.logger.info("on_pre_shelve")
+        await cluster.provider.on_shelf_request()
+
     async def on_shelve(self):
         """
         Create VolumeSnapshots
@@ -288,7 +298,7 @@ class Shelf(StateMachine):
             # TODO: add timeout logic
             raise kopf.TemporaryError(
                 f"Waiting for shelf '{self.name}' to enter ready state (i.e. for all VolumeSnapshots to be readyToUse)",
-                delay=1,
+                delay=5,
             )
 
     async def on_enter_terminating(self):

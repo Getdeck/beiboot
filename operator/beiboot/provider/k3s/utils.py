@@ -51,6 +51,7 @@ def create_k3s_server_workload(
         image_pull_policy=k3s_image_pullpolicy,
         command=["/bin/sh", "-c"],
         args=[
+            "rm --force /getdeck/data/server/cred/passwd && "
             "k3s server "
             "--https-listen-port=6443 "
             "--write-kubeconfig-mode=0644 "
@@ -63,7 +64,8 @@ def create_k3s_server_workload(
             "--disable-cloud-controller "
             "--disable=traefik "
             f"--agent-token={node_token} "
-            "--token=1234"
+            "--token=1234 "
+            "--cluster-init "
         ],
         env=[
             k8s.client.V1EnvVar(
@@ -112,6 +114,7 @@ def create_k3s_server_workload(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.serverLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
+            hostname="server",
         ),
     )
 
@@ -192,7 +195,6 @@ def create_k3s_agent_workload(
             "k3s agent "
             "-s=https://kubeapi:6443 "
             f"--token={node_token} "
-            f"--with-node-id "
         ],
         env=[
             k8s.client.V1EnvVar(
@@ -227,6 +229,7 @@ def create_k3s_agent_workload(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.nodeLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
+            hostname=f"agent-{node_index}",
         ),
     )
 

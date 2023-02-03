@@ -18,13 +18,6 @@ class AbstractClusterProvider(ABC):
         """
         raise NotImplementedError
 
-    # @abstractmethod
-    # async def create(self) -> bool:
-    #     """
-    #     Create the workloads for the Beiboot cluster and apply them, return the result
-    #     """
-    #     raise NotImplementedError
-
     async def create(self) -> bool:
         """
         Create the workloads for the Beiboot cluster and apply them, return the result
@@ -94,5 +87,14 @@ class AbstractClusterProvider(ABC):
     async def get_pvc_mapping(self) -> Dict:
         """
         Return a mapping of node-names to the PVC that node uses.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def on_shelf_request(self) -> bool:
+        """
+        This is a hook that gets called before the shelf is actually created, i.e. before the VolumeSnapshots are
+        created. It can be used if the cluster provider needs more than pre-provisioned PVCs to restore the cluster
+        state.
         """
         raise NotImplementedError
