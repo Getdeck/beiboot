@@ -367,7 +367,7 @@ def create_volume_snapshot_content_pre_provisioned_resource(
         snapshot_handle: str,
         volume_snapshot_ref_name: str,
         volume_snapshot_ref_namespace: str,
-        deletion_policy: str = "Delete",
+        deletion_policy: str = "Retain",
         source_volume_mode: str = "Filesystem",
 ) -> dict:
     """
@@ -382,6 +382,7 @@ def create_volume_snapshot_content_pre_provisioned_resource(
         VolumeSnapshotContent will be associated with
     :param deletion_policy: deletionPolicy of the VolumeSnapshotContent, either "Delete" or "Retain"
     :param source_volume_mode: sourceVolumeMode of the VolumeSnapshotContent, either "Filesystem" or "Block"
+    :param labels: list of labels for the VolumeSnapshotContent
     """
     return {
         "apiVersion": "snapshot.storage.k8s.io/v1",

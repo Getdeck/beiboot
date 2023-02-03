@@ -423,6 +423,50 @@ class K3s(AbstractClusterProvider):
                     continue
         return pvc_mapping
 
+    async def on_shelf_request(self) -> bool:
+        """
+        Create on demand k3s snapshot on the PVC and prune k3s snapshots, so that only the newly created exists.
+        """
+        # TODO: can/should we except errors here? Or are we fine that errors propagate and the shelf will permanently
+        #  fail if this fails? Interesting: errors of the command that's being run don't cause it to fail
+        self.logger.info("K3s.on_shelf_request")
+        # we need three calls, as we can't seem to chain commands...
+        # ensure directory exists
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "mkdir", "-p", "/getdeck/data/shelf-snapshot"
+            ]
+        )
+        self.logger.info(f"K3s.on_shelf_request mkdir response: {resp}")
+        # take k3s snapshot
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "k3s", "etcd-snapshot", "save", "--data-dir", "/getdeck/data", "--dir", "/getdeck/data/shelf-snapshot",
+                "--snapshot-compress"
+            ]
+        )
+        self.logger.info(f"K3s.on_shelf_request snapshot response: {resp}")
+        # prune k3s snapshots except the most recent one
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "k3s", "etcd-snapshot", "prune", "--data-dir", "/getdeck/data", "--dir", "/getdeck/data/shelf-snapshot",
+                "--snapshot-retention", "1"
+            ]
+        )
+        self.logger.info(f"K3s.on_shelf_request prune response: {resp}")
+
 
 class K3sBuilder:
     def __init__(self):

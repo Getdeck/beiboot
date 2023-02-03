@@ -14,6 +14,16 @@ core_api = k8s.client.CoreV1Api()
 objects_api = k8s.client.CustomObjectsApi()
 
 
+def _get_bbt_cluster(logger, cluster_name, namespace):
+    """
+    Get beiboot cluster and parameters from beiboot CRD
+    """
+    bbt = get_beiboot_by_name(cluster_name, api_instance=objects_api, namespace=namespace)
+    bbt = Body(bbt)
+    parameters = bbt_configuration.refresh_k8s_config(bbt.get("parameters"))
+    return BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger), parameters
+
+
 @kopf.on.resume("shelf")
 @kopf.on.create("shelf")
 async def shelf_created(body, logger, **kwargs):
@@ -26,11 +36,7 @@ async def shelf_created(body, logger, **kwargs):
     shelf = Shelf(configuration, model=body, logger=logger)
 
     if shelf.is_requested:
-        # get beiboot cluster from beiboot CRD to determine provider and get PVC names
-        bbt = get_beiboot_by_name(body["clusterName"], api_instance=objects_api, namespace=configuration.NAMESPACE)
-        bbt = Body(bbt)
-        parameters = bbt_configuration.refresh_k8s_config(bbt.get("parameters"))
-        cluster = BeibootCluster(bbt_configuration, parameters, model=bbt, logger=logger)
+        cluster, parameters = _get_bbt_cluster(logger, body["clusterName"], configuration.NAMESPACE)
         pvcs = await cluster.provider.get_pvc_mapping()
         shelf.set_persistent_volume_claims(pvcs)
         shelf.set_cluster_namespace(cluster.namespace)
@@ -63,6 +69,21 @@ async def shelf_created(body, logger, **kwargs):
             raise kopf.PermanentError(str(e))
 
     if shelf.is_creating:
+        cluster, _ = _get_bbt_cluster(logger, body["clusterName"], configuration.NAMESPACE)
+        try:
+            await shelf.pre_shelve(cluster)
+        except kopf.PermanentError as e:
+            await shelf.impair(str(e))
+            raise e from None
+        except Exception as e:  # noqa
+            logger.error(traceback.format_exc())
+            logger.error(
+                "Could not pre-shelve due to the following error: " + str(e)
+            )
+            await shelf.impair(str(e))
+            raise kopf.PermanentError(str(e))
+
+    if shelf.is_preparing:
         try:
             await shelf.shelve()
         except kopf.PermanentError as e:
@@ -71,7 +92,7 @@ async def shelf_created(body, logger, **kwargs):
         except Exception as e:  # noqa
             logger.error(traceback.format_exc())
             logger.error(
-                "Could not create shelf due to the following error: " + str(e)
+                "Could not shelve due to the following error: " + str(e)
             )
             await shelf.impair(str(e))
             raise kopf.PermanentError(str(e))

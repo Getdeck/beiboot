@@ -187,6 +187,10 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
             "clusterNamespace": k8s.client.V1JSONSchemaProps(type="string", default=""),
             # copy of the parameters with which the beiboot cluster originally was provisioned
             "clusterParameters": BEIBOOT_PARAMETERS,
+            # free data that the cluster provider might use
+            "providerData": k8s.client.V1JSONSchemaProps(
+                type="object", x_kubernetes_preserve_unknown_fields=True
+            ),
             "state": k8s.client.V1JSONSchemaProps(type="string", default="REQUESTED"),
             "stateTransitions": k8s.client.V1JSONSchemaProps(
                 type="object", x_kubernetes_preserve_unknown_fields=True
