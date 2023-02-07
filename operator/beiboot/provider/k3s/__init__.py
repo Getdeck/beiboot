@@ -8,20 +8,22 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name
+from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name, generate_token
 
 from .utils import (
     create_k3s_server_workload,
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
     PVC_PREFIX_SERVER,
-    PVC_PREFIX_NODE
+    PVC_PREFIX_NODE, create_pvcs_from_volume_snapshots, create_k3s_snapshot_restore_job
 )
-from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf
+from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf, \
+    handle_create_job
 
 core_api = k8s.client.CoreV1Api()
 app_api = k8s.client.AppsV1Api()
 custom_api = k8s.client.CustomObjectsApi()
+batch_api = k8s.client.BatchV1Api()
 
 
 class K3s(AbstractClusterProvider):
@@ -145,6 +147,48 @@ class K3s(AbstractClusterProvider):
             self.logger.error(str(e))
             raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
 
+    async def prepare_restore_from_shelf(self) -> bool:
+        """
+        This handles the following:
+        - if they aren't already created, restore and create PVCs form shelf and create Job to restore k3s snapshot
+        - if they exist, check whether restore-Job has successfully finished
+
+        Returns True if prepare-stage is complete, i.e. if PVCs are created and Job is completed.
+        """
+
+        job_name = f"{self.name}-k3s-restore"
+        try:
+            job = batch_api.read_namespaced_job(job_name, self.namespace)
+            self.logger.info(f"job.status: {job.status}")
+        except k8s.client.exceptions.ApiException as e:
+            if e.status == 404:
+                # create VolumeSnapshotContents and VolumeSnapshots to restore PVCs
+                node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+                    self.logger, self.shelf, cluster_namespace=self.namespace
+                )
+                # create PVCs
+                node_to_pvc_mapping = await create_pvcs_from_volume_snapshots(
+                    self.namespace, node_to_snapshot_mapping, self.parameters
+                )
+                # create Job to run k3s snapshot restore
+                node_token = generate_token()
+                pvc_name, volume_snapshot = node_to_pvc_mapping["server"]
+                job = await create_k3s_snapshot_restore_job(
+                    self.namespace,
+                    job_name,
+                    self.k3s_image,
+                    self.k3s_image_tag,
+                    self.k3s_image_pullpolicy,
+                    self.kubeconfig_from_location,
+                    node_token,
+                    pvc_name,
+                    volume_snapshot
+                )
+                await handle_create_job(self.logger, job)
+                return False
+            else:
+                raise e
+
     async def create_new(self) -> bool:
         from beiboot.utils import generate_token
         from beiboot.resources.utils import (
@@ -204,9 +248,9 @@ class K3s(AbstractClusterProvider):
             handle_create_service,
         )
 
-        node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
-            self.logger, self.shelf, cluster_namespace=self.namespace
-        )
+        # node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+        #     self.logger, self.shelf, cluster_namespace=self.namespace
+        # )
 
         node_token = generate_token()
         server_workloads = [
@@ -219,8 +263,7 @@ class K3s(AbstractClusterProvider):
                 self.kubeconfig_from_location,
                 self.api_server_container_name,
                 self.parameters,
-                # TODO: what when that doesn't exist?
-                node_to_snapshot_mapping["server"]
+                # TODO: add PVC name as parameter
             )
         ]
         node_workloads = [
@@ -232,8 +275,7 @@ class K3s(AbstractClusterProvider):
                 self.k3s_image_pullpolicy,
                 self.parameters,
                 node,
-                # TODO: what when that doesn't exist?
-                node_to_snapshot_mapping[f"agent-{node}"]
+                # TODO: add PVC name as parameter
             )
             for node in range(
                 1, self.parameters.nodes

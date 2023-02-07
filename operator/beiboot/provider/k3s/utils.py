@@ -3,7 +3,7 @@ import logging
 import kubernetes as k8s
 
 from beiboot.configuration import ClusterConfiguration
-
+from beiboot.resources.utils import create_pvc_resource, handle_create_pvc
 
 PVC_PREFIX_NODE = "k8s-node-data"
 PVC_PREFIX_SERVER = "k8s-server-data"
@@ -297,3 +297,101 @@ def create_k3s_kubeapi_service(
     )
 
     return service
+
+
+async def create_pvcs_from_volume_snapshots(namespace: str, mapping: dict, parameters: ClusterConfiguration) -> None:
+    """
+    Create PersistentVolumeClaims that use VolumeSnapshots as datasource.
+
+    The mapping can be created with resources.utils.create_volume_snapshots_from_shelf(...)
+
+    :param namespace: namespace of the PVCs
+    :param mapping: mapping of node-name to VolumeSnapshot name
+    :param parameters: ClusterConfiguration
+    :return: mapping of node name to PVC name
+    """
+    return_mapping = {}
+    for node_name, vs_name in mapping.items():
+        # create pvc_name with suffix -0 (we only have one replica of the StatefulSet)
+        if node_name == "server":
+            pvc_name = f"{PVC_PREFIX_SERVER}-server-0"
+            storage_requests = parameters.serverStorageRequests
+        else:
+            # agents node_name is e.g. agent-1, the 1 being the node index
+            node_index = node_name[-1]
+            pvc_name = f"{PVC_PREFIX_NODE}-{node_index}-{node_name}-0"
+            storage_requests = parameters.nodeStorageRequests
+        pvc_resource = create_pvc_resource(pvc_name, namespace, storage_requests, vs_name)
+        await handle_create_pvc(logger, pvc_resource)
+        return_mapping[node_name] = pvc_name, vs_name
+    return return_mapping
+
+
+async def create_k3s_snapshot_restore_job(
+    namespace: str,
+    name: str,
+    k3s_image: str,
+    k3s_image_tag: str,
+    k3s_image_pullpolicy: str,
+    kubeconfig_from_location: str,
+    node_token: str,
+    pvc_name: str,
+    volume_snapshot: str
+):
+    container = k8s.client.V1Container(
+        name=name,
+        image=f"{k3s_image}:{k3s_image_tag}",
+        image_pull_policy=k3s_image_pullpolicy,
+        command=["/bin/sh", "-c"],
+        args=[
+            "rm --force /getdeck/data/server/cred/passwd && "
+            "rm -r --force /getdeck/data/server/db/etcd && "
+            "k3s server "
+            "--https-listen-port=6443 "
+            "--write-kubeconfig-mode=0644 "
+            "--tls-san=0.0.0.0 "
+            "--data-dir /getdeck/data "
+            f"--write-kubeconfig={kubeconfig_from_location} "
+            "--cluster-cidr=10.45.0.0/16 "
+            "--service-cidr=10.46.0.0/16 "
+            "--cluster-dns=10.46.0.10 "
+            "--disable-cloud-controller "
+            "--disable=traefik "
+            f"--agent-token={node_token} "
+            "--token=1234 "
+            "--cluster-init "
+            "--cluster-reset "
+            "--cluster-reset-restore-path=/getdeck/data/shelf-snapshot/???"  # TODO: finish
+        ],
+        security_context=k8s.client.V1SecurityContext(
+            privileged=True,
+            capabilities=k8s.client.V1Capabilities(add=["NET_ADMIN", "SYS_MODULE"]),
+        ),
+        volume_mounts=[
+            k8s.client.V1VolumeMount(
+                name="k8s-server-data", mount_path="/getdeck/data"
+            ),
+        ],
+    )
+    volume = k8s.client.V1Volume(
+        name="k8s-server-data",
+        persistent_volume_claim=k8s.client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc_name)
+    )
+
+    template = k8s.client.V1PodTemplateSpec(
+        metadata=k8s.client.V1ObjectMeta(labels={"name": "k3s-snapshot-restore-job"}),
+        spec=k8s.client.V1PodSpec(
+            restart_policy="Never",
+            containers=[container],
+            volumes=[volume]
+        ),
+    )
+    spec = k8s.client.V1JobSpec(template=template)
+    job = k8s.client.V1Job(
+        api_version="batch/v1",
+        kind="Job",
+        metadata=k8s.client.V1ObjectMeta(name=name, namespace=namespace),
+        spec=spec
+    )
+
+    return job
