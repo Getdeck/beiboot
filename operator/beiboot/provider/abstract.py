@@ -18,6 +18,19 @@ class AbstractClusterProvider(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    async def prepare_restore_from_shelf(self) -> bool:
+        """
+        This is called before a cluster that is restored from a shelf is actually created. It provides a hook for any
+        steps that are necessary before the cluster creation.
+
+        This hook needs to take care of the whole preparation phase. E.g. if something needs to be created and awaited
+        to be finished, this hook needs to ensure that all of that is finished.
+
+        Should return True if prepare-stage is complete, or nothing needs to be done.
+        """
+        raise NotImplementedError
+
     async def create(self) -> bool:
         """
         Create the workloads for the Beiboot cluster and apply them, return the result

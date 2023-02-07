@@ -19,18 +19,28 @@ async def beiboot_created(body, logger, **kwargs):
     """
     parameters = configuration.refresh_k8s_config(body.get("parameters"))
     logger.debug(parameters)
-    # logger.info(f"cluster configuration: {configuration}")
-    # logger.info(f"cluster parameters: {parameters}")
-    # logger.info(f"cluster body: {body}")
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
-    if cluster.is_requested or cluster.is_creating:
+    if cluster.is_requested or cluster.is_preparing or cluster.is_restoring or cluster.is_creating:
         # this is the initial process for a Beiboot
         try:
             if cluster.is_requested:
+                await cluster.prepare()
+            if cluster.is_preparing:
+                logger.info("is_preparing")
+                if cluster.model.get("fromShelf"):
+                    logger.info("fromShelf -> restore")
+                    await cluster.restore()
+                else:
+                    logger.info("not fromShelf -> create")
+                    await cluster.create()
+            if cluster.is_restoring:
+                logger.info("is_restoring")
                 await cluster.create()
             if cluster.is_creating:
                 await cluster.boot()
+        except kopf.TemporaryError as e:
+            raise e from None
         except kopf.PermanentError as e:
             await cluster.impair(str(e))
             raise e from None

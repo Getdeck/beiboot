@@ -8,6 +8,7 @@ app_v1_api = k8s.client.AppsV1Api()
 core_v1_api = k8s.client.CoreV1Api()
 rbac_v1_api = k8s.client.RbacAuthorizationV1Api()
 custom_api = k8s.client.CustomObjectsApi()
+batch_v1_api = k8s.client.BatchV1Api()
 
 
 def handle_create_statefulset(
@@ -329,7 +330,7 @@ def handle_create_volume_snapshot(logger, body: dict):
     try:
         # FIXME: python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it 
         #  here
-        namespace = body.get('metadata').get('namespace')
+        namespace = body.get("metadata").get("namespace")
         k8s.client.CustomObjectsApi().create_namespaced_custom_object(
             group="snapshot.storage.k8s.io",
             version="v1",
@@ -420,7 +421,7 @@ def handle_create_volume_snapshot_content(logger, body: dict):
             body=body,
         )
         logger.info(
-            f"VolumeSnapshotContent {body.get('metadata').get('name')} created."
+            f"Created VolumeSnapshotContent {body.get('metadata').get('name')}."
         )
     except k8s.client.exceptions.ApiException as e:
         raise e
@@ -460,7 +461,7 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namesp
     driver = volume_snapshot_class["driver"]
     mapping = {}
     for volume_snapshot_content in shelf["volumeSnapshotContents"]:
-        node_name = volume_snapshot_content['node']
+        node_name = volume_snapshot_content["node"]
         volume_snapshot_content_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_namespace}-{node_name}"
         volume_snapshot_name = volume_snapshot_content_name
         # we must use deletionPolicy=Retain, otherwise the VolumeSnapshotContent and the snapshotHandle will be deleted
@@ -485,3 +486,65 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namesp
         mapping[node_name] = volume_snapshot_name
 
     return mapping
+
+
+def create_pvc_resource(name: str, namespace: str, storage_requests: str, volume_snapshot: str = None):
+    """
+    Create resource definition for a PersistentVolumeClaim
+
+    :param name: name of the PVC
+    :param namespace: namespace of the PVC
+    :param storage_requests: storage requests for the PVC
+    :param volume_snapshot: VolumeSnapshot to use as data_source for the PVC
+    :return: a V1PersistentVolumeClaim object
+    """
+    return k8s.client.V1PersistentVolumeClaim(
+        api_version="v1",
+        kind="PersistentVolumeClaim",
+        metadata=k8s.client.V1ObjectMeta(
+            name=name,
+            namespace=namespace
+        ),
+        spec=k8s.client.V1PersistentVolumeClaimSpec(
+            access_modes=["ReadWriteMany"],
+            resources=k8s.client.V1ResourceRequirements(
+                requests={"storage": storage_requests}
+            ),
+            # TODO: what about storage_class_name?
+            data_source={
+                "name": volume_snapshot,
+                "kind": "VolumeSnapshot",
+                "apiGroup": "snapshot.storage.k8s.io"
+            }
+        )
+    )
+
+
+async def handle_create_pvc(logger, body: k8s.client.V1PersistentVolumeClaim) -> None:
+    """
+    :param logger: a logger object
+    :param body: The dict that describes the K8s resource
+    """
+    try:
+        namespace = body.metadata.namespace
+        core_v1_api.create_namespaced_persistent_volume_claim(namespace, body)
+        logger.info(
+            f"Created PersistentVolumeClaim {body.metadata.name} in namespace {namespace}."
+        )
+    except k8s.client.exceptions.ApiException as e:
+        raise e
+
+
+async def handle_create_job(logger, body: k8s.client.V1Job) -> None:
+    """
+    :param logger: a logger object
+    :param body: The dict that describes the K8s resource
+    """
+    try:
+        namespace = body.metadata.namespace
+        batch_v1_api.create_namespaced_job(namespace, body)
+        logger.info(
+            f"Created Job {body.metadata.name} in namespace {namespace}."
+        )
+    except k8s.client.exceptions.ApiException as e:
+        raise e

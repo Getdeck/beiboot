@@ -34,6 +34,8 @@ class BeibootCluster(StateMachine):
     """
 
     requested = AsyncState("Cluster requested", initial=True, value="REQUESTED")
+    preparing = AsyncState("Cluster preparing", value="PREPARING")
+    restoring = AsyncState("Cluster restoring", value="RESTORING")
     creating = AsyncState("Cluster creating", value="CREATING")
     pending = AsyncState("Cluster pending", value="PENDING")
     running = AsyncState("Cluster running", value="RUNNING")
@@ -41,13 +43,15 @@ class BeibootCluster(StateMachine):
     error = AsyncState("Cluster error", value="ERROR")
     terminating = AsyncState("Cluster terminating", value="TERMINATING")
 
-    create = requested.to(creating) | error.to(creating)
+    prepare = requested.to(preparing) | error.to(preparing)
+    restore = preparing.to(restoring) | error.to(restoring)
+    create = preparing.to(creating) | restoring.to(creating) | error.to(creating)
     boot = creating.to(pending)
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, creating, requested, error)
-    terminate = terminating.from_(pending, creating, running, ready, error, terminating)
+    impair = error.from_(ready, running, pending, restoring, creating, requested, error)
+    terminate = terminating.from_(pending, preparing, restoring, creating, running, ready, error, terminating)
 
     def __init__(
         self,
@@ -259,6 +263,59 @@ class BeibootCluster(StateMachine):
             f"The cluster request for '{self.name}' has been accepted",
         )
 
+    async def on_prepare(self):
+        """
+        Post an event to the Kubernetes API when the cluster is being prepared
+        """
+        self.post_event(
+            self.requested.value,
+            f"The cluster request for '{self.name}' is now being prepared",
+        )
+
+    async def on_enter_preparing(self):
+        try:
+            handle_create_namespace(self.logger, self.namespace)
+        except k8s.client.ApiException as e:
+            try:
+                body = json.loads(e.body)
+            except JSONDecodeError:
+                pass
+            else:
+                raise kopf.TemporaryError(body.get("message"), delay=5)
+            raise kopf.TemporaryError(delay=5)
+
+    async def on_enter_restoring(self):
+        """Call cluster providers hook to perform necessary steps before the shelf-restored cluster is created"""
+        if self.model.get("fromShelf"):
+            self.post_event(
+                self.restoring.value, f"The cluster '{self.name}' is now being restored"
+            )
+
+    async def on_restore(self):
+        """
+        Post an event to the Kubernetes API if cluster is restored from shelf (otherwise this state is not relevant)
+        """
+        if self.model.get("fromShelf"):
+            try:
+                if await self.provider.prepare_restore_from_shelf():
+                    self.logger.info(f"Restore of cluster '{self.name}' is finished")
+                    self.post_event(
+                        self.requested.value,
+                        f"Restore of cluster '{self.name}' is finished)"
+                    )
+                else:
+                    raise kopf.TemporaryError(f"Restore of cluster '{self.name}' is still running", delay=5)
+            except k8s.client.ApiException as e:
+                try:
+                    body = json.loads(e.body)
+                except JSONDecodeError:
+                    pass
+                else:
+                    raise kopf.TemporaryError(body.get("message"), delay=5)
+                raise kopf.TemporaryError(delay=5)
+        else:
+            self.logger.warning(f"Cluster {self.name} is in state RESTORING, but has not 'fromShelf' set!")
+
     def on_create(self):
         """
         > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
@@ -281,7 +338,6 @@ class BeibootCluster(StateMachine):
         """
         # create the workloads for this cluster provider
         try:
-            handle_create_namespace(self.logger, self.namespace)
             await self.provider.create()
         except k8s.client.ApiException as e:
             try:
