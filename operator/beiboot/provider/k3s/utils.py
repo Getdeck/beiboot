@@ -323,7 +323,7 @@ async def create_pvcs_from_volume_snapshots(namespace: str, mapping: dict, param
             storage_requests = parameters.nodeStorageRequests
         pvc_resource = create_pvc_resource(pvc_name, namespace, storage_requests, vs_name)
         await handle_create_pvc(logger, pvc_resource)
-        return_mapping[node_name] = pvc_name, vs_name
+        return_mapping[node_name] = pvc_name
     return return_mapping
 
 
@@ -336,7 +336,6 @@ async def create_k3s_snapshot_restore_job(
     kubeconfig_from_location: str,
     node_token: str,
     pvc_name: str,
-    volume_snapshot: str
 ):
     container = k8s.client.V1Container(
         name=name,
@@ -361,7 +360,7 @@ async def create_k3s_snapshot_restore_job(
             "--token=1234 "
             "--cluster-init "
             "--cluster-reset "
-            "--cluster-reset-restore-path=/getdeck/data/shelf-snapshot/???"  # TODO: finish
+            "--cluster-reset-restore-path=/getdeck/data/shelf-snapshot/$(ls /getdeck/data/shelf-snapshot/ | head -1)"
         ],
         security_context=k8s.client.V1SecurityContext(
             privileged=True,

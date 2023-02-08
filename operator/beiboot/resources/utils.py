@@ -506,7 +506,7 @@ def create_pvc_resource(name: str, namespace: str, storage_requests: str, volume
             namespace=namespace
         ),
         spec=k8s.client.V1PersistentVolumeClaimSpec(
-            access_modes=["ReadWriteMany"],
+            access_modes=["ReadWriteOnce"],
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": storage_requests}
             ),
