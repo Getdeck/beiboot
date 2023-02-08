@@ -159,7 +159,11 @@ class K3s(AbstractClusterProvider):
         job_name = f"{self.name}-k3s-restore"
         try:
             job = batch_api.read_namespaced_job(job_name, self.namespace)
-            self.logger.info(f"job.status: {job.status}")
+            if job.status.succeeded:
+                self.logger.info(f"Job '{job_name}' to restore k3s cluster succeeded")
+                return True
+            else:
+                return False
         except k8s.client.exceptions.ApiException as e:
             if e.status == 404:
                 # create VolumeSnapshotContents and VolumeSnapshots to restore PVCs
@@ -172,7 +176,7 @@ class K3s(AbstractClusterProvider):
                 )
                 # create Job to run k3s snapshot restore
                 node_token = generate_token()
-                pvc_name, volume_snapshot = node_to_pvc_mapping["server"]
+                pvc_name = node_to_pvc_mapping["server"]
                 job = await create_k3s_snapshot_restore_job(
                     self.namespace,
                     job_name,
@@ -182,7 +186,6 @@ class K3s(AbstractClusterProvider):
                     self.kubeconfig_from_location,
                     node_token,
                     pvc_name,
-                    volume_snapshot
                 )
                 await handle_create_job(self.logger, job)
                 return False

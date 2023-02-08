@@ -50,7 +50,7 @@ class BeibootCluster(StateMachine):
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, restoring, creating, requested, error)
+    impair = error.from_(ready, running, pending, restoring, creating, preparing, requested, error)
     terminate = terminating.from_(pending, preparing, restoring, creating, running, ready, error, terminating)
 
     def __init__(

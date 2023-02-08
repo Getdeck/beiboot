@@ -1,4 +1,5 @@
 import uuid
+from asyncio import sleep
 from datetime import datetime
 from typing import Optional, Tuple
 
@@ -268,6 +269,8 @@ class Shelf(StateMachine):
         """
         self.logger.info("on_pre_shelve")
         await cluster.provider.on_shelf_request()
+        # we give it some time, in case that files need to be written to disk
+        await sleep(60)
 
     async def on_shelve(self):
         """
