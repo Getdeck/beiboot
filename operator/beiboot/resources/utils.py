@@ -158,9 +158,10 @@ def handle_create_namespace(logger, namespace: str) -> str:
         )
         logger.info(f"Created namespace for beiboot: {namespace}")
     except k8s.client.exceptions.ApiException as e:
-        if e.status in [409, 422]:
+        if e.status == 409:
             logger.warning(f"Namespace for beiboot {namespace} already exists")
         else:
+            logger.error(e)
             raise e
     return namespace
 
@@ -370,6 +371,7 @@ def create_volume_snapshot_content_pre_provisioned_resource(
         volume_snapshot_ref_namespace: str,
         deletion_policy: str = "Retain",
         source_volume_mode: str = "Filesystem",
+        labels: list = None,
 ) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.

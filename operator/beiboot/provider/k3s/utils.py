@@ -20,7 +20,7 @@ def create_k3s_server_workload(
     kubeconfig_from_location: str,
     api_server_container_name: str,
     parameters: ClusterConfiguration,
-    volume_snapshot: str = None,
+    from_shelf: bool = False,
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a StatefulSet that runs the k3s server
@@ -41,32 +41,51 @@ def create_k3s_server_workload(
     :type api_server_container_name: str
     :param parameters: ClusterConfiguration
     :type parameters: ClusterConfiguration
-    :param volume_snapshot: The name of the VolumeSnapshot to use when restoring from a shelf.
-    :type volume_snapshot: str
+    :param from_shelf: Whether this cluster is restored from shelf
+    :type from_shelf: bool
     :return: A V1StatefulSet object
     """
+    args = [
+        "ls -la /getdeck/data/shelf-snapshot/ && "
+        "rm --force /getdeck/data/server/cred/passwd && "
+        "rm -r --force /getdeck/data/server/db/etcd && "
+        "k3s server "
+        "--https-listen-port=6443 "
+        "--tls-san=0.0.0.0 "
+        "--data-dir /getdeck/data "
+        "--cluster-cidr=10.45.0.0/16 "
+        "--service-cidr=10.46.0.0/16 "
+        "--cluster-dns=10.46.0.10 "
+        "--disable-cloud-controller "
+        "--disable=traefik "
+        f"--agent-token={node_token} "
+        "--token=1234 "
+        "--cluster-init "
+        "--cluster-reset "
+        "--cluster-reset-restore-path=/getdeck/data/shelf-snapshot/$(ls /getdeck/data/shelf-snapshot/ | head -1); "
+        "rm --force /getdeck/data/server/cred/passwd && "
+        "k3s server "
+        "--https-listen-port=6443 "
+        "--write-kubeconfig-mode=0644 "
+        "--tls-san=0.0.0.0 "
+        "--data-dir /getdeck/data "
+        f"--write-kubeconfig={kubeconfig_from_location} "
+        "--cluster-cidr=10.45.0.0/16 "
+        "--service-cidr=10.46.0.0/16 "
+        "--cluster-dns=10.46.0.10 "
+        "--disable-cloud-controller "
+        "--disable=traefik "
+        f"--agent-token={node_token} "
+        "--token=1234 "
+    ]
+    # if not from_shelf:
+    #     args += "--cluster-init"
     container = k8s.client.V1Container(
         name=api_server_container_name,
         image=f"{k3s_image}:{k3s_image_tag}",
         image_pull_policy=k3s_image_pullpolicy,
         command=["/bin/sh", "-c"],
-        args=[
-            "rm --force /getdeck/data/server/cred/passwd && "
-            "k3s server "
-            "--https-listen-port=6443 "
-            "--write-kubeconfig-mode=0644 "
-            "--tls-san=0.0.0.0 "
-            "--data-dir /getdeck/data "
-            f"--write-kubeconfig={kubeconfig_from_location} "
-            "--cluster-cidr=10.45.0.0/16 "
-            "--service-cidr=10.46.0.0/16 "
-            "--cluster-dns=10.46.0.10 "
-            "--disable-cloud-controller "
-            "--disable=traefik "
-            f"--agent-token={node_token} "
-            "--token=1234 "
-            "--cluster-init "
-        ],
+        args=args,
         env=[
             k8s.client.V1EnvVar(
                 name="POD_IP",
@@ -91,7 +110,7 @@ def create_k3s_server_workload(
         ),
         volume_mounts=[
             k8s.client.V1VolumeMount(
-                name="k8s-server-data", mount_path="/getdeck/data"
+                name=PVC_PREFIX_SERVER, mount_path="/getdeck/data"
             ),
         ],
         readiness_probe=k8s.client.V1Probe(
@@ -110,30 +129,32 @@ def create_k3s_server_workload(
         ),
     )
 
+    if from_shelf:
+        volumes = [k8s.client.V1Volume(
+            name=PVC_PREFIX_SERVER,
+            persistent_volume_claim=k8s.client.V1PersistentVolumeClaimVolumeSource(
+                claim_name=f"{PVC_PREFIX_SERVER}-server-0"
+            )
+        )]
+        volume_claim_templates = None
+    else:
+        volumes = None
+        volume_claim_templates = [k8s.client.V1PersistentVolumeClaimTemplate(
+            metadata=k8s.client.V1ObjectMeta(name=PVC_PREFIX_SERVER),
+            spec=k8s.client.V1PersistentVolumeClaimSpec(
+                access_modes=["ReadWriteOnce"],
+                resources=k8s.client.V1ResourceRequirements(
+                    requests={"storage": parameters.serverStorageRequests}
+                ),
+            ),
+        )]
+
     template = k8s.client.V1PodTemplateSpec(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.serverLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
             hostname="server",
-        ),
-    )
-
-    if volume_snapshot:
-        data_source = {
-            "name": volume_snapshot,
-            "kind": "VolumeSnapshot",
-            "apiGroup": "snapshot.storage.k8s.io"
-        }
-    else:
-        data_source = None
-    volume = k8s.client.V1PersistentVolumeClaimTemplate(
-        metadata=k8s.client.V1ObjectMeta(name=f"{PVC_PREFIX_SERVER}"),
-        spec=k8s.client.V1PersistentVolumeClaimSpec(
-            access_modes=["ReadWriteOnce"],
-            resources=k8s.client.V1ResourceRequirements(
-                requests={"storage": parameters.serverStorageRequests}
-            ),
-            data_source=data_source
+            volumes=volumes
         ),
     )
 
@@ -141,7 +162,7 @@ def create_k3s_server_workload(
         replicas=1,
         template=template,
         selector={"matchLabels": parameters.serverLabels},
-        volume_claim_templates=[volume],
+        volume_claim_templates=volume_claim_templates,
         service_name="k3s-server",
     )
 
@@ -164,7 +185,7 @@ def create_k3s_agent_workload(
     k3s_image_pullpolicy: str,
     parameters: ClusterConfiguration,
     node_index: int = 1,
-    volume_snapshot: str = None,
+    from_shelf: bool = False,
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a Kubernetes StatefulSet that runs the k3s agent
@@ -183,8 +204,8 @@ def create_k3s_agent_workload(
     :type parameters: ClusterConfiguration
     :param node_index: The index of the node. This is used to create a unique name for the node, defaults to 1
     :type node_index: int (optional)
-    :param volume_snapshot: The name of the VolumeSnapshot to use when restoring from a shelf.
-    :type volume_snapshot: str
+    :param from_shelf: Whether this cluster is restored from shelf
+    :type from_shelf: bool
     """
     container = k8s.client.V1Container(
         name="agent",
@@ -220,35 +241,37 @@ def create_k3s_agent_workload(
         ),
         volume_mounts=[
             k8s.client.V1VolumeMount(
-                name=f"k8s-node-data-{node_index}", mount_path="/getdeck/data"
+                name=f"{PVC_PREFIX_NODE}-{node_index}", mount_path="/getdeck/data"
             ),
         ],
     )
+
+    if from_shelf:
+        volumes = [k8s.client.V1Volume(
+            name=f"{PVC_PREFIX_NODE}-{node_index}",
+            persistent_volume_claim=k8s.client.V1PersistentVolumeClaimVolumeSource(
+                claim_name=f"{PVC_PREFIX_NODE}-{node_index}-agent-{node_index}-0"
+            )
+        )]
+        volume_claim_templates = None
+    else:
+        volumes = None
+        volume_claim_templates = [k8s.client.V1PersistentVolumeClaimTemplate(
+            metadata=k8s.client.V1ObjectMeta(name=f"{PVC_PREFIX_NODE}-{node_index}"),
+            spec=k8s.client.V1PersistentVolumeClaimSpec(
+                access_modes=["ReadWriteOnce"],
+                resources=k8s.client.V1ResourceRequirements(
+                    requests={"storage": parameters.nodeStorageRequests}
+                ),
+            ),
+        )]
 
     template = k8s.client.V1PodTemplateSpec(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.nodeLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
             hostname=f"agent-{node_index}",
-        ),
-    )
-
-    if volume_snapshot:
-        data_source = {
-            "name": volume_snapshot,
-            "kind": "VolumeSnapshot",
-            "apiGroup": "snapshot.storage.k8s.io"
-        }
-    else:
-        data_source = None
-    volume = k8s.client.V1PersistentVolumeClaimTemplate(
-        metadata=k8s.client.V1ObjectMeta(name=f"{PVC_PREFIX_NODE}-{node_index}"),
-        spec=k8s.client.V1PersistentVolumeClaimSpec(
-            access_modes=["ReadWriteOnce"],
-            resources=k8s.client.V1ResourceRequirements(
-                requests={"storage": parameters.nodeStorageRequests}
-            ),
-            data_source=data_source
+            volumes=volumes,
         ),
     )
 
@@ -256,7 +279,7 @@ def create_k3s_agent_workload(
         replicas=1,
         template=template,
         selector={"matchLabels": parameters.nodeLabels},
-        volume_claim_templates=[volume],
+        volume_claim_templates=volume_claim_templates,
         service_name="k3s-agent",
     )
 
@@ -343,6 +366,7 @@ async def create_k3s_snapshot_restore_job(
         image_pull_policy=k3s_image_pullpolicy,
         command=["/bin/sh", "-c"],
         args=[
+            "ls -la /getdeck/data/shelf-snapshot && "
             "rm --force /getdeck/data/server/cred/passwd && "
             "rm -r --force /getdeck/data/server/db/etcd && "
             "k3s server "
@@ -368,12 +392,12 @@ async def create_k3s_snapshot_restore_job(
         ),
         volume_mounts=[
             k8s.client.V1VolumeMount(
-                name="k8s-server-data", mount_path="/getdeck/data"
+                name=PVC_PREFIX_SERVER, mount_path="/getdeck/data"
             ),
         ],
     )
     volume = k8s.client.V1Volume(
-        name="k8s-server-data",
+        name=PVC_PREFIX_SERVER,
         persistent_volume_claim=k8s.client.V1PersistentVolumeClaimVolumeSource(claim_name=pvc_name)
     )
 
