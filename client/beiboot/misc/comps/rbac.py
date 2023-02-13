@@ -59,8 +59,8 @@ def data(params: InstallOptions) -> list[dict]:
                     "verbs": ["*"],
                 },
                 {
-                    "apiGroups": ["getdeck.dev"],
-                    "resources": ["beiboots"],
+                    "apiGroups": ["getdeck.dev", "beiboots.getdeck.dev"],
+                    "resources": ["beiboots", "shelves"],
                     "verbs": ["*"],
                 },
             ],
