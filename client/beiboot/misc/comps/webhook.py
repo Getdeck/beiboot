@@ -35,10 +35,10 @@ def data(params: InstallOptions) -> list[dict]:
                     "objectSelector": {},
                     "rules": [
                         {
-                            "apiGroups": ["getdeck.dev"],
+                            "apiGroups": ["getdeck.dev", "beiboots.getdeck.dev"],
                             "apiVersions": ["v1"],
                             "operations": ["CREATE"],
-                            "resources": ["beiboots"],
+                            "resources": ["beiboots", "shelves"],
                             "scope": "*",
                         }
                     ],
