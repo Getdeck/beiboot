@@ -9,6 +9,12 @@ def validate_namespace(name: str, _: dict, defaults: ClusterConfiguration, logge
     core_v1_api = k8s.client.CoreV1Api()
 
     namespace = get_namespace_name(name, defaults)
+
+    if len(namespace) > 63:
+        raise kopf.AdmissionError(
+            f"Namespace '{namespace}' is longer than 63 characters"
+        )
+
     try:
         ns = core_v1_api.read_namespace(namespace)
         logger.warning(f"Namespace {ns.metadata.name} exists")

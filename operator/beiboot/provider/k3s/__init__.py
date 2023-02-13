@@ -155,6 +155,14 @@ class K3s(AbstractClusterProvider):
 
         Returns True if prepare-stage is complete, i.e. if PVCs are created and Job is completed.
         """
+        node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+            self.logger, self.shelf, cluster_namespace=self.namespace
+        )
+        # create PVCs
+        node_to_pvc_mapping = await create_pvcs_from_volume_snapshots(
+            self.namespace, node_to_snapshot_mapping, self.parameters
+        )
+        return True
 
         job_name = f"{self.name}-k3s-restore"
         try:
@@ -176,6 +184,7 @@ class K3s(AbstractClusterProvider):
                 )
                 # create Job to run k3s snapshot restore
                 node_token = generate_token()
+                # node_token = "beiboot"
                 pvc_name = node_to_pvc_mapping["server"]
                 job = await create_k3s_snapshot_restore_job(
                     self.namespace,
@@ -200,6 +209,7 @@ class K3s(AbstractClusterProvider):
         )
 
         node_token = generate_token()
+        # node_token = "beiboot"
         server_workloads = [
             create_k3s_server_workload(
                 self.namespace,
@@ -251,11 +261,8 @@ class K3s(AbstractClusterProvider):
             handle_create_service,
         )
 
-        # node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
-        #     self.logger, self.shelf, cluster_namespace=self.namespace
-        # )
-
         node_token = generate_token()
+        # node_token = "beiboot"
         server_workloads = [
             create_k3s_server_workload(
                 self.namespace,
@@ -266,7 +273,7 @@ class K3s(AbstractClusterProvider):
                 self.kubeconfig_from_location,
                 self.api_server_container_name,
                 self.parameters,
-                # TODO: add PVC name as parameter
+                from_shelf=True
             )
         ]
         node_workloads = [
@@ -278,7 +285,7 @@ class K3s(AbstractClusterProvider):
                 self.k3s_image_pullpolicy,
                 self.parameters,
                 node,
-                # TODO: add PVC name as parameter
+                from_shelf=True
             )
             for node in range(
                 1, self.parameters.nodes
@@ -474,7 +481,10 @@ class K3s(AbstractClusterProvider):
         """
         # TODO: can/should we except errors here? Or are we fine that errors propagate and the shelf will permanently
         #  fail if this fails? Interesting: errors of the command that's being run don't cause it to fail
-        self.logger.info("K3s.on_shelf_request")
+        #  - do errors actually propagate?
+        # TODO: can this be refactored, so that we don't need 5 calls? Command-chaining doesn't seem to work as one
+        #  would expect
+        self.logger.debug("K3s.on_shelf_request")
         # we need three calls, as we can't seem to chain commands...
         # ensure directory exists
         resp = exec_command_pod(
@@ -486,7 +496,7 @@ class K3s(AbstractClusterProvider):
                 "mkdir", "-p", "/getdeck/data/shelf-snapshot"
             ]
         )
-        self.logger.info(f"K3s.on_shelf_request mkdir response: {resp}")
+        self.logger.debug(f"K3s.on_shelf_request mkdir response: {resp}")
         # take k3s snapshot
         resp = exec_command_pod(
             core_api,
@@ -498,7 +508,7 @@ class K3s(AbstractClusterProvider):
                 "--snapshot-compress"
             ]
         )
-        self.logger.info(f"K3s.on_shelf_request snapshot response: {resp}")
+        self.logger.debug(f"K3s.on_shelf_request snapshot response: {resp}")
         # prune k3s snapshots except the most recent one
         resp = exec_command_pod(
             core_api,
@@ -510,7 +520,28 @@ class K3s(AbstractClusterProvider):
                 "--snapshot-retention", "1"
             ]
         )
-        self.logger.info(f"K3s.on_shelf_request prune response: {resp}")
+        self.logger.debug(f"K3s.on_shelf_request prune response: {resp}")
+        # sync and drop caches to ensure that compressed snapshot is written to disk before VolumeSnapshots are created
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "sync"
+            ]
+        )
+        self.logger.debug(f"K3s.on_shelf_request sync response: {resp}")
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "echo 3 > /proc/sys/vm/drop_caches"
+            ]
+        )
+        self.logger.debug(f"K3s.on_shelf_request drop_caches response: {resp}")
 
 
 class K3sBuilder:

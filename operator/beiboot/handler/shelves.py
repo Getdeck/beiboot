@@ -106,10 +106,8 @@ async def shelf_created(body, logger, **kwargs):
             raise e from None
 
     if shelf.is_ready:
-        logger.info("shelf.is_ready")
         await shelf.reconcile()
     elif shelf.is_error:
-        logger.info("shelf.is_error")
         await shelf.reconcile()
 
 
