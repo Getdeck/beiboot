@@ -183,6 +183,8 @@ class BeibootRequest:
 
 class BeibootState(Enum):
     REQUESTED = "REQUESTED"
+    PREPARING = "PREPARING"
+    RESTORING = "RESTORING"
     CREATING = "CREATING"
     PENDING = "PENDING"
     RUNNING = "RUNNING"

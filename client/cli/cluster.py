@@ -134,6 +134,8 @@ def create_cluster(
     if not nowait:
         state_pipeline = [
             BeibootState.REQUESTED,
+            BeibootState.PREPARING,
+            BeibootState.RESTORING,
             BeibootState.CREATING,
             BeibootState.PENDING,
             BeibootState.RUNNING,
