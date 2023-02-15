@@ -155,6 +155,8 @@ class K3s(AbstractClusterProvider):
 
         Returns True if prepare-stage is complete, i.e. if PVCs are created and Job is completed.
         """
+        # TODO: we don't seem to need that state after all, we should clean it up
+        #  the VolumeSnapshot/Contents and PVCs can be created when the server-/agent-workloads are created
         node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
             self.logger, self.shelf, cluster_namespace=self.namespace
         )
@@ -184,7 +186,6 @@ class K3s(AbstractClusterProvider):
                 )
                 # create Job to run k3s snapshot restore
                 node_token = generate_token()
-                # node_token = "beiboot"
                 pvc_name = node_to_pvc_mapping["server"]
                 job = await create_k3s_snapshot_restore_job(
                     self.namespace,
@@ -209,7 +210,6 @@ class K3s(AbstractClusterProvider):
         )
 
         node_token = generate_token()
-        # node_token = "beiboot"
         server_workloads = [
             create_k3s_server_workload(
                 self.namespace,
@@ -262,7 +262,6 @@ class K3s(AbstractClusterProvider):
         )
 
         node_token = generate_token()
-        # node_token = "beiboot"
         server_workloads = [
             create_k3s_server_workload(
                 self.namespace,
