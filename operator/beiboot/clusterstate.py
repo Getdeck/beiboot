@@ -301,7 +301,7 @@ class BeibootCluster(StateMachine):
                     self.logger.info(f"Restore of cluster '{self.name}' is finished")
                     self.post_event(
                         self.requested.value,
-                        f"Restore of cluster '{self.name}' is finished)"
+                        f"Restore of cluster '{self.name}' is finished"
                     )
                 else:
                     raise kopf.TemporaryError(f"Restore of cluster '{self.name}' is still running", delay=5)
