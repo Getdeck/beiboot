@@ -78,8 +78,8 @@ def create_k3s_server_workload(
         f"--agent-token={node_token} "
         "--token=1234 "
     ]
-    # if not from_shelf:
-    #     args += "--cluster-init"
+    if parameters.nodes > 1:
+        args[0] += " --node-taint node-role.kubernetes.io/control-plane:NoSchedule"
     container = k8s.client.V1Container(
         name=api_server_container_name,
         image=f"{k3s_image}:{k3s_image_tag}",
