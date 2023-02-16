@@ -339,13 +339,13 @@ class InstallOptions:
     storage_class: str = field(
         default_factory=lambda: "standard",
         metadata=dict(
-            help="Set the Kubernetes storageClassName of PVCs created for Beiboot clusters (default: standard)"
+            help="Set the Kubernetes StorageClass of PVCs created for Beiboot clusters (default: standard)"
         ),
     )
     shelf_storage_class: str = field(
         default_factory=lambda: "standard",
         metadata=dict(
-            help="Set the Kubernetes storageClassName of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"
+            help="Set the Kubernetes VolumeSnapshotClass of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"
         ),
     )
     node_storage_request: str = field(

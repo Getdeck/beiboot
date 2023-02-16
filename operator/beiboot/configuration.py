@@ -44,6 +44,9 @@ class ClusterConfiguration:
     serverStartupTimeout: int = field(default_factory=lambda: 60)
 
     clusterReadyTimeout: int = field(default_factory=lambda: 180)
+    storageClass: str = field(default_factory=lambda: "standard")
+    shelfStorageClass: str = field(default_factory=lambda: "standard")
+
     # Gefyra integration
     gefyra: dict = field(
         default_factory=lambda: {
