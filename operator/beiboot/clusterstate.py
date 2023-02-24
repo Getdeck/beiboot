@@ -339,6 +339,8 @@ class BeibootCluster(StateMachine):
         # create the workloads for this cluster provider
         try:
             await self.provider.create()
+        # TODO: except exception to indicate that restore from shelf hasn't finished yet (waiting for server-0 to
+        #  become ready)
         except k8s.client.ApiException as e:
             try:
                 body = json.loads(e.body)
