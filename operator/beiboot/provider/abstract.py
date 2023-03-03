@@ -36,9 +36,9 @@ class AbstractClusterProvider(ABC):
         Create the workloads for the Beiboot cluster and apply them, return the result
         """
         if self.shelf_name:
-            await self.restore_from_shelf()
+            return await self.restore_from_shelf()
         else:
-            await self.create_new()
+            return await self.create_new()
 
     @abstractmethod
     async def create_new(self) -> bool:
