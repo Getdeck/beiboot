@@ -1,3 +1,4 @@
+import base64
 import re
 from datetime import timedelta
 from typing import List, Optional, Dict
@@ -8,7 +9,7 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name, generate_token
+from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name
 
 from .utils import (
     create_k3s_server_workload,
@@ -17,8 +18,7 @@ from .utils import (
     PVC_PREFIX_SERVER,
     PVC_PREFIX_NODE,
 )
-from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf, \
-    handle_create_job
+from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf
 
 core_api = k8s.client.CoreV1Api()
 app_api = k8s.client.AppsV1Api()
@@ -212,64 +212,97 @@ class K3s(AbstractClusterProvider):
             handle_create_service,
         )
 
-        # TODO: try to get server-o; if it fails, we proceed with the creation of the volume snapshots and the server
+        try:
+            pod = core_api.read_namespaced_pod("server-0", self.namespace)
+        except k8s.client.ApiException as e:
+            if e.status == 404:
+                self.logger.info("Server pod doesn't exist, creating it")
+                # server pod doesn't exist, create it
+                node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+                    self.logger, self.shelf, cluster_namespace=self.namespace
+                )
 
-        node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
-            self.logger, self.shelf, cluster_namespace=self.namespace
-        )
+                node_token = generate_token()
+                node_to_snapshot_mapping["node_token"] = node_token
+                secret_body = k8s.client.V1Secret(
+                    metadata=k8s.client.V1ObjectMeta(
+                        name="shelf-restore-data",
+                        namespace=self.namespace,
+                    ),
+                    string_data=node_to_snapshot_mapping
+                )
+                core_api.create_namespaced_secret(self.namespace, secret_body)
+                server_workloads = [
+                    create_k3s_server_workload(
+                        self.namespace,
+                        node_token,
+                        self.k3s_image,
+                        self.k3s_image_tag,
+                        self.k3s_image_pullpolicy,
+                        self.kubeconfig_from_location,
+                        self.api_server_container_name,
+                        self.parameters,
+                        # TODO: what when that doesn't exist?
+                        node_to_snapshot_mapping["server"]
+                    )
+                ]
 
-        node_token = generate_token()
-        server_workloads = [
-            create_k3s_server_workload(
-                self.namespace,
-                node_token,
-                self.k3s_image,
-                self.k3s_image_tag,
-                self.k3s_image_pullpolicy,
-                self.kubeconfig_from_location,
-                self.api_server_container_name,
-                self.parameters,
-                # TODO: what when that doesn't exist?
-                node_to_snapshot_mapping["server"]
-            )
-        ]
+                services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
 
-        # TODO: if the server is already deployed, we check if it is up and running and only then proceed to deploy the
-        #  agents
+                #
+                # Create the server workload
+                #
+                for sts in server_workloads:
+                    self.logger.debug("Creating: " + str(sts))
+                    handle_create_statefulset(self.logger, sts, self.namespace)
 
-        node_workloads = [
-            create_k3s_agent_workload(
-                self.namespace,
-                node_token,
-                self.k3s_image,
-                self.k3s_image_tag,
-                self.k3s_image_pullpolicy,
-                self.parameters,
-                node,
-                # TODO: what when that doesn't exist?
-                node_to_snapshot_mapping[f"agent-{node}"]
-            )
-            for node in range(
-                1, self.parameters.nodes
-            )  # (no +1 ) since the server deployment already runs one node
-        ]
-        services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
+                #
+                # Create the services
+                #
+                for svc in services:
+                    self.logger.debug("Creating: " + str(svc))
+                    handle_create_service(self.logger, svc, self.namespace)
 
-        #
-        # Create the workloads
-        #
-        workloads = server_workloads + node_workloads
-        for sts in workloads:
-            self.logger.debug("Creating: " + str(sts))
-            handle_create_statefulset(self.logger, sts, self.namespace)
-
-        #
-        # Create the services
-        #
-        for svc in services:
-            self.logger.debug("Creating: " + str(svc))
-            handle_create_service(self.logger, svc, self.namespace)
-        return True
+                # as we've just created the server, we return False so that the agents are created next time
+                return False
+            else:
+                raise e
+        else:
+            # check whether server-0 is running
+            if pod.status.phase == "Running":
+                self.logger.info("Server pod is running, creating agents")
+                # create agents when server is running
+                secret = core_api.read_namespaced_secret("shelf-restore-data", self.namespace)
+                node_workloads = [
+                    create_k3s_agent_workload(
+                        self.namespace,
+                        base64.b64decode(secret.data["node_token"]).decode("utf-8"),
+                        self.k3s_image,
+                        self.k3s_image_tag,
+                        self.k3s_image_pullpolicy,
+                        self.parameters,
+                        node,
+                        # TODO: what when that doesn't exist?
+                        base64.b64decode(secret.data[f"agent-{node}"]).decode("utf-8"),
+                    )
+                    for node in range(
+                        1, self.parameters.nodes
+                    )  # (no +1 ) since the server deployment already runs one node
+                ]
+                # remove the old agents, so that they are freshly joined to the cluster
+                for node in range(1, self.parameters.nodes):
+                    self._remove_cluster_node("server-0", f"agent-{node}-0")
+                #
+                # Create the agent workloads
+                #
+                for sts in node_workloads:
+                    self.logger.debug("Creating: " + str(sts))
+                    handle_create_statefulset(self.logger, sts, self.namespace)
+                return True
+            else:
+                self.logger.info("Server pod is not running, waiting for it to be running")
+                # server is not running, so we return False and do nothing
+                return False
 
     async def delete(self) -> bool:
         try:

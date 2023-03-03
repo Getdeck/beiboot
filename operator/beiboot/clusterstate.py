@@ -285,16 +285,16 @@ class BeibootCluster(StateMachine):
             raise kopf.TemporaryError(delay=5)
 
     async def on_enter_restoring(self):
-        """Call cluster providers hook to perform necessary steps before the shelf-restored cluster is created"""
+        """
+        Post an event to the Kubernetes API if cluster is restored from shelf (otherwise this state is not relevant)
+        """
         if self.model.get("fromShelf"):
             self.post_event(
                 self.restoring.value, f"The cluster '{self.name}' is now being restored"
             )
 
     async def on_restore(self):
-        """
-        Post an event to the Kubernetes API if cluster is restored from shelf (otherwise this state is not relevant)
-        """
+        """Call cluster providers hook to perform necessary steps before the shelf-restored cluster is created"""
         if self.model.get("fromShelf"):
             try:
                 if await self.provider.prepare_restore_from_shelf():
@@ -316,7 +316,7 @@ class BeibootCluster(StateMachine):
         else:
             self.logger.warning(f"Cluster {self.name} is in state RESTORING, but has not 'fromShelf' set!")
 
-    def on_create(self):
+    def on_enter_creating(self):
         """
         > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
         """
@@ -332,15 +332,19 @@ class BeibootCluster(StateMachine):
             }
         )
 
-    async def on_enter_creating(self):
+    async def on_create(self):
         """
         It creates the provider workloads for the cluster, adds additional services, and creates the services
         """
         # create the workloads for this cluster provider
         try:
-            await self.provider.create()
-        # TODO: except exception to indicate that restore from shelf hasn't finished yet (waiting for server-0 to
-        #  become ready)
+            if await self.provider.create():
+                self.logger.info(f"Cluster '{self.name}' has been created")
+                self.post_event(
+                    self.running.value, f"Cluster '{self.name}' has been created"
+                )
+            else:
+                raise kopf.TemporaryError(f"Cluster '{self.name}' is still being created", delay=5)
         except k8s.client.ApiException as e:
             try:
                 body = json.loads(e.body)
