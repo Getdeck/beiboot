@@ -37,13 +37,10 @@ def create_shelf(
         volume_snapshot_class,
         label,
 ):
-    # TODO finish
     if shelf_name:
         _shelf_name = shelf_name
     else:
         _shelf_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_name}"
-
-    # TODO: get namespace from cluster_name
 
     if label:
         _labels = dict([_l.split("=") for _l in label])

@@ -410,7 +410,6 @@ class InstallOptions:
 
 @dataclass
 class VolumeSnapshotContentStatus(Enum):
-    # TODO: not yet clear if more are needed
     NOT_READY_TO_USE = "NOT_READY_TO_USE"
     READY_TO_USE = "READY_TO_USE"
 
@@ -419,7 +418,6 @@ class VolumeSnapshotContentStatus(Enum):
 class VolumeSnapshotContent:
     name: str
     snapshot_handle: str
-    # TODO: not yet clear if it's one of [server, agent], or if complete node-name is needed
     node: str
     status: VolumeSnapshotContentStatus = field(default_factory=lambda: VolumeSnapshotContentStatus.NOT_READY_TO_USE)
 

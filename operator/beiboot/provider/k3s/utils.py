@@ -3,7 +3,6 @@ import logging
 import kubernetes as k8s
 
 from beiboot.configuration import ClusterConfiguration
-from beiboot.resources.utils import create_pvc_resource, handle_create_pvc
 
 PVC_PREFIX_NODE = "k8s-node-data"
 PVC_PREFIX_SERVER = "k8s-server-data"
