@@ -119,7 +119,6 @@ def create_cluster(
         nodeStorageRequests=node_storage,
         serverStorageRequests=server_storage,
         tunnel=tunnel,
-        # TODO: should we have from_shelf here, or additionally here?
     )
 
     if label:
