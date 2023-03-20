@@ -43,8 +43,6 @@ def connect(
     :return: A AbstractConnector instance
     """
     additional_ports = []
-    if BeibootProvider(beiboot.provider) == BeibootProvider.K3S:
-        additional_ports = ["6443:6443"]
     connector = _get_connector(connector_type, config)
 
     if connector_type == ConnectorType.GHOSTUNNEL_DOCKER and _docker_network:

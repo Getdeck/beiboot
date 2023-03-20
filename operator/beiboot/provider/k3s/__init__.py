@@ -438,7 +438,7 @@ class K3s(AbstractClusterProvider):
         # add the kubernetes api port for k3s here
         if ports is None:
             ports = ["6443:6443"]
-        else:
+        elif "6443:6443" not in ports:
             ports.append("6443:6443")
         return ports
 

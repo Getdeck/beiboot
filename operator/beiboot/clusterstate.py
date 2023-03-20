@@ -320,22 +320,23 @@ class BeibootCluster(StateMachine):
         """
         > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
         """
-        import dataclasses
 
         self.post_event(
             self.creating.value, f"The cluster '{self.name}' is now being created"
-        )
-        self._patch_object(
-            {
-                "beibootNamespace": self.namespace,
-                "parameters": dataclasses.asdict(self.parameters),
-            }
         )
 
     async def on_create(self):
         """
         It creates the provider workloads for the cluster, adds additional services, and creates the services
         """
+        import dataclasses
+
+        self._patch_object(
+            {
+                "beibootNamespace": self.namespace,
+                "parameters": dataclasses.asdict(self.parameters),
+            }
+        )
         # create the workloads for this cluster provider
         try:
             if await self.provider.create():
@@ -381,6 +382,14 @@ class BeibootCluster(StateMachine):
             )
         except Exception as e:
             self.logger.error(str(e))
+
+        self._patch_object(
+            {
+                "parameters": {
+                    "ports": self.provider.get_ports(),
+                }
+            }
+        )
 
     async def on_boot(self):
         self.post_event(

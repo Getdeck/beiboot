@@ -74,13 +74,13 @@ def validate_shelf(name: str, parameters: dict, defaults: ClusterConfiguration, 
             shelf = custom_api.get_namespaced_custom_object(
                 group="beiboots.getdeck.dev",
                 version="v1",
-                namespace=defaults.namespacePrefix,
+                namespace=configuration.NAMESPACE,
                 plural="shelves",
-                name=name,
+                name=shelf_name,
             )
-            if shelf.state != "READY":
+            if shelf.get("state") != "READY":
                 raise kopf.AdmissionError(
-                    f"Shelf for Beiboot '{shelf_name}' not ready: {shelf.state}"
+                    f"Shelf for Beiboot '{shelf_name}' not ready: {shelf.get('state')}"
                 )
         except k8s.client.exceptions.ApiException as e:
             logger.info(f"Shelf {shelf_name} handled with {e.reason}")
@@ -125,20 +125,19 @@ def validate_volume_snapshot_class(name: str, parameters: dict, defaults: Cluste
     """
     Validate that the volumeSnapshotClass exists.
     """
-    class_name = parameters.get("volumeSnapshotClass")
-    try:
-        volume_snapshot_class = custom_api.get_cluster_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            namespace=defaults.namespacePrefix,
-            plural="volumesnapshotclasses",
-            name=name,
-        )
-    except k8s.client.exceptions.ApiException as e:
-        logger.info(f"Shelf {name} handled with {e.reason}")
-        raise kopf.AdmissionError(
-            f"VolumeSnapshotClass '{class_name}' for Beiboot '{name}' doesn't exist or has other issue: {e.reason}"
-        )
+    if class_name := parameters.get("volumeSnapshotClass"):
+        try:
+            volume_snapshot_class = custom_api.get_cluster_custom_object(
+                group="snapshot.storage.k8s.io",
+                version="v1",
+                plural="volumesnapshotclasses",
+                name=name,
+            )
+        except k8s.client.exceptions.ApiException as e:
+            logger.info(f"Shelf {name} handled with {e.reason}")
+            raise kopf.AdmissionError(
+                f"VolumeSnapshotClass '{class_name}' for Beiboot '{name}' doesn't exist or has other issue: {e.reason}"
+            )
 
 
 def validate_shelf_cluster(name: str, parameters: dict, defaults: ClusterConfiguration, logger):
@@ -151,13 +150,13 @@ def validate_shelf_cluster(name: str, parameters: dict, defaults: ClusterConfigu
         bbt = custom_api.get_namespaced_custom_object(
             group="getdeck.dev",
             version="v1",
-            namespace=defaults.NAMESPACE,
+            namespace=configuration.NAMESPACE,
             plural="beiboots",
             name=cluster_name,
         )
-        if bbt.state != "READY":
+        if bbt.get("state") != "READY":
             raise kopf.AdmissionError(
-                f"Beiboot '{cluster_name}' for Shelf '{name}' not ready: {bbt.state}"
+                f"Beiboot '{cluster_name}' for Shelf '{name}' not ready: {bbt.get('state')}"
             )
     except k8s.client.exceptions.ApiException as e:
         logger.info(f"Shelf {name} handled with {e.reason}")
@@ -178,7 +177,7 @@ def validate_shelf_cluster(name: str, parameters: dict, defaults: ClusterConfigu
 SHELF_VALIDATORS = [validate_volume_snapshot_class, validate_shelf_cluster]
 
 
-@kopf.on.validate("shelf.beiboot.getdeck.dev", id="validate-shelf")  # type: ignore
+@kopf.on.validate("shelf.beiboots.getdeck.dev", id="validate-shelf")  # type: ignore
 def check_validate_shelf_request(body, logger, operation, **_):
     """
     If the operation is a CREATE, validate the specs of the Shelf given by the client. If it cannot successfully
