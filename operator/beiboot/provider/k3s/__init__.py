@@ -129,7 +129,7 @@ class K3s(AbstractClusterProvider):
             )
             if len(api_pod.items) != 1:
                 self.logger.warning(
-                    f"There is more then one API Pod, it is {len(api_pod.items)}"
+                    f"There is not exactly one API Pod, it is {len(api_pod.items)}"
                 )
 
             kubeconfig = exec_command_pod(
@@ -270,6 +270,19 @@ class K3s(AbstractClusterProvider):
         else:
             # check whether server-0 is running
             if pod.status.phase == "Running":
+                # get nodes to infer whether apiserver is runnning
+                output = exec_command_pod(
+                    core_api,
+                    "server-0",
+                    self.namespace,
+                    self.api_server_container_name,
+                    ["kubectl", "get", "node"],
+                )
+                if "Error from server" in output:
+                    self.logger.info("Server pod is running but not ready, waiting for it to be ready")
+                    # server pod is not ready, wait
+                    return False
+
                 self.logger.info("Server pod is running, creating agents")
                 # create agents when server is running
                 secret = core_api.read_namespaced_secret("shelf-restore-data", self.namespace)
@@ -413,8 +426,10 @@ class K3s(AbstractClusterProvider):
                         if node["status"] == "Ready":
                             continue
                         else:
+                            self.logger.info(f"Node {name} is not ready")
                             # wait for a node to become ready within 30 seconds
-                            if node["age"].seconds > 30:
+                            if node["age"] > timedelta(seconds=30):
+                                self.logger.info(f"Removing cluster node {name}")
                                 self._remove_cluster_node(
                                     api_pod.items[0].metadata.name, name
                                 )

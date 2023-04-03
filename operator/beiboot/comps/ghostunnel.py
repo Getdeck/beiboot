@@ -317,7 +317,7 @@ async def extract_client_tls(namespace: str) -> dict[str, str]:
         )
         if len(tunnel_pods.items) != 1:
             logger.warning(
-                f"There is more then one API Pod, it is {len(tunnel_pods.items)}"
+                f"There is not exactly one API Pod, it is {len(tunnel_pods.items)}"
             )
         tunnel_pod = tunnel_pods.items[0]
         # we can use the first container, as all running container sharing the same volume containing the PKI
