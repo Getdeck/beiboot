@@ -1,0 +1,18 @@
+name: Send mail on release
+
+on:
+  workflow_dispatch: {}
+  release:
+    types:
+      - published
+
+jobs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: Ilshidur/action-discord@0.3.2
+      name: Send Discord Release Announcement
+      # add random emoji to the message
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      with:
+        args: "Beiboot Version ${{ github.event.release.tag_name }} is out! 🚀 Here's the changelog: https://github.com/Getdeck/beiboot/releases/tag/${{ github.event.release.tag_name }}"
