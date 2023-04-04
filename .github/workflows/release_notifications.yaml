@@ -1,4 +1,4 @@
-name: Send mail on release
+name: Send Discord message on release
 
 on:
   workflow_dispatch: {}
