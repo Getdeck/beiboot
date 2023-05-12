@@ -89,7 +89,12 @@ def validate_shelf(name: str, parameters: dict, defaults: ClusterConfiguration, 
             )
 
 
-VALIDATORS = [validate_namespace, validate_maxlifetime, validate_session_timeout, validate_shelf]
+VALIDATORS = [
+    validate_namespace,
+    validate_maxlifetime,
+    validate_session_timeout,
+    validate_shelf,
+]
 
 
 @kopf.on.validate("beiboot.getdeck.dev", id="validate-parameters")  # type: ignore
@@ -121,13 +126,15 @@ def check_validate_beiboot_request(body, logger, operation, **_):
         return True
 
 
-def validate_volume_snapshot_class(name: str, parameters: dict, defaults: ClusterConfiguration, logger):
+def validate_volume_snapshot_class(
+    name: str, parameters: dict, defaults: ClusterConfiguration, logger
+):
     """
     Validate that the volumeSnapshotClass exists.
     """
     if class_name := parameters.get("volumeSnapshotClass"):
         try:
-            volume_snapshot_class = custom_api.get_cluster_custom_object(
+            _ = custom_api.get_cluster_custom_object(
                 group="snapshot.storage.k8s.io",
                 version="v1",
                 plural="volumesnapshotclasses",
@@ -140,7 +147,9 @@ def validate_volume_snapshot_class(name: str, parameters: dict, defaults: Cluste
             )
 
 
-def validate_shelf_cluster(name: str, parameters: dict, defaults: ClusterConfiguration, logger):
+def validate_shelf_cluster(
+    name: str, parameters: dict, defaults: ClusterConfiguration, logger
+):
     """
     Validate that the cluster that is to be shelved exists (Beiboot CRD and namespace).
     """
@@ -165,7 +174,7 @@ def validate_shelf_cluster(name: str, parameters: dict, defaults: ClusterConfigu
         )
 
     try:
-        ns = core_v1_api.read_namespace(name=cluster_namespace)
+        _ = core_v1_api.read_namespace(name=cluster_namespace)
     except k8s.client.exceptions.ApiException as e:
         logger.info(f"Shelf {name} handled with {e.reason}")
         raise kopf.AdmissionError(

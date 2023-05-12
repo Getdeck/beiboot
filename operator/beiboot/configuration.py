@@ -17,7 +17,10 @@ class ClusterConfiguration:
     k8sVersion: Optional[str] = field(default_factory=lambda: None)
     nodes: int = field(default_factory=lambda: 1)
     nodeLabels: dict = field(
-        default_factory=lambda: {"app": "beiboot", "beiboot.getdeck.dev/is-node": "true"}
+        default_factory=lambda: {
+            "app": "beiboot",
+            "beiboot.getdeck.dev/is-node": "true",
+        }
     )
     serverLabels: dict = field(
         default_factory=lambda: {

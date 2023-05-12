@@ -18,7 +18,11 @@ from .utils import (
     PVC_PREFIX_SERVER,
     PVC_PREFIX_NODE,
 )
-from ...resources.utils import handle_delete_statefulset, handle_delete_service, create_volume_snapshots_from_shelf
+from ...resources.utils import (
+    handle_delete_statefulset,
+    handle_delete_service,
+    create_volume_snapshots_from_shelf,
+)
 
 core_api = k8s.client.CoreV1Api()
 app_api = k8s.client.AppsV1Api()
@@ -44,12 +48,16 @@ class K3s(AbstractClusterProvider):
         namespace: str,
         ports: Optional[List[str]],
         logger,
-        shelf_name: str = None,
+        shelf_name: str = "",
     ):
         super().__init__(name, namespace, ports, shelf_name)
         self.configuration = configuration
         if shelf_name:
-            shelf = get_shelf_by_name(name=shelf_name, api_instance=custom_api, namespace=configuration.NAMESPACE)
+            shelf = get_shelf_by_name(
+                name=shelf_name,
+                api_instance=custom_api,
+                namespace=configuration.NAMESPACE,
+            )
             self.shelf = shelf
             cluster_parameter.update(shelf["clusterParameters"])
         else:
@@ -229,7 +237,7 @@ class K3s(AbstractClusterProvider):
                         name="shelf-restore-data",
                         namespace=self.namespace,
                     ),
-                    string_data=node_to_snapshot_mapping
+                    string_data=node_to_snapshot_mapping,
                 )
                 core_api.create_namespaced_secret(self.namespace, secret_body)
                 server_workloads = [
@@ -243,7 +251,7 @@ class K3s(AbstractClusterProvider):
                         self.api_server_container_name,
                         self.parameters,
                         # TODO: what when that doesn't exist?
-                        node_to_snapshot_mapping["server"]
+                        node_to_snapshot_mapping["server"],
                     )
                 ]
 
@@ -279,13 +287,17 @@ class K3s(AbstractClusterProvider):
                     ["kubectl", "get", "node"],
                 )
                 if "Error from server" in output:
-                    self.logger.info("Server pod is running but not ready, waiting for it to be ready")
+                    self.logger.info(
+                        "Server pod is running but not ready, waiting for it to be ready"
+                    )
                     # server pod is not ready, wait
                     return False
 
                 self.logger.info("Server pod is running, creating agents")
                 # create agents when server is running
-                secret = core_api.read_namespaced_secret("shelf-restore-data", self.namespace)
+                secret = core_api.read_namespaced_secret(
+                    "shelf-restore-data", self.namespace
+                )
                 node_workloads = [
                     create_k3s_agent_workload(
                         self.namespace,
@@ -313,7 +325,9 @@ class K3s(AbstractClusterProvider):
                     handle_create_statefulset(self.logger, sts, self.namespace)
                 return True
             else:
-                self.logger.info("Server pod is not running, waiting for it to be running")
+                self.logger.info(
+                    "Server pod is not running, waiting for it to be running"
+                )
                 # server is not running, so we return False and do nothing
                 return False
 
@@ -478,7 +492,9 @@ class K3s(AbstractClusterProvider):
             for volume in pod.spec.volumes:
                 try:
                     claim_name = volume.persistent_volume_claim.claim_name
-                    if claim_name.startswith(PVC_PREFIX_SERVER) or claim_name.startswith(PVC_PREFIX_NODE):
+                    if claim_name.startswith(
+                        PVC_PREFIX_SERVER
+                    ) or claim_name.startswith(PVC_PREFIX_NODE):
                         pvc_mapping[sts_name] = claim_name
                 except AttributeError:
                     # not every volume as a claim_name
@@ -502,9 +518,7 @@ class K3s(AbstractClusterProvider):
             "server-0",
             self.namespace,
             "apiserver",
-            [
-                "mkdir", "-p", "/getdeck/data/shelf-snapshot"
-            ]
+            ["mkdir", "-p", "/getdeck/data/shelf-snapshot"],
         )
         self.logger.debug(f"K3s.on_shelf_request mkdir response: {resp}")
         # take k3s snapshot
@@ -514,9 +528,15 @@ class K3s(AbstractClusterProvider):
             self.namespace,
             "apiserver",
             [
-                "k3s", "etcd-snapshot", "save", "--data-dir", "/getdeck/data", "--dir", "/getdeck/data/shelf-snapshot",
-                "--snapshot-compress"
-            ]
+                "k3s",
+                "etcd-snapshot",
+                "save",
+                "--data-dir",
+                "/getdeck/data",
+                "--dir",
+                "/getdeck/data/shelf-snapshot",
+                "--snapshot-compress",
+            ],
         )
         self.logger.debug(f"K3s.on_shelf_request snapshot response: {resp}")
         # prune k3s snapshots except the most recent one
@@ -526,20 +546,21 @@ class K3s(AbstractClusterProvider):
             self.namespace,
             "apiserver",
             [
-                "k3s", "etcd-snapshot", "prune", "--data-dir", "/getdeck/data", "--dir", "/getdeck/data/shelf-snapshot",
-                "--snapshot-retention", "1"
-            ]
+                "k3s",
+                "etcd-snapshot",
+                "prune",
+                "--data-dir",
+                "/getdeck/data",
+                "--dir",
+                "/getdeck/data/shelf-snapshot",
+                "--snapshot-retention",
+                "1",
+            ],
         )
         self.logger.debug(f"K3s.on_shelf_request prune response: {resp}")
         # sync and drop caches to ensure that compressed snapshot is written to disk before VolumeSnapshots are created
         resp = exec_command_pod(
-            core_api,
-            "server-0",
-            self.namespace,
-            "apiserver",
-            [
-                "sync"
-            ]
+            core_api, "server-0", self.namespace, "apiserver", ["sync"]
         )
         self.logger.debug(f"K3s.on_shelf_request sync response: {resp}")
         resp = exec_command_pod(
@@ -547,11 +568,10 @@ class K3s(AbstractClusterProvider):
             "server-0",
             self.namespace,
             "apiserver",
-            [
-                "echo 3 > /proc/sys/vm/drop_caches"
-            ]
+            ["echo 3 > /proc/sys/vm/drop_caches"],
         )
         self.logger.debug(f"K3s.on_shelf_request drop_caches response: {resp}")
+        return True
 
 
 class K3sBuilder:
@@ -566,7 +586,7 @@ class K3sBuilder:
         namespace: str,
         ports: Optional[List[str]],
         logger,
-        shelf_name: str = None,
+        shelf_name: str = "",
         **_ignored,
     ):
         instance = K3s(

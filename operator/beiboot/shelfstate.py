@@ -1,15 +1,18 @@
 import uuid
-from asyncio import sleep
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import kubernetes as k8s
 import kopf
 
 from beiboot.clusterstate import BeibootCluster
 from beiboot.configuration import ShelfConfiguration, ClusterConfiguration
-from beiboot.resources.utils import create_volume_snapshot_from_pvc_resource, handle_create_volume_snapshot, \
-    handle_delete_volume_snapshot, handle_delete_volume_snapshot_content
+from beiboot.resources.utils import (
+    create_volume_snapshot_from_pvc_resource,
+    handle_create_volume_snapshot,
+    handle_delete_volume_snapshot,
+    handle_delete_volume_snapshot_content,
+)
 from beiboot.utils import StateMachine, AsyncState
 
 objects_api = k8s.client.CustomObjectsApi()
@@ -23,7 +26,9 @@ class Shelf(StateMachine):
 
     requested = AsyncState("Shelf requested", initial=True, value="REQUESTED")
     creating = AsyncState("Shelf creating", value="CREATING")
-    preparing = AsyncState("Shelf preparing (cluster-specific stuff)", value="PREPARING")
+    preparing = AsyncState(
+        "Shelf preparing (cluster-specific stuff)", value="PREPARING"
+    )
     pending = AsyncState("Shelf pending", value="PENDING")
     ready = AsyncState("Shelf ready", value="READY")
     error = AsyncState("Shelf error", value="ERROR")
@@ -35,7 +40,9 @@ class Shelf(StateMachine):
     operate = pending.to(ready)
     reconcile = ready.to.itself() | error.to(ready)
     impair = error.from_(ready, pending, preparing, creating, requested, error)
-    terminate = terminating.from_(pending, preparing, creating, ready, error, terminating)
+    terminate = terminating.from_(
+        pending, preparing, creating, ready, error, terminating
+    )
 
     def __init__(
         self,
@@ -43,8 +50,8 @@ class Shelf(StateMachine):
         model=None,
         logger=None,
         persistent_volume_claims: dict = None,
-        cluster_default_volume_snapshot_class: str = None,
-        cluster_namespace: str = None,
+        cluster_default_volume_snapshot_class: str = "",
+        cluster_namespace: str = "",
     ):
         super(Shelf, self).__init__()
         self.configuration = configuration
@@ -52,8 +59,10 @@ class Shelf(StateMachine):
         self.current_state_value = model.get("state")
         self.logger = logger
         self.persistent_volume_claims = persistent_volume_claims
-        self._volume_snapshot_names = []
-        self.cluster_default_volume_snapshot_class = cluster_default_volume_snapshot_class
+        self._volume_snapshot_names: List = []
+        self.cluster_default_volume_snapshot_class = (
+            cluster_default_volume_snapshot_class
+        )
         self._cluster_namespace = cluster_namespace
         self.cluster_parameters = None
         self.custom_api = k8s.client.CustomObjectsApi()
@@ -88,7 +97,9 @@ class Shelf(StateMachine):
         """
         if self.persistent_volume_claims:
             pvc_mapping = self.persistent_volume_claims
-            volume_snapshot_names = [f"{self.name}-{node_name}" for node_name in pvc_mapping.keys()]
+            volume_snapshot_names = [
+                f"{self.name}-{node_name}" for node_name in pvc_mapping.keys()
+            ]
         else:
             pvc_mapping = {}
             volume_snapshot_names = []
@@ -103,7 +114,10 @@ class Shelf(StateMachine):
 
     @property
     def volume_snapshot_class(self):
-        return self.model["volumeSnapshotClass"] or self.cluster_default_volume_snapshot_class
+        return (
+            self.model["volumeSnapshotClass"]
+            or self.cluster_default_volume_snapshot_class
+        )
 
     @property
     def cluster_namespace(self):
@@ -175,15 +189,9 @@ class Shelf(StateMachine):
                     Shelf.creating.value: self.completed_transition(
                         Shelf.creating.value
                     ),
-                    Shelf.pending.value: self.completed_transition(
-                        Shelf.pending.value
-                    ),
-                    Shelf.ready.value: self.completed_transition(
-                        Shelf.ready.value
-                    ),
-                    Shelf.error.value: self.completed_transition(
-                        Shelf.error.value
-                    ),
+                    Shelf.pending.value: self.completed_transition(Shelf.pending.value),
+                    Shelf.ready.value: self.completed_transition(Shelf.ready.value),
+                    Shelf.error.value: self.completed_transition(Shelf.error.value),
                 }.items(),
             )
         )
@@ -237,9 +245,11 @@ class Shelf(StateMachine):
             self.creating.value, f"The shelf '{self.name}' is now being created"
         )
 
-        self._patch_object({
+        self._patch_object(
+            {
                 "clusterParameters": dataclasses.asdict(self.cluster_parameters),
-            })
+            }
+        )
 
     async def on_enter_creating(self):
         """
@@ -250,11 +260,13 @@ class Shelf(StateMachine):
         """
         volume_snapshot_contents = []
         for sts_name, pvc_name in self.persistent_volume_claims.items():
-            volume_snapshot_contents.append({
-                "node": sts_name,
-                "pvc": pvc_name,
-                "volumeSnapshotName": f"{self.name}-{sts_name}",
-            })
+            volume_snapshot_contents.append(
+                {
+                    "node": sts_name,
+                    "pvc": pvc_name,
+                    "volumeSnapshotName": f"{self.name}-{sts_name}",
+                }
+            )
         data = {
             "clusterNamespace": self.cluster_namespace,
             "volumeSnapshotClass": self.volume_snapshot_class,
@@ -279,21 +291,22 @@ class Shelf(StateMachine):
                 name=f"{self.name}-{node_name}",
                 namespace=self.cluster_namespace,
                 volume_snapshot_class=self.volume_snapshot_class,
-                pvc_name=pvc_name
+                pvc_name=pvc_name,
             )
             handle_create_volume_snapshot(self.logger, body=volume_snapshot_resource)
         self.post_event(
-            self.creating.value, f"Now waiting for the shelf '{self.name}' to enter ready state"
+            self.creating.value,
+            f"Now waiting for the shelf '{self.name}' to enter ready state",
         )
 
     async def on_operate(self):
         """If shelf is ready (i.e. VolumeSnapshots and VolumeSnapshotContents have readyToUse=True), post the event
         and return. If the shelf is pending, check if it's been pending for longer than the timeout."""
         if await self._volume_snapshots_ready():
-            self.logger.info(f"VolumeSnapshotContents are ready")
+            self.logger.info("VolumeSnapshotContents are ready")
             self.post_event(
                 self.requested.value,
-                f"The shelf is ready to use (i.e. all VolumeSnapshotContents for '{self.name}' are readyToUse)"
+                f"The shelf is ready to use (i.e. all VolumeSnapshotContents for '{self.name}' are readyToUse)",
             )
         else:
             # TODO: add timeout logic
@@ -390,7 +403,7 @@ class Shelf(StateMachine):
         )
         if not volume_snapshot_contents["items"]:
             raise kopf.TemporaryError(
-                f"No VolumeSnapshotContents available.",
+                "No VolumeSnapshotContents available.",
                 delay=1,
             )
 
@@ -401,8 +414,7 @@ class Shelf(StateMachine):
 
         if not self.model["volumeSnapshotContents"]:
             raise kopf.TemporaryError(
-                f"No volumeSnapshotContents on shelf CRD '{self.name}'",
-                delay=1
+                f"No volumeSnapshotContents on shelf CRD '{self.name}'", delay=1
             )
         # we iterate over the data in the CRD, as we trust that it holds the desired target state (regarding number of
         # snapshots)
@@ -411,7 +423,9 @@ class Shelf(StateMachine):
         for crd_data in self.model["volumeSnapshotContents"]:
             volume_snapshot_name = crd_data["volumeSnapshotName"]
             if volume_snapshot_name in self.volume_snapshot_names:
-                volume_snapshot = self._get_volume_snapshot_from_list(volume_snapshots["items"], volume_snapshot_name)
+                volume_snapshot = self._get_volume_snapshot_from_list(
+                    volume_snapshots["items"], volume_snapshot_name
+                )
                 if not volume_snapshot and not crd_data["name"]:
                     # We neither have the VolumeSnapshot nor the VolumeSnapshotContent. It might be, that both have not
                     # yet been created in K8s. If e.g. the beiboot cluster was deleted and with it the VolumeSnapshot,
@@ -420,11 +434,11 @@ class Shelf(StateMachine):
                     ready.append(False)
                     continue
 
-                volume_snapshot_content_name = crd_data["name"] or \
-                                               volume_snapshot.get("status", {}).get("boundVolumeSnapshotContentName")
+                volume_snapshot_content_name = crd_data["name"] or volume_snapshot.get(
+                    "status", {}
+                ).get("boundVolumeSnapshotContentName")
                 volume_snapshot_content = self._get_volume_snapshot_content_from_list(
-                    volume_snapshot_contents["items"],
-                    volume_snapshot_content_name
+                    volume_snapshot_contents["items"], volume_snapshot_content_name
                 )
                 if not volume_snapshot_content:
                     data_volume_snapshot_contents.append(crd_data)
@@ -437,14 +451,14 @@ class Shelf(StateMachine):
                     ready.append(False)
 
                 data = crd_data.copy()
-                data["snapshotHandle"] = volume_snapshot_content.get("status", {}).get("snapshotHandle", "")
+                data["snapshotHandle"] = volume_snapshot_content.get("status", {}).get(
+                    "snapshotHandle", ""
+                )
                 data["name"] = volume_snapshot_content_name
                 data_volume_snapshot_contents.append(data)
 
         if data_volume_snapshot_contents != self.model["volumeSnapshotContents"]:
-            data = {
-                "volumeSnapshotContents": data_volume_snapshot_contents
-            }
+            data = {"volumeSnapshotContents": data_volume_snapshot_contents}
             self._patch_object(data)
 
         return all(ready)
@@ -479,7 +493,7 @@ class Shelf(StateMachine):
             await handle_delete_volume_snapshot(
                 logger=self.logger,
                 name=volume_snapshot_name,
-                namespace=self.cluster_namespace
+                namespace=self.cluster_namespace,
             )
             volume_snapshot_content_name = crd_data.get("name")
             await handle_delete_volume_snapshot_content(

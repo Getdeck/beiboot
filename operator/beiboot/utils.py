@@ -2,7 +2,7 @@ import inspect
 import logging
 import string
 import random
-from typing import List, Optional
+from typing import List
 from datetime import timedelta
 
 import kubernetes as k8s
@@ -161,7 +161,9 @@ def get_beiboot_for_namespace(
         return None
 
 
-def get_beiboot_by_name(name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"):
+def get_beiboot_by_name(
+    name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"
+):
     """Return the Beiboot object of the given name
 
     :param name: name of the beiboot
@@ -291,7 +293,9 @@ class AsyncStateMachine(BaseStateMachine):
 StateMachine = StateMachineMetaclass("StateMachine", (AsyncStateMachine,), {})
 
 
-def get_shelf_by_name(name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"):
+def get_shelf_by_name(
+    name: str, api_instance: k8s.client.CustomObjectsApi, namespace: str = "getdeck"
+):
     """Return the Shelf object of the given name
 
     :param name: name of the shelf
@@ -311,7 +315,9 @@ def get_shelf_by_name(name: str, api_instance: k8s.client.CustomObjectsApi, name
     return shelf
 
 
-def get_volume_snapshot_class_by_name(name: str, api_instance: k8s.client.CustomObjectsApi):
+def get_volume_snapshot_class_by_name(
+    name: str, api_instance: k8s.client.CustomObjectsApi
+):
     """Return the VolumeSnapshotClass object of the given name
 
     :param name: name of the VolumeSnapshotClass

@@ -19,7 +19,7 @@ def create_k3s_server_workload(
     kubeconfig_from_location: str,
     api_server_container_name: str,
     parameters: ClusterConfiguration,
-    volume_snapshot: str = None,
+    volume_snapshot: str = "",
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a StatefulSet that runs the k3s server
@@ -132,7 +132,7 @@ def create_k3s_server_workload(
         data_source = {
             "name": volume_snapshot,
             "kind": "VolumeSnapshot",
-            "apiGroup": "snapshot.storage.k8s.io"
+            "apiGroup": "snapshot.storage.k8s.io",
         }
     else:
         data_source = None
@@ -143,7 +143,7 @@ def create_k3s_server_workload(
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": parameters.serverStorageRequests}
             ),
-            data_source=data_source
+            data_source=data_source,
         ),
     )
 
@@ -181,7 +181,7 @@ def create_k3s_agent_workload(
     k3s_image_pullpolicy: str,
     parameters: ClusterConfiguration,
     node_index: int = 1,
-    volume_snapshot: str = None,
+    volume_snapshot: str = "",
 ) -> k8s.client.V1StatefulSet:
     """
     It creates a Kubernetes StatefulSet that runs the k3s agent
@@ -208,11 +208,7 @@ def create_k3s_agent_workload(
         image=f"{k3s_image}:{k3s_image_tag}",
         image_pull_policy=k3s_image_pullpolicy,
         command=["/bin/sh", "-c"],
-        args=[
-            "k3s agent "
-            "-s=https://kubeapi:6443 "
-            f"--token={node_token} "
-        ],
+        args=["k3s agent " "-s=https://kubeapi:6443 " f"--token={node_token} "],
         env=[
             k8s.client.V1EnvVar(
                 name="POD_IP",
@@ -246,7 +242,7 @@ def create_k3s_agent_workload(
         data_source = {
             "name": volume_snapshot,
             "kind": "VolumeSnapshot",
-            "apiGroup": "snapshot.storage.k8s.io"
+            "apiGroup": "snapshot.storage.k8s.io",
         }
     else:
         data_source = None
@@ -257,7 +253,7 @@ def create_k3s_agent_workload(
             resources=k8s.client.V1ResourceRequirements(
                 requests={"storage": parameters.nodeStorageRequests}
             ),
-            data_source=data_source
+            data_source=data_source,
         ),
     )
 

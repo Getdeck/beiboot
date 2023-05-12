@@ -50,8 +50,12 @@ class BeibootCluster(StateMachine):
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, restoring, creating, preparing, requested, error)
-    terminate = terminating.from_(pending, preparing, restoring, creating, running, ready, error, terminating)
+    impair = error.from_(
+        ready, running, pending, restoring, creating, preparing, requested, error
+    )
+    terminate = terminating.from_(
+        pending, preparing, restoring, creating, running, ready, error, terminating
+    )
 
     def __init__(
         self,
@@ -301,10 +305,12 @@ class BeibootCluster(StateMachine):
                     self.logger.info(f"Restore of cluster '{self.name}' is finished")
                     self.post_event(
                         self.requested.value,
-                        f"Restore of cluster '{self.name}' is finished"
+                        f"Restore of cluster '{self.name}' is finished",
                     )
                 else:
-                    raise kopf.TemporaryError(f"Restore of cluster '{self.name}' is still running", delay=5)
+                    raise kopf.TemporaryError(
+                        f"Restore of cluster '{self.name}' is still running", delay=5
+                    )
             except k8s.client.ApiException as e:
                 try:
                     body = json.loads(e.body)
@@ -314,7 +320,9 @@ class BeibootCluster(StateMachine):
                     raise kopf.TemporaryError(body.get("message"), delay=5)
                 raise kopf.TemporaryError(delay=5)
         else:
-            self.logger.warning(f"Cluster {self.name} is in state RESTORING, but has not 'fromShelf' set!")
+            self.logger.warning(
+                f"Cluster {self.name} is in state RESTORING, but has not 'fromShelf' set!"
+            )
 
     def on_enter_creating(self):
         """
@@ -345,7 +353,9 @@ class BeibootCluster(StateMachine):
                     self.running.value, f"Cluster '{self.name}' has been created"
                 )
             else:
-                raise kopf.TemporaryError(f"Cluster '{self.name}' is still being created", delay=5)
+                raise kopf.TemporaryError(
+                    f"Cluster '{self.name}' is still being created", delay=5
+                )
         except k8s.client.ApiException as e:
             try:
                 body = json.loads(e.body)

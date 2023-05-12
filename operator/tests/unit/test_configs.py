@@ -113,7 +113,7 @@ def test_encode_configuration():
             "k8sVersion": "null",
             "nodes": "1",
             "nodeLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true"}',
-            "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',
+            "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',  # noqa: E501
             "serverResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
             "serverStorageRequests": "1Gi",
             "nodeResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
@@ -136,7 +136,7 @@ def test_decode_configuration():
         "k8sVersion": "null",
         "nodes": "3",
         "nodeLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true"}',
-        "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',
+        "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',  # noqa: E501
         "serverResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',
         "serverStorageRequests": "10Gi",
         "nodeResources": '{"requests": {"cpu": "1", "memory": "1Gi"}, "limits": {}}',

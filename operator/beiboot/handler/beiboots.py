@@ -21,7 +21,12 @@ async def beiboot_created(body, logger, **kwargs):
     logger.debug(parameters)
     cluster = BeibootCluster(configuration, parameters, model=body, logger=logger)
 
-    if cluster.is_requested or cluster.is_preparing or cluster.is_restoring or cluster.is_creating:
+    if (
+        cluster.is_requested
+        or cluster.is_preparing
+        or cluster.is_restoring
+        or cluster.is_creating
+    ):
         # this is the initial process for a Beiboot
         try:
             if cluster.is_requested:

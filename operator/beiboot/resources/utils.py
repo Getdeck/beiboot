@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import kopf
 import kubernetes as k8s
@@ -271,10 +271,7 @@ async def get_serviceaccount_data(name: str, namespace: str) -> dict[str, str]:
 
 
 def create_volume_snapshot_from_pvc_resource(
-        name: str,
-        namespace: str,
-        volume_snapshot_class: str,
-        pvc_name: str
+    name: str, namespace: str, volume_snapshot_class: str, pvc_name: str
 ) -> dict:
     """
     Return VolumeSnapshot for PVC K8s resource as dict.
@@ -293,14 +290,14 @@ def create_volume_snapshot_from_pvc_resource(
         },
         "spec": {
             "volumeSnapshotClassName": f"{volume_snapshot_class}",
-            "source": {
-                "persistentVolumeClaimName": f"{pvc_name}"
-            }
-        }
+            "source": {"persistentVolumeClaimName": f"{pvc_name}"},
+        },
     }
 
 
-def create_volume_snapshot_pre_provisioned_resource(name: str, namespace: str, volume_snapshot_content: str) -> dict:
+def create_volume_snapshot_pre_provisioned_resource(
+    name: str, namespace: str, volume_snapshot_content: str
+) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.
 
@@ -319,7 +316,7 @@ def create_volume_snapshot_pre_provisioned_resource(name: str, namespace: str, v
             "source": {
                 "volumeSnapshotContentName": f"{volume_snapshot_content}",
             },
-        }
+        },
     }
 
 
@@ -330,7 +327,7 @@ def handle_create_volume_snapshot(logger, body: dict):
     """
     try:
         # python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it here
-        namespace = body.get("metadata").get("namespace")
+        namespace = body.get("metadata", {}).get("namespace")
         k8s.client.CustomObjectsApi().create_namespaced_custom_object(
             group="snapshot.storage.k8s.io",
             version="v1",
@@ -339,13 +336,15 @@ def handle_create_volume_snapshot(logger, body: dict):
             body=body,
         )
         logger.info(
-            f"Created VolumeSnapshot {body.get('metadata').get('name')} in namespace {namespace}."
+            f"Created VolumeSnapshot {body.get('metadata', {}).get('name')} in namespace {namespace}."
         )
     except k8s.client.exceptions.ApiException as e:
         raise e
 
 
-async def handle_delete_volume_snapshot(logger, name: str, namespace: str) -> Optional[k8s.client.V1Status]:
+async def handle_delete_volume_snapshot(
+    logger, name: str, namespace: str
+) -> Optional[k8s.client.V1Status]:
     try:
         # python-kubernetes doesn't support VolumeSnapshots; if it does support them one day, we can change it here
         status = k8s.client.CustomObjectsApi().delete_namespaced_custom_object(
@@ -362,14 +361,14 @@ async def handle_delete_volume_snapshot(logger, name: str, namespace: str) -> Op
 
 
 def create_volume_snapshot_content_pre_provisioned_resource(
-        name: str,
-        driver: str,
-        snapshot_handle: str,
-        volume_snapshot_ref_name: str,
-        volume_snapshot_ref_namespace: str,
-        deletion_policy: str = "Retain",
-        source_volume_mode: str = "Filesystem",
-        labels: list = None,
+    name: str,
+    driver: str,
+    snapshot_handle: str,
+    volume_snapshot_ref_name: str,
+    volume_snapshot_ref_namespace: str,
+    deletion_policy: str = "Retain",
+    source_volume_mode: str = "Filesystem",
+    labels: List = Optional[List],
 ) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.
@@ -400,9 +399,9 @@ def create_volume_snapshot_content_pre_provisioned_resource(
             "sourceVolumeMode": f"{source_volume_mode}",
             "volumeSnapshotRef": {
                 "name": f"{volume_snapshot_ref_name}",
-                "namespace": f"{volume_snapshot_ref_namespace}"
-            }
-        }
+                "namespace": f"{volume_snapshot_ref_namespace}",
+            },
+        },
     }
 
 
@@ -421,13 +420,15 @@ def handle_create_volume_snapshot_content(logger, body: dict):
             body=body,
         )
         logger.info(
-            f"Created VolumeSnapshotContent {body.get('metadata').get('name')}."
+            f"Created VolumeSnapshotContent {body.get('metadata', {}).get('name')}."
         )
     except k8s.client.exceptions.ApiException as e:
         raise e
 
 
-async def handle_delete_volume_snapshot_content(logger, name: str) -> Optional[k8s.client.V1Status]:
+async def handle_delete_volume_snapshot_content(
+    logger, name: str
+) -> Optional[k8s.client.V1Status]:
     try:
         # python-kubernetes doesn't support VolumeSnapshotContents; if it does support them one day, we can change it
         # here
@@ -443,7 +444,9 @@ async def handle_delete_volume_snapshot_content(logger, name: str) -> Optional[k
         return None
 
 
-async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namespace: str) -> dict:
+async def create_volume_snapshots_from_shelf(
+    logger, shelf: dict, cluster_namespace: str
+) -> dict:
     """
     Create pre-provisioned VolumeSnapshotContents and VolumeSnapshots from the data that is stored in the shelf.
 
@@ -457,12 +460,16 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namesp
     """
     from beiboot.utils import get_volume_snapshot_class_by_name
 
-    volume_snapshot_class = get_volume_snapshot_class_by_name(shelf["volumeSnapshotClass"], api_instance=custom_api)
+    volume_snapshot_class = get_volume_snapshot_class_by_name(
+        shelf["volumeSnapshotClass"], api_instance=custom_api
+    )
     driver = volume_snapshot_class["driver"]
     mapping = {}
     for volume_snapshot_content in shelf["volumeSnapshotContents"]:
         node_name = volume_snapshot_content["node"]
-        volume_snapshot_content_name = f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_namespace}-{node_name}"
+        volume_snapshot_content_name = (
+            f"{datetime.now().strftime('%y%m%d%H%M%S')}-{cluster_namespace}-{node_name}"
+        )
         volume_snapshot_name = volume_snapshot_content_name
         # we must use deletionPolicy=Retain, otherwise the VolumeSnapshotContent and the snapshotHandle will be deleted
         # when the cluster is deleted, rendering the shelf not usable
@@ -472,14 +479,14 @@ async def create_volume_snapshots_from_shelf(logger, shelf: dict, cluster_namesp
             snapshot_handle=volume_snapshot_content["snapshotHandle"],
             volume_snapshot_ref_name=volume_snapshot_name,
             volume_snapshot_ref_namespace=cluster_namespace,
-            deletion_policy="Retain"
+            deletion_policy="Retain",
         )
         handle_create_volume_snapshot_content(logger, body=vsc_resource)
 
         vs_resource = create_volume_snapshot_pre_provisioned_resource(
             name=volume_snapshot_name,
             namespace=cluster_namespace,
-            volume_snapshot_content=volume_snapshot_content_name
+            volume_snapshot_content=volume_snapshot_content_name,
         )
         handle_create_volume_snapshot(logger, body=vs_resource)
 
@@ -496,8 +503,6 @@ async def handle_create_job(logger, body: k8s.client.V1Job) -> None:
     try:
         namespace = body.metadata.namespace
         batch_v1_api.create_namespaced_job(namespace, body)
-        logger.info(
-            f"Created Job {body.metadata.name} in namespace {namespace}."
-        )
+        logger.info(f"Created Job {body.metadata.name} in namespace {namespace}.")
     except k8s.client.exceptions.ApiException as e:
         raise e

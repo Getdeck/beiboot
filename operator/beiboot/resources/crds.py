@@ -27,18 +27,14 @@ BEIBOOT_PARAMETERS = k8s.client.V1JSONSchemaProps(
                     type="object",
                     properties={
                         "cpu": k8s.client.V1JSONSchemaProps(type="string"),
-                        "memory": k8s.client.V1JSONSchemaProps(
-                            type="string"
-                        ),
+                        "memory": k8s.client.V1JSONSchemaProps(type="string"),
                     },
                 ),
                 "limits": k8s.client.V1JSONSchemaProps(
                     type="object",
                     properties={
                         "cpu": k8s.client.V1JSONSchemaProps(type="string"),
-                        "memory": k8s.client.V1JSONSchemaProps(
-                            type="string"
-                        ),
+                        "memory": k8s.client.V1JSONSchemaProps(type="string"),
                     },
                 ),
             },
@@ -51,25 +47,19 @@ BEIBOOT_PARAMETERS = k8s.client.V1JSONSchemaProps(
                     type="object",
                     properties={
                         "cpu": k8s.client.V1JSONSchemaProps(type="string"),
-                        "memory": k8s.client.V1JSONSchemaProps(
-                            type="string"
-                        ),
+                        "memory": k8s.client.V1JSONSchemaProps(type="string"),
                     },
                 ),
                 "limits": k8s.client.V1JSONSchemaProps(
                     type="object",
                     properties={
                         "cpu": k8s.client.V1JSONSchemaProps(type="string"),
-                        "memory": k8s.client.V1JSONSchemaProps(
-                            type="string"
-                        ),
+                        "memory": k8s.client.V1JSONSchemaProps(type="string"),
                     },
                 ),
             },
         ),
-        "serverStorageRequests": k8s.client.V1JSONSchemaProps(
-            type="string"
-        ),
+        "serverStorageRequests": k8s.client.V1JSONSchemaProps(type="string"),
         "nodeStorageRequests": k8s.client.V1JSONSchemaProps(type="string"),
         "gefyra": k8s.client.V1JSONSchemaProps(
             type="object",
@@ -177,12 +167,18 @@ def create_shelf_definition(namespace: str) -> k8s.client.V1CustomResourceDefini
                         "name": k8s.client.V1JSONSchemaProps(type="string", default=""),
                         "node": k8s.client.V1JSONSchemaProps(type="string", default=""),
                         "pvc": k8s.client.V1JSONSchemaProps(type="string", default=""),
-                        "snapshotHandle": k8s.client.V1JSONSchemaProps(type="string", default=""),
-                        "volumeSnapshotName": k8s.client.V1JSONSchemaProps(type="string", default=""),
-                    }
-                )
+                        "snapshotHandle": k8s.client.V1JSONSchemaProps(
+                            type="string", default=""
+                        ),
+                        "volumeSnapshotName": k8s.client.V1JSONSchemaProps(
+                            type="string", default=""
+                        ),
+                    },
+                ),
             ),
-            "volumeSnapshotClass": k8s.client.V1JSONSchemaProps(type="string", default=""),
+            "volumeSnapshotClass": k8s.client.V1JSONSchemaProps(
+                type="string", default=""
+            ),
             "clusterName": k8s.client.V1JSONSchemaProps(type="string", default=""),
             "clusterNamespace": k8s.client.V1JSONSchemaProps(type="string", default=""),
             # copy of the parameters with which the beiboot cluster originally was provisioned

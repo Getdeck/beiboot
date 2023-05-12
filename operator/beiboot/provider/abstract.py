@@ -5,7 +5,13 @@ from typing import List, Optional, Dict
 class AbstractClusterProvider(ABC):
     provider_type = ""
 
-    def __init__(self, name: str, namespace: str, ports: Optional[List[str]], shelf_name: str = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        namespace: str,
+        ports: Optional[List[str]],
+        shelf_name: str = "",
+    ) -> None:
         self.name = name
         self.namespace = namespace
         self.ports = ports
