@@ -83,7 +83,11 @@ def minikube(request, kubectl):
     # patch storage class from csi-hostpath-driver to make it default
     k8s.config.load_kube_config()
     storage_api = k8s.client.StorageV1Api()
-    body = {"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}
+    body = {
+        "metadata": {
+            "annotations": {"storageclass.kubernetes.io/is-default-class": "true"}
+        }
+    }
     storage_api.patch_storage_class(name="csi-hostpath-sc", body=body)
 
     for _i in range(0, 10):
@@ -162,7 +166,9 @@ def crds(request, minikube, kubectl):
         except k8s.client.exceptions.ApiException:
             pass
         try:
-            extension_api.delete_custom_resource_definition(name=shelf_def.metadata.name)
+            extension_api.delete_custom_resource_definition(
+                name=shelf_def.metadata.name
+            )
             logger.info("Shelf CRD deleted")
         except k8s.client.exceptions.ApiException:
             pass
@@ -233,7 +239,9 @@ def operator(request, minikube, kubectl):
         except k8s.client.exceptions.ApiException:
             pass
         try:
-            extension_api.delete_custom_resource_definition(name="shelves.beiboots.getdeck.dev")
+            extension_api.delete_custom_resource_definition(
+                name="shelves.beiboots.getdeck.dev"
+            )
             logger.info("Shelf CRD deleted")
         except k8s.client.exceptions.ApiException:
             pass

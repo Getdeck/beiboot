@@ -1,12 +1,12 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from beiboot.api.utils import stopwatch
 from beiboot.configuration import default_configuration, ClientConfiguration
 from beiboot.connection.abstract import AbstractConnector
 from beiboot.connection.factory import connector_factory
 from beiboot.connection.types import ConnectorType
-from beiboot.types import Beiboot, BeibootProvider
+from beiboot.types import Beiboot
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def connect(
 
     :return: A AbstractConnector instance
     """
-    additional_ports = []
+    additional_ports: List = []
     connector = _get_connector(connector_type, config)
 
     if connector_type == ConnectorType.GHOSTUNNEL_DOCKER and _docker_network:

@@ -22,7 +22,7 @@ def data(params: InstallOptions) -> list[dict]:
                 "nodeStorageRequests": params.node_storage_request,
                 "nodes": params.nodes,
                 "ports": "null",
-                "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',
+                "serverLabels": '{"app": "beiboot", "beiboot.getdeck.dev/is-node": "true", "beiboot.getdeck.dev/is-server": "true"}',  # noqa
                 "serverResources": f'{{"requests": {{"cpu": "{params.server_requests_cpu}", "memory": "{params.server_requests_memory}"}}, "limits": {{}}}}',  # noqa
                 "serverStartupTimeout": "60",
                 "serverStorageRequests": params.server_storage_request,

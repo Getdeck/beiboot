@@ -31,11 +31,11 @@ from cli.utils import standard_error_handler
 @click.pass_context
 @standard_error_handler
 def create_shelf(
-        ctx,
-        cluster_name,
-        shelf_name,
-        volume_snapshot_class,
-        label,
+    ctx,
+    cluster_name,
+    shelf_name,
+    volume_snapshot_class,
+    label,
 ):
     if shelf_name:
         _shelf_name = shelf_name
@@ -54,19 +54,17 @@ def create_shelf(
         cluster_name=cluster_name,
         labels=_labels,
         volume_snapshot_contents=volume_snapshot_contents,
-        volume_snapshot_class=volume_snapshot_class
+        volume_snapshot_class=volume_snapshot_class,
     )
-    shelf = api.create_shelf(req, config=ctx.obj["config"])
+    _ = api.create_shelf(req, config=ctx.obj["config"])
 
     # TODO: maybe we want to wait until it's ready?
-    success(f"Shelf '{_shelf_name}' is being requested. You can check it's status with 'beibootctl shelf ls'.")
+    success(
+        f"Shelf '{_shelf_name}' is being requested. You can check it's status with 'beibootctl shelf ls'."
+    )
 
 
-@shelf.command(
-    "delete",
-    alias=["rm", "remove"],
-    help="Mark a Shelf for deletion"
-)
+@shelf.command("delete", alias=["rm", "remove"], help="Mark a Shelf for deletion")
 @click.argument("name")
 @click.pass_context
 @standard_error_handler
@@ -75,7 +73,11 @@ def delete_shelf(ctx, name):
     info(f"Shelf '{name}' marked for deletion")
 
 
-@shelf.command("list", alias=["ls"], help="List shelved Beiboot clusters (filtered when labels option is used)")
+@shelf.command(
+    "list",
+    alias=["ls"],
+    help="List shelved Beiboot clusters (filtered when labels option is used)",
+)
 @click.option(
     "--label",
     "-l",
@@ -92,14 +94,7 @@ def list_shelves(ctx, label):
         _labels = {}
     shelves = api.read_all_shelves(_labels, config=ctx.obj["config"])
     if shelves:
-        tab = [
-            (
-                shelf.uid,
-                shelf.name,
-                shelf.state.value
-            )
-            for shelf in shelves
-        ]
+        tab = [(shelf.uid, shelf.name, shelf.state.value) for shelf in shelves]
         print_formatted_text(
             tabulate(
                 tab,
@@ -130,8 +125,7 @@ def inspect(ctx, name):
     heading("\nvolumeSnapshotContents:")
     for volume_snapshot_content in shelf.volume_snapshot_contents:
         paramtab = [
-            (str(key), str(value))
-            for key, value in volume_snapshot_content.items()
+            (str(key), str(value)) for key, value in volume_snapshot_content.items()
         ]
         print_formatted_text(tabulate(paramtab, headers=["Key", "Value"]), end="\n\n")
 

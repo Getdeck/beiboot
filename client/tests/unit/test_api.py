@@ -67,7 +67,9 @@ class TestReadShelves:
 
     def test_b_read_labels_shelf(self, operator):
         _ = api.create_shelf(
-            ShelfRequest(name="test-read-labels", labels={"user-id": "123", "label1": "label2"})
+            ShelfRequest(
+                name="test-read-labels", labels={"user-id": "123", "label1": "label2"}
+            )
         )
         shelf = api.read_shelf(name="test-read-labels")
         assert shelf.name == "test-read-labels"
@@ -80,7 +82,9 @@ class TestReadShelves:
     def test_c_read_all_shelves(self, operator):
         _all = api.read_all_shelves()
         assert len(_all) == 2
-        _ = api.create_shelf(ShelfRequest(name="test-read-all", labels={"user-id": "456"}))
+        _ = api.create_shelf(
+            ShelfRequest(name="test-read-all", labels={"user-id": "456"})
+        )
         _all = api.read_all_shelves()
         assert len(_all) == 3
         _filtered = api.read_all_shelves(labels={"user-id": "123", "label1": "label2"})

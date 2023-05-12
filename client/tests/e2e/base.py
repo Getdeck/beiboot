@@ -20,9 +20,7 @@ class EnsureBeibootMixin:
                 params = BeibootParameters(
                     nodes=1,
                     serverStorageRequests="100Mi",
-                    serverResources={
-                        "requests": {"cpu": "0.25", "memory": "0.25Gi"}
-                    },
+                    serverResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
                     nodeResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
                     tunnel=TunnelParams(endpoint=minikube_ip),
                 )
@@ -30,9 +28,7 @@ class EnsureBeibootMixin:
                 params = BeibootParameters(
                     nodes=1,
                     serverStorageRequests="100Mi",
-                    serverResources={
-                        "requests": {"cpu": "0.25", "memory": "0.25Gi"}
-                    },
+                    serverResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
                     nodeResources={"requests": {"cpu": "0.25", "memory": "0.25Gi"}},
                 )
             bbt = api.create(
@@ -88,9 +84,7 @@ class TestClientBase:
         return data
 
     def _get_shelf_data(self, kubectl: Callable, shelf_name: str) -> dict:
-        output = kubectl(
-            ["-n", "getdeck", "get", "shelf", shelf_name, "-o", "json"]
-        )
+        output = kubectl(["-n", "getdeck", "get", "shelf", shelf_name, "-o", "json"])
         try:
             data = json.loads(output)
         except json.decoder.JSONDecodeError:

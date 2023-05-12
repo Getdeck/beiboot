@@ -24,7 +24,7 @@ def create_shelf(
     :type config: ClientConfiguration
     :return: A Shelf object
     """
-    logger.debug(f"creating shelf")
+    logger.debug("creating shelf")
     obj = create_shelf_custom_ressource(req, config)
     try:
         logger.debug("Checking if Shelf object already exists")

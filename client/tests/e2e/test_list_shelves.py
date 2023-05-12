@@ -1,5 +1,5 @@
 from beiboot import api
-from beiboot.types import BeibootRequest, BeibootParameters, ShelfRequest
+from beiboot.types import ShelfRequest
 from tests.e2e.base import EnsureBeibootMixin, TestClientBase
 
 

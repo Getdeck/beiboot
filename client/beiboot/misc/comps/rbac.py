@@ -71,7 +71,11 @@ def data(params: InstallOptions) -> list[dict]:
                 },
                 {
                     "apiGroups": ["snapshot.storage.k8s.io"],
-                    "resources": ["volumesnapshots", "volumesnapshotcontents", "volumesnapshotclasses"],
+                    "resources": [
+                        "volumesnapshots",
+                        "volumesnapshotcontents",
+                        "volumesnapshotclasses",
+                    ],
                     "verbs": ["*"],
                 },
             ],

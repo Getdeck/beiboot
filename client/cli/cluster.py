@@ -69,7 +69,7 @@ from cli.__main__ import cluster
 @click.option(
     "--from-shelf",
     type=str,
-    help="Restore cluster from shelf (use 'shelf list' to list available shelf-objects)"
+    help="Restore cluster from shelf (use 'shelf list' to list available shelf-objects)",
 )
 @click.pass_context
 @standard_error_handler
@@ -126,7 +126,9 @@ def create_cluster(
     else:
         _labels = {}
 
-    req = BeibootRequest(name=name, parameters=parameters, labels=_labels, from_shelf=from_shelf)
+    req = BeibootRequest(
+        name=name, parameters=parameters, labels=_labels, from_shelf=from_shelf
+    )
     start_time = time.time()
     beiboot = api.create(req, config=ctx.obj["config"])
 

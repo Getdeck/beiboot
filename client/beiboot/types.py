@@ -345,7 +345,7 @@ class InstallOptions:
     shelf_storage_class: str = field(
         default_factory=lambda: "standard",
         metadata=dict(
-            help="Set the Kubernetes VolumeSnapshotClass of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"
+            help="Set the Kubernetes VolumeSnapshotClass of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"  # noqa: E501
         ),
     )
     node_storage_request: str = field(
@@ -419,7 +419,9 @@ class VolumeSnapshotContent:
     name: str
     snapshot_handle: str
     node: str
-    status: VolumeSnapshotContentStatus = field(default_factory=lambda: VolumeSnapshotContentStatus.NOT_READY_TO_USE)
+    status: VolumeSnapshotContentStatus = field(
+        default_factory=lambda: VolumeSnapshotContentStatus.NOT_READY_TO_USE
+    )
 
 
 @dataclass
@@ -428,7 +430,9 @@ class ShelfRequest:
     name: str
     cluster_name: str
     volume_snapshot_class: str = ""
-    volume_snapshot_contents: list[VolumeSnapshotContent] = field(default_factory=lambda: [])
+    volume_snapshot_contents: list[VolumeSnapshotContent] = field(
+        default_factory=lambda: []
+    )
     labels: Dict[str, str] = field(default_factory=lambda: {})
 
 

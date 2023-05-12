@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 @stopwatch
-def delete_shelf(shelf: Shelf, config: ClientConfiguration = default_configuration) -> None:
+def delete_shelf(
+    shelf: Shelf, config: ClientConfiguration = default_configuration
+) -> None:
     """
     Mark a Shelf for deletion
 
@@ -49,6 +51,4 @@ def _delete_shelf(shelf_name: str, config: ClientConfiguration):
             #  Getdeck Beiboot probably not available
             raise RuntimeWarning(f"Shelf {shelf_name} does not exist")
         else:
-            raise RuntimeError(
-                f"Error deleting Shelf object: {e.reason} ({e.status})"
-            )
+            raise RuntimeError(f"Error deleting Shelf object: {e.reason} ({e.status})")
