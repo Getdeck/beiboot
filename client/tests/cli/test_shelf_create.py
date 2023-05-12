@@ -6,7 +6,7 @@ from beiboot.types import ShelfState
 from cli.shelf import create_shelf
 
 
-def test_create_no_beiboot(minikube):
+def test_create_no_shelf(minikube):
     runner = CliRunner()
     result = runner.invoke(
         create_shelf,  # noqa

@@ -435,6 +435,7 @@ class ShelfRequest:
 class ShelfState(Enum):
     REQUESTED = "REQUESTED"
     CREATING = "CREATING"
+    PREPARING = "PREPARING"
     PENDING = "PENDING"
     READY = "READY"
     TERMINATING = "TERMINATING"

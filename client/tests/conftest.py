@@ -81,13 +81,13 @@ def minikube(request, kubectl):
     import kubernetes as k8s
 
     # patch storage class from csi-hostpath-driver to make it default
+    k8s.config.load_kube_config()
     storage_api = k8s.client.StorageV1Api()
     body = {"metadata": {"annotations": {"storageclass.kubernetes.io/is-default-class": "true"}}}
     storage_api.patch_storage_class(name="csi-hostpath-sc", body=body)
 
     for _i in range(0, 10):
         try:
-            k8s.config.load_kube_config()
             core_api = k8s.client.CoreV1Api()
             core_api.list_namespace()
             break

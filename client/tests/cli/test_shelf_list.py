@@ -4,7 +4,7 @@ from beiboot.configuration import ClientConfiguration
 from cli.shelf import list_shelves
 
 
-def test_list_no_beiboot(minikube):
+def test_list_no_shelf(minikube):
     runner = CliRunner()
     result = runner.invoke(
         list_shelves,  # noqa
@@ -26,7 +26,7 @@ def test_list_empty(crds):
     assert result.exit_code == 0
 
 
-def test_list_beiboots(crds):
+def test_list_shelves(crds):
     from tests.utils import create_beiboot_object, create_shelf_object
 
     create_beiboot_object(name="my-test-1", parameters={})

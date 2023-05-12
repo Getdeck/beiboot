@@ -4,7 +4,7 @@ from beiboot.configuration import ClientConfiguration
 from cli.shelf import delete_shelf
 
 
-def test_delete_no_beiboot(minikube):
+def test_delete_no_shelf(minikube):
     runner = CliRunner()
     result = runner.invoke(
         delete_shelf,  # noqa
