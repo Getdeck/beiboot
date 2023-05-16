@@ -368,7 +368,7 @@ def create_volume_snapshot_content_pre_provisioned_resource(
     volume_snapshot_ref_namespace: str,
     deletion_policy: str = "Retain",
     source_volume_mode: str = "Filesystem",
-    labels: List = Optional[List],
+    labels: Optional[List] = None,
 ) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.

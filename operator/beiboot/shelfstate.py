@@ -49,7 +49,7 @@ class Shelf(StateMachine):
         configuration: ShelfConfiguration,
         model=None,
         logger=None,
-        persistent_volume_claims: dict = None,
+        persistent_volume_claims: Optional[dict] = None,
         cluster_default_volume_snapshot_class: str = "",
         cluster_namespace: str = "",
     ):
@@ -64,7 +64,7 @@ class Shelf(StateMachine):
             cluster_default_volume_snapshot_class
         )
         self._cluster_namespace = cluster_namespace
-        self.cluster_parameters = None
+        self.cluster_parameters: Optional[ClusterConfiguration] = None
         self.custom_api = k8s.client.CustomObjectsApi()
         self.core_api = k8s.client.CoreV1Api()
         self.events_api = k8s.client.EventsV1Api()
