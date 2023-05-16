@@ -7,7 +7,7 @@ import kubernetes as k8s
 
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Dict, Optional, Any, Union
+from typing import Dict, Optional, Any, Union, Type
 
 from beiboot.configuration import (
     default_configuration,
@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 class StateAndEventsMixin:
     # this mixin is used by Beiboot and Shelf
     # following class variables need to be set by class that uses this mixin
-    StateClass = None
-    uid = None
-    _data = None
-    _config = None
+    StateClass: Optional[Union[Type["BeibootState"], Type["ShelfState"]]] = None
+    # the uid from Kubernetes for this object
+    uid: str
+    _data: Optional[Dict[str, Any]] = None
+    _config: ClientConfiguration   # check for shelf
 
     @property
     def state(self):
@@ -35,7 +36,7 @@ class StateAndEventsMixin:
     def fetch_object(self):
         raise NotImplementedError
 
-    def wait_for_state(self, awaited_state: StateClass, timeout: int = 60):
+    def wait_for_state(self, awaited_state: Union["BeibootState", "ShelfState"], timeout: int = 60):
         """
         > Wait for the state of the resource to be the awaited state, or raise an error if the timeout is reached
 
@@ -198,8 +199,6 @@ class Beiboot(StateAndEventsMixin):
     name: str
     # the namespace this cluster runs in the host cluster
     namespace: str
-    # the uid from Kubernetes for this object
-    uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
     # the labels of this Beiboot object
@@ -265,8 +264,9 @@ class Beiboot(StateAndEventsMixin):
 
         if self.state != BeibootState.READY:
             logger.warning("This Beiboot is not in READY state")
-        kubeconfig_object = self._data.get("kubeconfig")  # noqa
-        if kubeconfig_object is None:
+        if self._data and "kubeconfig" in self._data:
+            kubeconfig_object: Dict[str, str] = self._data["kubeconfig"]  # noqa
+        else:
             return None
         try:
             kubeconfig = decode_kubeconfig(kubeconfig_object)
@@ -317,8 +317,8 @@ class Beiboot(StateAndEventsMixin):
 
     @property
     def tunnel(self) -> Optional[dict[str, Any]]:
-        if tunnel := self._data.get("tunnel"):
-            return tunnel
+        if self._data and "tunnel" in self._data:
+            return self._data["tunnel"]
         return None
 
 
@@ -451,10 +451,8 @@ class Shelf(StateAndEventsMixin):
     name: str
     # the namespace this shelf is located in the host cluster (currently it's always "getdeck")
     namespace: str
-    # the uid from Kubernetes for this object
-    uid: str
     # list of VolumeSnapshotContents that are contained in this shelf
-    volume_snapshot_contents: list[VolumeSnapshotContent]
+    volume_snapshot_contents: Optional[list[VolumeSnapshotContent]]
     # the labels of this Beiboot object
     labels: Dict[str, str]
     # all state transitions
