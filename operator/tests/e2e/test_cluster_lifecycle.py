@@ -1,6 +1,8 @@
+from pathlib import Path
 from time import sleep
 
 import pytest
+from pytest_kubernetes.providers import AClusterManager
 
 from tests.e2e.base import TestOperatorBase
 
@@ -8,12 +10,17 @@ from tests.e2e.base import TestOperatorBase
 class TestOperator(TestOperatorBase):
     beiboot_name = "test-beiboot-configured"
 
-    def test_beiboot_lifecycle(self, operator, kubectl, timeout):
-        self._apply_fixure_file(
-            "tests/fixtures/configured-beiboot.yaml", kubectl, timeout
-        )
+    def test_beiboot_lifecycle(self, operator: AClusterManager, kubectl, timeout):
+        minikube = operator
+        minikube.apply(Path("tests/fixtures/configured-beiboot.yaml"))
         # READY state
-        self._wait_for_state("READY", kubectl, timeout * 2)
+        minikube.wait(
+            "beiboot.getdeck.dev/test-beiboot-configured",
+            "jsonpath=.state=READY",
+            namespace="getdeck",
+            timeout=timeout * 2,
+        )
+        # self._wait_for_state("READY", kubectl, timeout * 2)
         beiboot = self._get_beiboot_data(kubectl)
         sleep(2)
         kubectl(["-n", beiboot["beibootNamespace"], "delete", "pod", "server-0"])

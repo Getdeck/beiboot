@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from time import sleep
 
-import kubernetes as k8s
+from pytest_kubernetes.providers import AClusterManager
 
 from tests.e2e.base import TestOperatorBase
 
@@ -10,7 +10,9 @@ from tests.e2e.base import TestOperatorBase
 class TestOperatorSunset(TestOperatorBase):
     beiboot_name = "test-beiboot-timeout"
 
-    def test_beiboot_no_connect_timeout(self, operator, kubectl, timeout):
+    def test_beiboot_no_connect_timeout(self, operator: AClusterManager, timeout):
+        minikube = operator
+        kubectl = minikube.kubectl
         self._apply_fixure_file("tests/fixtures/timeout-beiboot.yaml", kubectl, timeout)
         # READY state
         self._wait_for_state("READY", kubectl, timeout * 2)
@@ -28,10 +30,12 @@ class TestOperatorSunset(TestOperatorBase):
             else:
                 sleep(1)
 
-    def test_beiboot_one_connect_timeout(self, operator, kubectl, timeout):
+    def test_beiboot_one_connect_timeout(self, operator: AClusterManager, timeout, core_api):
+        import kubernetes as k8s
         from beiboot.comps.client_timeout import CONFIGMAP_NAME
 
-        core_api = k8s.client.CoreV1Api()
+        minikube = operator
+        kubectl = minikube.kubectl
 
         self._apply_fixure_file("tests/fixtures/timeout-beiboot.yaml", kubectl, timeout)
         # READY state

@@ -50,7 +50,7 @@ def handle_create_deployment(
         app_v1_api.create_namespaced_deployment(body=deployment, namespace=namespace)
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
-            logger.warn(
+            logger.warning(
                 f"Deployment {deployment.metadata.name} already available, now patching it with current configuration"
             )
             app_v1_api.patch_namespaced_deployment(
@@ -107,7 +107,7 @@ def handle_create_service(
         )
     except k8s.client.exceptions.ApiException as e:
         if e.status in [409, 422]:
-            logger.warn(
+            logger.warning(
                 f"Service {service.metadata.name} already available, now patching it with current configuration"
             )
             service = core_v1_api.patch_namespaced_service(

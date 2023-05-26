@@ -121,6 +121,8 @@ def test_encode_configuration():
             "namespacePrefix": "getdeck-bbt",
             "serverStartupTimeout": "60",
             "clusterReadyTimeout": "180",
+            "storageClass": "standard",
+            "shelfStorageClass": "standard",
             "gefyra": '{"enabled": true, "endpoint": null}',
             "tunnel": '{"enabled": true, "endpoint": null}',
             "ports": "null",

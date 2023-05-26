@@ -3,8 +3,30 @@ from time import sleep
 
 import kopf
 import pytest
+from pytest_kubernetes.providers import AClusterManager
 
 from beiboot.configuration import ClusterConfiguration
+
+
+# it seems like the test with the minikube-fixture needs to come first, otherwise we get a ConnectionError
+def test_validator_namespace(minikube: AClusterManager):
+    from beiboot.handler import validate_namespace
+
+    validate_namespace(
+        "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
+    )
+    minikube.kubectl(["create", "ns", "getdeck-bbt-my-default"])
+    sleep(1)
+    with pytest.raises(kopf.AdmissionError):
+        validate_namespace(
+            "my-default", None, ClusterConfiguration(), logging.getLogger()
+        )
+        validate_namespace(
+            "namespace-that-is-longer-than-63-characters-which-is-not-allowed",
+            None,
+            ClusterConfiguration(),
+            logging.getLogger(),
+        )
 
 
 def test_parse_timedelta():
@@ -59,18 +81,24 @@ def test_validator_maxlifetime():
         )
 
 
-def test_validator_namespace(kubeconfig, kubectl):
-    from beiboot.handler import validate_namespace
-
-    validate_namespace(
-        "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
-    )
-    kubectl(["create", "ns", "getdeck-bbt-my-default"])
-    sleep(1)
-    with pytest.raises(kopf.AdmissionError):
-        validate_namespace(
-            "my-default", None, ClusterConfiguration(), logging.getLogger()
-        )
+# def test_validator_namespace(minikube: AClusterManager):
+#     from beiboot.handler import validate_namespace
+#
+#     validate_namespace(
+#         "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
+#     )
+#     minikube.kubectl(["create", "ns", "getdeck-bbt-my-default"])
+#     sleep(1)
+#     with pytest.raises(kopf.AdmissionError):
+#         validate_namespace(
+#             "my-default", None, ClusterConfiguration(), logging.getLogger()
+#         )
+#         validate_namespace(
+#             "namespace-that-is-longer-than-63-characters-which-is-not-allowed",
+#             None,
+#             ClusterConfiguration(),
+#             logging.getLogger(),
+#         )
 
 
 def test_validator_session_timeout():
