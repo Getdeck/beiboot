@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import sys
 from time import sleep
 
@@ -188,31 +189,44 @@ def _ensure_namespace(kubectl):
     else:
         kubectl(["create", "ns", "getdeck"])
 
+@pytest.fixture(scope="session")
+def default_k3s_image():
+    name = "rancher/k3s:v1.24.3-k3s1"
+    subprocess.run(
+        f"docker pull {name}", shell=True,
+    )
+    return name
+
 
 @pytest.fixture(scope="module")
-def operator(request, minikube):
+def operator(minikube, default_k3s_image):
     from kopf.testing import KopfRunner
 
-    print(f"KUBECONFIG: {os.environ.get('KUBECONFIG')}")
-
+    # do not actually pull k3s images
+    os.environ["K3S_IMAGE_PULLPOLICY"] = "Never"
+    minikube.load_image(default_k3s_image)
     _ensure_namespace(minikube.kubectl)
     operator = KopfRunner(["run", "-A", "--dev", "main.py"])
     operator.__enter__()
 
     kopf_logger = logging.getLogger("kopf")
-    kopf_logger.setLevel(logging.CRITICAL)
+    kopf_logger.setLevel(logging.INFO)
     beiboot_logger = logging.getLogger("beiboot")
-    beiboot_logger.setLevel(logging.CRITICAL)
+    beiboot_logger.setLevel(logging.INFO)
+    minikube.wait(
+        "crd/beiboots.getdeck.dev",
+        "condition=established",
+        timeout=30
+    )
 
     yield minikube
 
     try:
         beiboots = minikube.kubectl(["-n", "getdeck", "get", "bbt"])
-        for beiboot in beiboots.split("\n"):
-            bbt_name = beiboot.split(" ")[0]
-            minikube.kubectl(["-n", "getdeck", "delete", "bbt", bbt_name])
-            sleep(5)
-    except RuntimeError:
+        for beiboot in beiboots["items"]:
+            minikube.kubectl(["-n", "getdeck", "delete", "bbt", beiboot["metadata"]["name"]])
+            sleep(1)
+    except Exception:
         # case:
         # RuntimeError: error: the server doesn't have a resource type "bbt"
         pass
@@ -231,7 +245,7 @@ def _k8s_version(request) -> str:
 def _timeout(request) -> int:
     cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
     if not cluster_timeout:
-        return 60
+        return 120
     else:
         return int(cluster_timeout)
 
@@ -239,12 +253,3 @@ def _timeout(request) -> int:
 @pytest.fixture(scope="session")
 def timeout(request) -> int:
     return _timeout(request)
-
-
-@pytest.fixture(scope="session")
-def core_api(minikube):
-    import kubernetes as k8s
-
-    k8s.config.load_kube_config(config_file=str(minikube.kubeconfig))
-
-    return k8s.client.CoreV1Api()

@@ -4,43 +4,42 @@ from time import sleep
 
 from pytest_kubernetes.providers import AClusterManager
 
-from tests.e2e.base import TestOperatorBase
 
 
-class TestOperatorSunset(TestOperatorBase):
+class TestOperatorSunset:
     beiboot_name = "test-beiboot-timeout"
 
-    def test_beiboot_no_connect_timeout(self, operator: AClusterManager, timeout):
+    def test_a_beiboot_no_connect_timeout(self, operator: AClusterManager, timeout):
         minikube = operator
-        kubectl = minikube.kubectl
-        self._apply_fixure_file("tests/fixtures/timeout-beiboot.yaml", kubectl, timeout)
+        minikube.apply("tests/fixtures/timeout-beiboot.yaml")
         # READY state
-        self._wait_for_state("READY", kubectl, timeout * 2)
-        beiboot = self._get_beiboot_data(kubectl)
-
-        sleep(20)
-        namespaces = kubectl(["get", "ns"])
-        assert (
-            beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
+        minikube.wait(
+            "beiboots.getdeck.dev/test-beiboot-timeout",
+            "jsonpath=.state=READY",
+            namespace="getdeck",
+            timeout=120,
         )
-        while True:
-            namespaces = kubectl(["get", "ns"])
-            if beiboot["beibootNamespace"] not in namespaces:
-                break
-            else:
-                sleep(1)
+        beiboot = minikube.kubectl(["-n", "getdeck", "get", "bbt", "test-beiboot-timeout"])
+        # this Beiboot should terminate due to no client connecting for 10 seconds
+        minikube.wait(f"ns/{beiboot['beibootNamespace']}", "delete", timeout=30)
 
-    def test_beiboot_one_connect_timeout(self, operator: AClusterManager, timeout, core_api):
+    def test_b_beiboot_one_connect_timeout(self, operator: AClusterManager, timeout):
         import kubernetes as k8s
         from beiboot.comps.client_timeout import CONFIGMAP_NAME
 
         minikube = operator
         kubectl = minikube.kubectl
+        k8s.config.load_kube_config(config_file=str(minikube.kubeconfig))
 
-        self._apply_fixure_file("tests/fixtures/timeout-beiboot.yaml", kubectl, timeout)
+        minikube.apply("tests/fixtures/timeout-beiboot.yaml")
         # READY state
-        self._wait_for_state("READY", kubectl, timeout * 2)
-        beiboot = self._get_beiboot_data(kubectl)
+        minikube.wait(
+            "beiboots.getdeck.dev/test-beiboot-timeout",
+            "jsonpath=.state=READY",
+            namespace="getdeck",
+            timeout=120,
+        )
+        beiboot = minikube.kubectl(["-n", "getdeck", "get", "bbt", "test-beiboot-timeout"])
         assert beiboot["parameters"]["maxSessionTimeout"] == "10s"
         assert "lastClientContact" not in beiboot
 
@@ -56,20 +55,17 @@ class TestOperatorSunset(TestOperatorBase):
                 namespace="getdeck-bbt-test-beiboot-timeout",
             ),
         )
-        core_api.patch_namespaced_config_map(
+        
+        k8s.client.CoreV1Api().patch_namespaced_config_map(
             name=CONFIGMAP_NAME,
             namespace="getdeck-bbt-test-beiboot-timeout",
             body=configmap,
         )
         sleep(8)
-        beiboot = self._get_beiboot_data(kubectl)
+        beiboot = minikube.kubectl(["-n", "getdeck", "get", "bbt", "test-beiboot-timeout"])
         assert (
             beiboot["lastClientContact"]
             == time.isoformat(timespec="microseconds") + "Z"
         )
-        sleep(20)
-
-        namespaces = kubectl(["get", "ns"])
-        assert (
-            beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
-        )
+        # this Beiboot should terminate due to no client connecting for 10 seconds
+        minikube.wait(f"ns/{beiboot['beibootNamespace']}", "delete", timeout=30)

@@ -1,3 +1,4 @@
+import os
 import base64
 import re
 from datetime import timedelta
@@ -36,7 +37,7 @@ class K3s(AbstractClusterProvider):
 
     k3s_image: str = "rancher/k3s"
     k3s_default_image_tag: str = "v1.24.3-k3s1"
-    k3s_image_pullpolicy: str = "IfNotPresent"
+    k3s_image_pullpolicy: str = os.getenv("K3S_IMAGE_PULLPOLICY", "IfNotPresent")
     kubeconfig_from_location: str = "/getdeck/kube-config.yaml"
     api_server_container_name: str = "apiserver"
 
