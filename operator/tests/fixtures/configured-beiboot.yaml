@@ -13,7 +13,7 @@ parameters:
 
   gefyra:
     enabled: false
-  k8sVersion: 1.25.3
+  k8sVersion: 1.24.3
   serverStorageRequests: 500Mi
   nodeStorageRequests: 500Mi
   serverResources:
