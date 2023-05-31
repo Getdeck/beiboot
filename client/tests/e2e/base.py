@@ -52,64 +52,18 @@ class TestClientBase:
         namespace = f"getdeck-bbt-{self.beiboot_name}"
         return namespace
 
-    def _apply_fixture_file(self, path: str, kubectl: Callable, timeout: int):
-        _i = 0
-        while _i < timeout:
-            output = kubectl(
-                [
-                    "-n",
-                    "getdeck",
-                    "apply",
-                    "-f",
-                    path,
-                ]
-            )
-            if f"beiboot.getdeck.dev/{self.beiboot_name} created" in output:
-                break
-            else:
-                _i = _i + 1
-                sleep(1)
-        else:
-            logging.getLogger().warning(output)
-            raise pytest.fail("The Beiboot object could not be created")
-
     def _get_beiboot_data(self, kubectl: Callable) -> dict:
-        output = kubectl(
-            ["-n", "getdeck", "get", "bbt", self.beiboot_name, "-o", "json"]
-        )
         try:
-            data = json.loads(output)
-        except json.decoder.JSONDecodeError:
-            raise RuntimeError("This Beiboot object does not exist or is not readable")
-        return data
+            output = kubectl(
+                ["-n", "getdeck", "get", "bbt", self.beiboot_name]
+            )
+        except Exception:
+            raise RuntimeError(f"Beiboot object '{self.beiboot_name}' does not exist or is not readable")
+        return output
 
     def _get_shelf_data(self, kubectl: Callable, shelf_name: str) -> dict:
-        output = kubectl(["-n", "getdeck", "get", "shelf", shelf_name, "-o", "json"])
         try:
-            data = json.loads(output)
-        except json.decoder.JSONDecodeError:
-            raise RuntimeError("This Beiboot object does not exist or is not readable")
-        return data
-
-    def _wait_for_state(self, state: str, kubectl: Callable, timeout: int):
-        logger = logging.getLogger()
-        _i = 0
-        while _i < timeout:
-            data = self._get_beiboot_data(kubectl)
-            if data.get("state") == state:
-                break
-            if data.get("state") == "ERROR" and state != "ERROR":
-                raise pytest.fail(
-                    f"The Beiboot entered ERROR state which was not expected (timeout: {timeout})"
-                )
-            else:
-                if _i % 2:
-                    logger.info(
-                        f"Waiting for state {state} (is: {str(data.get('state'))}, {_i}s/{timeout}s)"
-                    )
-                _i = _i + 1
-                sleep(1)
-        else:
-            raise pytest.fail(
-                f"The Beiboot never entered {state} state (timeout: {timeout})"
-            )
+            output = kubectl(["-n", "getdeck", "get", "shelf", shelf_name])
+        except Exception:
+            raise RuntimeError(f"Shelf object '{shelf_name}' does not exist or is not readable")
+        return output

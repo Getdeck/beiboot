@@ -14,7 +14,7 @@ class TestBaseSetup(TestClientBase):
 
     beiboot_name = "mycluster"
 
-    def test_create_cluster(self, operator, kubectl, timeout):
+    def test_create_cluster(self, operator, timeout):
         req = BeibootRequest(
             name=self.beiboot_name,
             parameters=BeibootParameters(
@@ -30,7 +30,7 @@ class TestBaseSetup(TestClientBase):
     @pytest.mark.parametrize(
         "shelf_name,valid", [("shelf_test", False), ("shelftest", True)]
     )
-    def test_shelf_names(self, shelf_name, valid, operator, kubectl, timeout):
+    def test_shelf_names(self, shelf_name, valid, operator, timeout):
 
         shelf_req = ShelfRequest(
             name=shelf_name,
@@ -50,7 +50,8 @@ class TestBaseSetup(TestClientBase):
                 api.create_shelf(shelf_req)
             assert len(api.read_all_shelves()) == 0
 
-    def test_shelf_create(self, operator, kubectl, timeout):
+    def test_shelf_create(self, operator, timeout):
+        minikube = operator
         shelf_name = "shelftest2"
         shelf_req = ShelfRequest(
             name=shelf_name,
@@ -61,7 +62,7 @@ class TestBaseSetup(TestClientBase):
         )
         shelf = api.create_shelf(shelf_req)
         shelf.wait_for_state(awaited_state=ShelfState.PENDING, timeout=timeout)
-        shelf_raw = self._get_shelf_data(kubectl, shelf_name)
+        shelf_raw = self._get_shelf_data(minikube.kubectl, shelf_name)
         assert shelf_raw["state"] in [
             ShelfState.CREATING.value,
             ShelfState.PENDING.value,
@@ -84,4 +85,4 @@ class TestBaseSetup(TestClientBase):
         # assert shelf.state == ShelfState.TERMINATING
         sleep(5)
         with pytest.raises(RuntimeError):
-            _ = self._get_shelf_data(kubectl, shelf_name)
+            _ = self._get_shelf_data(minikube.kubectl, shelf_name)

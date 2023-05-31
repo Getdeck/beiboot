@@ -4,7 +4,7 @@ from tests.e2e.base import TestClientBase
 
 
 class TestBaseSetup(TestClientBase):
-    def test_list_clusters(self, operator, kubectl, timeout):
+    def test_list_clusters(self, operator, timeout):
         req1 = BeibootRequest(
             name="cluster1",
             parameters=BeibootParameters(

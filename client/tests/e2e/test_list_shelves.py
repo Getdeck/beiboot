@@ -4,7 +4,7 @@ from tests.e2e.base import EnsureBeibootMixin, TestClientBase
 
 
 class TestBaseSetup(EnsureBeibootMixin, TestClientBase):
-    def test_list_shelves(self, operator, kubectl, timeout):
+    def test_list_shelves(self, operator, timeout):
         bbt = self._ensure_beiboot("cluster1", minikube_ip=None, timeout=timeout)
 
         req1 = ShelfRequest(

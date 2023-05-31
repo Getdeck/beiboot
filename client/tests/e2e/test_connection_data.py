@@ -1,10 +1,12 @@
+from pytest_kubernetes.providers import AClusterManager
+
 from beiboot import api
 from beiboot.types import BeibootRequest, BeibootState, BeibootParameters
 from tests.e2e.base import TestClientBase
 
 
 class TestConnectionSetup(TestClientBase):
-    def test_get_connection_data(self, operator, kubectl, timeout):
+    def test_get_connection_data(self, operator: AClusterManager, timeout):
         bbt = api.create(
             BeibootRequest(
                 name="cluster1",

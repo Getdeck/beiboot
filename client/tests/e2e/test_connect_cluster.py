@@ -17,7 +17,7 @@ class TestConnectSetup(EnsureBeibootMixin, TestClientBase):
 
         bbt = self._ensure_beiboot("cluster1", minikube_ip, timeout)
         connector = api.connect(
-            bbt, ConnectorType.GHOSTUNNEL_DOCKER, _docker_network=minikube
+            bbt, ConnectorType.GHOSTUNNEL_DOCKER, _docker_network=minikube.cluster_name
         )
         location = connector.save_kubeconfig_to_file(bbt)
         assert location is not None

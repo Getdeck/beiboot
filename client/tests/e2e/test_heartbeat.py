@@ -1,6 +1,8 @@
 from datetime import datetime
 import json
 
+from pytest_kubernetes.providers import AClusterManager
+
 from beiboot import api
 from beiboot.types import BeibootRequest, BeibootParameters
 from tests.e2e.base import TestClientBase
@@ -13,7 +15,8 @@ class TestBaseSetup(TestClientBase):
 
     beiboot_name = "mycluster-hb"
 
-    def test_write_heartbeat(self, operator, kubectl, timeout):
+    def test_write_heartbeat(self, operator: AClusterManager, timeout):
+        minikube = operator
 
         req = BeibootRequest(
             name=self.beiboot_name,
@@ -31,33 +34,29 @@ class TestBaseSetup(TestClientBase):
         timestamp = datetime.utcnow()
 
         api.write_heartbeat("test-client", bbt, timestamp)
-        configmap = kubectl(
+        configmap = minikube.kubectl(
             [
                 "-n",
                 bbt.namespace,
                 "get",
                 "configmap",
                 default_configuration.CLIENT_HEARTBEAT_CONFIGMAP_NAME,
-                "--output",
-                "json",
             ]
         )
-        cm = json.loads(configmap)
-        assert "test-client" in cm["data"].keys()
-        assert cm["data"]["test-client"] == str(timestamp.isoformat())
+        # cm = json.loads(configmap)
+        assert "test-client" in configmap["data"].keys()
+        assert configmap["data"]["test-client"] == str(timestamp.isoformat())
 
         api.write_heartbeat("test-client1", bbt)
-        configmap = kubectl(
+        configmap = minikube.kubectl(
             [
                 "-n",
                 bbt.namespace,
                 "get",
                 "configmap",
                 default_configuration.CLIENT_HEARTBEAT_CONFIGMAP_NAME,
-                "--output",
-                "json",
             ]
         )
-        cm = json.loads(configmap)
-        assert "test-client1" in cm["data"].keys()
-        assert datetime.fromisoformat(cm["data"]["test-client1"])
+        # cm = json.loads(configmap)
+        assert "test-client1" in configmap["data"].keys()
+        assert datetime.fromisoformat(configmap["data"]["test-client1"])
