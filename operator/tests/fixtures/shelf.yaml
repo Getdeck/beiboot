@@ -1,0 +1,8 @@
+apiVersion: beiboots.getdeck.dev/v1
+kind: shelf
+clusterName: test-shelf-beiboot
+clusterNamespace: getdeck-bbt-test-shelf-beiboot
+metadata:
+  namespace: getdeck
+  name: test-shelf
+volumeSnapshotClass: csi-hostpath-snapclass

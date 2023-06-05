@@ -82,6 +82,8 @@ Please add a test case for every new feature and other code changes alike. Pleas
 * unit tests in `beiboot/operator/tests/unit/` in a new or existing module
 * an integration/e2e test in `beiboot/operator/tests/e2e/` with a new module
 
+As of 31.05.23, we need to use minikube for our tests, as it supports K8s snapshotting.
+
 ### Writing a test
 We're using [pytest](https://docs.pytest.org/) to run the test suite. Please write functions as documented.
 If you need a K8s cluster API for your test case, it's as simple as loading a fixture:

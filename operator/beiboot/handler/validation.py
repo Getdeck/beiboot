@@ -138,12 +138,12 @@ def validate_volume_snapshot_class(
                 group="snapshot.storage.k8s.io",
                 version="v1",
                 plural="volumesnapshotclasses",
-                name=name,
+                name=class_name,
             )
         except k8s.client.exceptions.ApiException as e:
             logger.info(f"Shelf {name} handled with {e.reason}")
             raise kopf.AdmissionError(
-                f"VolumeSnapshotClass '{class_name}' for Beiboot '{name}' doesn't exist or has other issue: {e.reason}"
+                f"VolumeSnapshotClass '{class_name}' for Shelf '{name}' doesn't exist or has other issue: {e.reason}"
             )
 
 
