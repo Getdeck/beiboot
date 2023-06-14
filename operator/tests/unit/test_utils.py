@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from time import sleep
 
 import kopf
@@ -25,6 +26,32 @@ def test_validator_namespace(minikube: AClusterManager):
             None,
             ClusterConfiguration(),
             logging.getLogger(),
+        )
+
+
+def test_validator_volume_snapshot_class(minikube: AClusterManager):
+    from beiboot.handler import validate_volume_snapshot_class
+
+    minikube.apply(Path("tests/fixtures/volume-snapshot-class.yaml"))
+    sleep(1)
+    validate_volume_snapshot_class(
+        "test",
+        {"volumeSnapshotClass": "retain"},
+        ClusterConfiguration(),
+        logging.getLogger()
+    )
+    with pytest.raises(kopf.AdmissionError):
+        validate_volume_snapshot_class(
+            "test",
+            {"volumeSnapshotClass": "does-not-exist"},
+            ClusterConfiguration(),
+            logging.getLogger()
+        )
+        validate_volume_snapshot_class(
+            "test",
+            {"volumeSnapshotClass": "delete"},
+            ClusterConfiguration(),
+            logging.getLogger()
         )
 
 
