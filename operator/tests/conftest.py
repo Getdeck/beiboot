@@ -62,6 +62,22 @@ def minikube(request):
     }
     storage_api.patch_storage_class(name="csi-hostpath-sc", body=body)
 
+    # patch volumesnapshot class to make it default and to set deletion policy to retain
+    custom_api = kubernetes.client.CustomObjectsApi()
+    body = {
+        "metadata": {
+            "annotations": {"snapshot.storage.kubernetes.io/is-default-class": "true"}
+        },
+        "deletionPolicy": "Retain"
+    }
+    custom_api.patch_cluster_custom_object(
+        name="csi-hostpath-snapclass",
+        version="v1",
+        group="snapshot.storage.k8s.io",
+        body=body,
+        plural="volumesnapshotclasses"
+    )
+
     # TODO: can we ensure that we are really connected to the correct cluster?
     for _i in range(0, 10):
         try:
@@ -144,7 +160,7 @@ def _k8s_version(request) -> str:
 def _timeout(request) -> int:
     cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
     if not cluster_timeout:
-        return 120
+        return 180
     else:
         return int(cluster_timeout)
 
