@@ -32,7 +32,9 @@ def minikube(request):
     k8s: AClusterManager = select_provider_manager("minikube")(CLUSTER_NAME)
     # ClusterOptions without kubeconfig_path forces pytest-kubernetes to always write a new kubeconfig file to disk
     k8s.create(
-        ClusterOptions(api_version=_k8s_version(request), cluster_timeout=_timeout(request)),
+        ClusterOptions(
+            api_version=_k8s_version(request), cluster_timeout=_timeout(request)
+        ),
         options=[
             "--cpus",
             "max",
@@ -68,14 +70,14 @@ def minikube(request):
         "metadata": {
             "annotations": {"snapshot.storage.kubernetes.io/is-default-class": "true"}
         },
-        "deletionPolicy": "Retain"
+        "deletionPolicy": "Retain",
     }
     custom_api.patch_cluster_custom_object(
         name="csi-hostpath-snapclass",
         version="v1",
         group="snapshot.storage.k8s.io",
         body=body,
-        plural="volumesnapshotclasses"
+        plural="volumesnapshotclasses",
     )
 
     # TODO: can we ensure that we are really connected to the correct cluster?
@@ -106,7 +108,8 @@ def _ensure_namespace(kubectl):
 def default_k3s_image():
     name = "rancher/k3s:v1.24.3-k3s1"
     subprocess.run(
-        f"docker pull {name}", shell=True,
+        f"docker pull {name}",
+        shell=True,
     )
     return name
 
@@ -128,18 +131,16 @@ def operator(minikube, default_k3s_image):
     beiboot_logger = logging.getLogger("beiboot")
     # beiboot_logger.setLevel(logging.INFO)
     beiboot_logger.setLevel(logging.CRITICAL)
-    minikube.wait(
-        "crd/beiboots.getdeck.dev",
-        "condition=established",
-        timeout=30
-    )
+    minikube.wait("crd/beiboots.getdeck.dev", "condition=established", timeout=30)
 
     yield minikube
 
     try:
         beiboots = minikube.kubectl(["-n", "getdeck", "get", "bbt"])
         for beiboot in beiboots["items"]:
-            minikube.kubectl(["-n", "getdeck", "delete", "bbt", beiboot["metadata"]["name"]])
+            minikube.kubectl(
+                ["-n", "getdeck", "delete", "bbt", beiboot["metadata"]["name"]]
+            )
             sleep(1)
     except Exception:
         # case:
@@ -158,7 +159,9 @@ def _k8s_version(request) -> str:
 
 
 def _timeout(request) -> int:
-    cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
+    cluster_timeout = request.config.option.cluster_timeout or request.config.getini(
+        "cluster_timeout"
+    )
     if not cluster_timeout:
         return 180
     else:

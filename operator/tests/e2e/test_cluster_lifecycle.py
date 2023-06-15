@@ -22,7 +22,9 @@ def test_beiboot_lifecycle(operator: AClusterManager, timeout):
     )
     beiboot = get_beiboot_data(BEIBOOT_NAME, minikube)
     sleep(2)
-    minikube.kubectl(["-n", beiboot["beibootNamespace"], "delete", "pod", "server-0"], as_dict=False)
+    minikube.kubectl(
+        ["-n", beiboot["beibootNamespace"], "delete", "pod", "server-0"], as_dict=False
+    )
     minikube.wait(
         f"beiboot.getdeck.dev/{BEIBOOT_NAME}",
         "jsonpath=.state=ERROR",

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, Dict
 
 import kopf
 import kubernetes as k8s
@@ -296,7 +296,10 @@ def create_volume_snapshot_from_pvc_resource(
 
 
 def create_volume_snapshot_pre_provisioned_resource(
-    name: str, namespace: str, volume_snapshot_content: str
+    name: str,
+    namespace: str,
+    volume_snapshot_content: str,
+    labels: Optional[Dict[str, str]] = None,
 ) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.
@@ -304,6 +307,7 @@ def create_volume_snapshot_pre_provisioned_resource(
     :param name: The name of the VolumeSnapshot that is to be created
     :param namespace: The namespace that the PVC is located in and in that the VolumeSnapshot is to be created
     :param volume_snapshot_content: The associated pre-provisioned VolumeSnapshotContent
+    :param labels: dictionary of labels for the VolumeSnapshotContent
     """
     return {
         "apiVersion": "snapshot.storage.k8s.io/v1",
@@ -311,6 +315,7 @@ def create_volume_snapshot_pre_provisioned_resource(
         "metadata": {
             "name": f"{name}",
             "namespace": f"{namespace}",
+            "labels": labels,
         },
         "spec": {
             "source": {
@@ -368,7 +373,7 @@ def create_volume_snapshot_content_pre_provisioned_resource(
     volume_snapshot_ref_namespace: str,
     deletion_policy: str = "Retain",
     source_volume_mode: str = "Filesystem",
-    labels: Optional[List] = None,
+    labels: Optional[Dict[str, str]] = None,
 ) -> dict:
     """
     Return pre-provisioned VolumeSnapshot K8s resource as dict.
@@ -382,13 +387,14 @@ def create_volume_snapshot_content_pre_provisioned_resource(
         VolumeSnapshotContent will be associated with
     :param deletion_policy: deletionPolicy of the VolumeSnapshotContent, either "Delete" or "Retain"
     :param source_volume_mode: sourceVolumeMode of the VolumeSnapshotContent, either "Filesystem" or "Block"
-    :param labels: list of labels for the VolumeSnapshotContent
+    :param labels: dictionary of labels for the VolumeSnapshotContent
     """
     return {
         "apiVersion": "snapshot.storage.k8s.io/v1",
         "kind": "VolumeSnapshotContent",
         "metadata": {
             "name": f"{name}",
+            "labels": labels,
         },
         "spec": {
             "deletionPolicy": f"{deletion_policy}",
@@ -480,6 +486,7 @@ async def create_volume_snapshots_from_shelf(
             volume_snapshot_ref_name=volume_snapshot_name,
             volume_snapshot_ref_namespace=cluster_namespace,
             deletion_policy="Retain",
+            labels={"shelf-uid": shelf["metadata"]["uid"]},
         )
         handle_create_volume_snapshot_content(logger, body=vsc_resource)
 
@@ -487,6 +494,7 @@ async def create_volume_snapshots_from_shelf(
             name=volume_snapshot_name,
             namespace=cluster_namespace,
             volume_snapshot_content=volume_snapshot_content_name,
+            labels={"shelf-uid": shelf["metadata"]["uid"]},
         )
         handle_create_volume_snapshot(logger, body=vs_resource)
 

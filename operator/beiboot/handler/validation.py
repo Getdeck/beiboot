@@ -2,7 +2,11 @@ import kopf
 import kubernetes as k8s
 
 from beiboot.configuration import configuration, ClusterConfiguration
-from beiboot.utils import get_namespace_name, parse_timedelta, get_volume_snapshot_class_by_name
+from beiboot.utils import (
+    get_namespace_name,
+    parse_timedelta,
+    get_volume_snapshot_class_by_name,
+)
 
 core_v1_api = k8s.client.CoreV1Api()
 custom_api = k8s.client.CustomObjectsApi()
@@ -134,7 +138,9 @@ def validate_volume_snapshot_class(
     """
     if class_name := parameters.get("volumeSnapshotClass"):
         try:
-            volume_snapshot_class = get_volume_snapshot_class_by_name(class_name, custom_api)
+            volume_snapshot_class = get_volume_snapshot_class_by_name(
+                class_name, custom_api
+            )
             if volume_snapshot_class.get("deletionPolicy") != "Retain":
                 raise kopf.AdmissionError(
                     f"VolumeSnapshotClass '{class_name}' for Shelf '{name}' doesn't have retentionPolicy set to Retain"

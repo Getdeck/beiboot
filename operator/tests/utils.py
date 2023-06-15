@@ -1,6 +1,3 @@
-import json
-from typing import Callable
-
 import kubernetes as k8s
 from pytest_kubernetes.providers import AClusterManager
 
@@ -88,9 +85,7 @@ def demo_deployment():
 
 
 def get_beiboot_data(beiboot_name: str, k8s: AClusterManager) -> dict:
-    output = k8s.kubectl(
-        ["-n", "getdeck", "get", "bbt", beiboot_name]
-    )
+    output = k8s.kubectl(["-n", "getdeck", "get", "bbt", beiboot_name])
     if not output:
         raise RuntimeError("This Beiboot object does not exist or is not readable")
     else:
@@ -98,9 +93,7 @@ def get_beiboot_data(beiboot_name: str, k8s: AClusterManager) -> dict:
 
 
 def get_shelf_data(shelf_name: str, k8s: AClusterManager) -> dict:
-    output = k8s.kubectl(
-        ["-n", "getdeck", "get", "shelf", shelf_name]
-    )
+    output = k8s.kubectl(["-n", "getdeck", "get", "shelf", shelf_name])
     if not output:
         raise RuntimeError("This Beiboot object does not exist or is not readable")
     else:

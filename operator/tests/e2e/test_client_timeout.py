@@ -61,9 +61,6 @@ def test_b_beiboot_one_connect_timeout(operator: AClusterManager, timeout):
     )
     sleep(8)
     beiboot = minikube.kubectl(["-n", "getdeck", "get", "bbt", BEIBOOT_NAME])
-    assert (
-        beiboot["lastClientContact"]
-        == time.isoformat(timespec="microseconds") + "Z"
-    )
+    assert beiboot["lastClientContact"] == time.isoformat(timespec="microseconds") + "Z"
     # this Beiboot should terminate due to no client connecting for 10 seconds
     minikube.wait(f"ns/{beiboot['beibootNamespace']}", "delete", timeout=30)

@@ -91,6 +91,14 @@ class Shelf(StateMachine):
         return self.model["metadata"]["name"]
 
     @property
+    def uid(self) -> str:
+        """
+        It returns the K8s uid of the cluster
+        :return: The K8s uid of the cluster.
+        """
+        return self.model["metadata"]["uid"]
+
+    @property
     def pvc_mapping(self) -> dict:
         """
         Return mapping of node-name to PVC that node uses and set internal list of VolumeSnapshot-names
@@ -499,4 +507,31 @@ class Shelf(StateMachine):
             await handle_delete_volume_snapshot_content(
                 logger=self.logger,
                 name=volume_snapshot_content_name,
+            )
+        # delete all VolumeSnapshots and VolumeSnapshotContents with the shelf-uid label
+        # this is primarily done to clean up all VolumeSnapshotContents with the same snapshotHandle, as they won't be
+        # usable once one of them is deleted
+        volume_snapshots = objects_api.list_namespaced_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            namespace=self.cluster_namespace,
+            plural="volumesnapshots",
+            label_selector="shelf-uid={}".format(self.uid),
+        )
+        for volume_snapshot in volume_snapshots["items"]:
+            await handle_delete_volume_snapshot(
+                logger=self.logger,
+                name=volume_snapshot["metadata"]["name"],
+                namespace=self.cluster_namespace,
+            )
+        volume_snapshot_contents = objects_api.list_cluster_custom_object(
+            group="snapshot.storage.k8s.io",
+            version="v1",
+            plural="volumesnapshotcontents",
+            label_selector="shelf-uid={}".format(self.uid),
+        )
+        for volume_snapshot_content in volume_snapshot_contents["items"]:
+            await handle_delete_volume_snapshot_content(
+                logger=self.logger,
+                name=volume_snapshot_content["metadata"]["name"],
             )

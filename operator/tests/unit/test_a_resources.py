@@ -1,8 +1,6 @@
 import logging
 from time import sleep
 
-import kopf
-import kubernetes
 import pytest
 
 from beiboot.configuration import ClusterConfiguration
@@ -104,6 +102,8 @@ class TestResources:
 
     @pytest.mark.asyncio
     async def test_service_account(self, minikube):
+        import kubernetes
+        import kopf
         from beiboot.resources.utils import (
             handle_create_beiboot_serviceaccount,
             get_serviceaccount_data,
