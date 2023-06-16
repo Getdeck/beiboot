@@ -166,8 +166,8 @@ def create_ghostunnel_workload(
                 k8s.client.V1ContainerPort(container_port=probe_port),
             ],
             resources=k8s.client.V1ResourceRequirements(
-                requests={"cpu": "0.1", "memory": "16Mi"},
-                limits={"memory": "32Mi"},
+                requests={"cpu": "0.2", "memory": "32Mi"},
+                limits={"memory": "128Mi"},
             ),
             readiness_probe=k8s.client.V1Probe(
                 _exec=k8s.client.V1ExecAction(
