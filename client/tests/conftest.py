@@ -151,7 +151,8 @@ def minikube_ip(request, minikube: AClusterManager):
 def default_k3s_image():
     name = "rancher/k3s:v1.24.3-k3s1"
     subprocess.run(
-        f"docker pull {name}", shell=True,
+        f"docker pull {name}",
+        shell=True,
     )
     return name
 
@@ -189,7 +190,9 @@ def operator(minikube, default_k3s_image):
     try:
         beiboots = minikube.kubectl(["-n", "getdeck", "get", "bbt"])
         for beiboot in beiboots.get("items"):
-            minikube.kubectl(["-n", "getdeck", "delete", "bbt", beiboot["metadata"]["name"]])
+            minikube.kubectl(
+                ["-n", "getdeck", "delete", "bbt", beiboot["metadata"]["name"]]
+            )
             sleep(1)
     except RuntimeError:
         # case:
@@ -198,7 +201,9 @@ def operator(minikube, default_k3s_image):
     try:
         shelves = minikube.kubectl(["-n", "getdeck", "get", "shelf"])
         for shelf in shelves.get("items"):
-            minikube.kubectl(["-n", "getdeck", "delete", "shelf", shelf["metadata"]["name"]])
+            minikube.kubectl(
+                ["-n", "getdeck", "delete", "shelf", shelf["metadata"]["name"]]
+            )
             sleep(1)
     except RuntimeError:
         # case:
@@ -229,7 +234,9 @@ def _k8s_version(request) -> str:
 
 
 def _timeout(request) -> int:
-    cluster_timeout = request.config.option.cluster_timeout or request.config.getini("cluster_timeout")
+    cluster_timeout = request.config.option.cluster_timeout or request.config.getini(
+        "cluster_timeout"
+    )
     if not cluster_timeout:
         return 60
     else:

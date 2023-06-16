@@ -26,7 +26,7 @@ class StateAndEventsMixin:
     # the uid from Kubernetes for this object
     uid: str
     _data: Optional[Dict[str, Any]] = None
-    _config: ClientConfiguration   # check for shelf
+    _config: ClientConfiguration  # check for shelf
 
     @property
     def state(self):
@@ -36,7 +36,9 @@ class StateAndEventsMixin:
     def fetch_object(self):
         raise NotImplementedError
 
-    def wait_for_state(self, awaited_state: Union["BeibootState", "ShelfState"], timeout: int = 60):
+    def wait_for_state(
+        self, awaited_state: Union["BeibootState", "ShelfState"], timeout: int = 60
+    ):
         """
         > Wait for the state of the resource to be the awaited state, or raise an error if the timeout is reached
 

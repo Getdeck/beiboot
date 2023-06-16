@@ -22,7 +22,10 @@ def test_get_custom_version_configs():
     coptions = InstallOptions(namespace="getdeck", version="1.0.0")
     d = synthesize_config_as_dict(coptions)
     for el in d:
-        if el.get("kind") == "Deployment" and el.get("metadata", {}).get("name") == "beiboot-operator":
+        if (
+            el.get("kind") == "Deployment"
+            and el.get("metadata", {}).get("name") == "beiboot-operator"
+        ):
             assert (
                 el["spec"]["template"]["spec"]["containers"][0]["image"]
                 == "quay.io/getdeck/beiboot:1.0.0"

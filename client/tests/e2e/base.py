@@ -1,6 +1,3 @@
-import json
-import logging
-from time import sleep
 from typing import Callable
 
 import pytest
@@ -54,16 +51,18 @@ class TestClientBase:
 
     def _get_beiboot_data(self, kubectl: Callable) -> dict:
         try:
-            output = kubectl(
-                ["-n", "getdeck", "get", "bbt", self.beiboot_name]
-            )
+            output = kubectl(["-n", "getdeck", "get", "bbt", self.beiboot_name])
         except Exception:
-            raise RuntimeError(f"Beiboot object '{self.beiboot_name}' does not exist or is not readable")
+            raise RuntimeError(
+                f"Beiboot object '{self.beiboot_name}' does not exist or is not readable"
+            )
         return output
 
     def _get_shelf_data(self, kubectl: Callable, shelf_name: str) -> dict:
         try:
             output = kubectl(["-n", "getdeck", "get", "shelf", shelf_name])
         except Exception:
-            raise RuntimeError(f"Shelf object '{shelf_name}' does not exist or is not readable")
+            raise RuntimeError(
+                f"Shelf object '{shelf_name}' does not exist or is not readable"
+            )
         return output

@@ -72,7 +72,7 @@ class TestReadShelves:
             ShelfRequest(
                 name="test-read-labels",
                 cluster_name="test-read",
-                labels={"user-id": "123", "label1": "label2"}
+                labels={"user-id": "123", "label1": "label2"},
             )
         )
         shelf = api.read_shelf(name="test-read-labels")
@@ -87,7 +87,11 @@ class TestReadShelves:
         _all = api.read_all_shelves()
         assert len(_all) == 2
         _ = api.create_shelf(
-            ShelfRequest(name="test-read-all", labels={"user-id": "456"}, cluster_name="test-read")
+            ShelfRequest(
+                name="test-read-all",
+                labels={"user-id": "456"},
+                cluster_name="test-read",
+            )
         )
         _all = api.read_all_shelves()
         assert len(_all) == 3
