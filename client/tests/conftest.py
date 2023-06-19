@@ -230,6 +230,9 @@ def _k8s_version(request) -> str:
     k8s_version = request.config.option.k8s_version
     if not k8s_version:
         k8s_version = "1.24.3"
+    if k8s_version.startswith("v"):
+        # pytest-kubernetes automatically adds a "v" to the version
+        k8s_version = k8s_version[1:]
     return k8s_version
 
 
