@@ -241,7 +241,7 @@ def _timeout(request) -> int:
         "cluster_timeout"
     )
     if not cluster_timeout:
-        return 60
+        return 180
     else:
         return int(cluster_timeout)
 
