@@ -1,6 +1,10 @@
 from .connect import *  # noqa
 from .create import *  # noqa
+from .create_shelf import *  # noqa
 from .delete import *  # noqa
+from .delete_shelf import *  # noqa
 from .list import *  # noqa
+from .list_shelves import *  # noqa
 from .read import *  # noqa
 from .heartbeat import *  # noqa
+from .read_shelf import *  # noqa

@@ -1,0 +1,7 @@
+apiVersion: getdeck.dev/v1
+kind: beiboot
+metadata:
+  name: test-shelf-beiboot-restore
+  namespace: getdeck
+provider: k3s
+fromShelf: test-shelf

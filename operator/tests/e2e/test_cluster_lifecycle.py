@@ -1,28 +1,39 @@
+from pathlib import Path
 from time import sleep
 
 import pytest
+from pytest_kubernetes.providers import AClusterManager
 
-from tests.e2e.base import TestOperatorBase
+from tests.utils import get_beiboot_data
 
 
-class TestOperator(TestOperatorBase):
-    beiboot_name = "test-beiboot-configured"
+BEIBOOT_NAME = "test-beiboot-configured"
 
-    def test_beiboot_lifecycle(self, operator, kubectl, timeout):
-        self._apply_fixure_file(
-            "tests/fixtures/configured-beiboot.yaml", kubectl, timeout
-        )
-        # READY state
-        self._wait_for_state("READY", kubectl, timeout * 2)
-        beiboot = self._get_beiboot_data(kubectl)
-        sleep(2)
-        kubectl(["-n", beiboot["beibootNamespace"], "delete", "pod", "server-0"])
-        self._wait_for_state("ERROR", kubectl, timeout)
-        kubectl(["-n", "getdeck", "delete", "bbt", self.beiboot_name])
-        sleep(2)
-        namespaces = kubectl(["get", "ns"])
-        assert (
-            beiboot["beibootNamespace"] not in namespaces or "Terminating" in namespaces
-        )
-        with pytest.raises(RuntimeError):
-            _ = self._get_beiboot_data(kubectl)
+
+def test_beiboot_lifecycle(operator: AClusterManager, timeout):
+    minikube = operator
+    minikube.apply(Path("tests/fixtures/configured-beiboot.yaml"))
+    # READY state
+    minikube.wait(
+        f"beiboot.getdeck.dev/{BEIBOOT_NAME}",
+        "jsonpath=.state=READY",
+        namespace="getdeck",
+        timeout=120,
+    )
+    beiboot = get_beiboot_data(BEIBOOT_NAME, minikube)
+    sleep(2)
+    minikube.kubectl(
+        ["-n", beiboot["beibootNamespace"], "delete", "pod", "server-0"], as_dict=False
+    )
+    minikube.wait(
+        f"beiboot.getdeck.dev/{BEIBOOT_NAME}",
+        "jsonpath=.state=ERROR",
+        namespace="getdeck",
+        timeout=120,
+    )
+    minikube.kubectl(["-n", "getdeck", "delete", "bbt", BEIBOOT_NAME], as_dict=False)
+    sleep(2)
+    # this Beiboot should terminate due to no client connecting for 10 seconds
+    minikube.wait(f"ns/{beiboot['beibootNamespace']}", "delete", timeout=30)
+    with pytest.raises(RuntimeError):
+        _ = get_beiboot_data(BEIBOOT_NAME, minikube)

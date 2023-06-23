@@ -34,6 +34,8 @@ class BeibootCluster(StateMachine):
     """
 
     requested = AsyncState("Cluster requested", initial=True, value="REQUESTED")
+    preparing = AsyncState("Cluster preparing", value="PREPARING")
+    restoring = AsyncState("Cluster restoring", value="RESTORING")
     creating = AsyncState("Cluster creating", value="CREATING")
     pending = AsyncState("Cluster pending", value="PENDING")
     running = AsyncState("Cluster running", value="RUNNING")
@@ -41,13 +43,19 @@ class BeibootCluster(StateMachine):
     error = AsyncState("Cluster error", value="ERROR")
     terminating = AsyncState("Cluster terminating", value="TERMINATING")
 
-    create = requested.to(creating) | error.to(creating)
+    prepare = requested.to(preparing) | error.to(preparing)
+    restore = preparing.to(restoring) | error.to(restoring)
+    create = preparing.to(creating) | restoring.to(creating) | error.to(creating)
     boot = creating.to(pending)
     operate = pending.to(running)
     reconcile = running.to(ready) | ready.to.itself() | error.to(ready)
     recover = error.to(running)
-    impair = error.from_(ready, running, pending, creating, requested, error)
-    terminate = terminating.from_(pending, creating, running, ready, error, terminating)
+    impair = error.from_(
+        ready, running, pending, restoring, creating, preparing, requested, error
+    )
+    terminate = terminating.from_(
+        pending, preparing, restoring, creating, running, ready, error, terminating
+    )
 
     def __init__(
         self,
@@ -103,6 +111,7 @@ class BeibootCluster(StateMachine):
             self.namespace,
             self.parameters.ports,
             self.logger,
+            self.model.get("fromShelf"),
         )
         if provider is None:
             raise kopf.PermanentError(
@@ -258,30 +267,95 @@ class BeibootCluster(StateMachine):
             f"The cluster request for '{self.name}' has been accepted",
         )
 
-    def on_create(self):
+    async def on_prepare(self):
+        """
+        Post an event to the Kubernetes API when the cluster is being prepared
+        """
+        self.post_event(
+            self.requested.value,
+            f"The cluster request for '{self.name}' is now being prepared",
+        )
+
+    async def on_enter_preparing(self):
+        try:
+            handle_create_namespace(self.logger, self.namespace)
+        except k8s.client.ApiException as e:
+            try:
+                body = json.loads(e.body)
+            except JSONDecodeError:
+                pass
+            else:
+                raise kopf.TemporaryError(body.get("message"), delay=5)
+            raise kopf.TemporaryError(delay=5)
+
+    async def on_enter_restoring(self):
+        """
+        Post an event to the Kubernetes API if cluster is restored from shelf (otherwise this state is not relevant)
+        """
+        if self.model.get("fromShelf"):
+            self.post_event(
+                self.restoring.value, f"The cluster '{self.name}' is now being restored"
+            )
+
+    async def on_restore(self):
+        """Call cluster providers hook to perform necessary steps before the shelf-restored cluster is created"""
+        if self.model.get("fromShelf"):
+            try:
+                if await self.provider.prepare_restore_from_shelf():
+                    self.logger.info(f"Restore of cluster '{self.name}' is finished")
+                    self.post_event(
+                        self.requested.value,
+                        f"Restore of cluster '{self.name}' is finished",
+                    )
+                else:
+                    raise kopf.TemporaryError(
+                        f"Restore of cluster '{self.name}' is still running", delay=5
+                    )
+            except k8s.client.ApiException as e:
+                try:
+                    body = json.loads(e.body)
+                except JSONDecodeError:
+                    pass
+                else:
+                    raise kopf.TemporaryError(body.get("message"), delay=5)
+                raise kopf.TemporaryError(delay=5)
+        else:
+            self.logger.warning(
+                f"Cluster {self.name} is in state RESTORING, but has not 'fromShelf' set!"
+            )
+
+    def on_enter_creating(self):
         """
         > The function posts an event to the Kubernetes API, and then patches the custom resource with the namespace
         """
-        import dataclasses
 
         self.post_event(
             self.creating.value, f"The cluster '{self.name}' is now being created"
         )
+
+    async def on_create(self):
+        """
+        It creates the provider workloads for the cluster, adds additional services, and creates the services
+        """
+        import dataclasses
+
         self._patch_object(
             {
                 "beibootNamespace": self.namespace,
                 "parameters": dataclasses.asdict(self.parameters),
             }
         )
-
-    async def on_enter_creating(self):
-        """
-        It creates the provider workloads for the cluster, adds additional services, and creates the services
-        """
         # create the workloads for this cluster provider
         try:
-            handle_create_namespace(self.logger, self.namespace)
-            await self.provider.create()
+            if await self.provider.create():
+                self.logger.info(f"Cluster '{self.name}' has been created")
+                self.post_event(
+                    self.running.value, f"Cluster '{self.name}' has been created"
+                )
+            else:
+                raise kopf.TemporaryError(
+                    f"Cluster '{self.name}' is still being created", delay=5
+                )
         except k8s.client.ApiException as e:
             try:
                 body = json.loads(e.body)
@@ -318,6 +392,14 @@ class BeibootCluster(StateMachine):
             )
         except Exception as e:
             self.logger.error(str(e))
+
+        self._patch_object(
+            {
+                "parameters": {
+                    "ports": self.provider.get_ports(),
+                }
+            }
+        )
 
     async def on_boot(self):
         self.post_event(

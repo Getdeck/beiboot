@@ -17,13 +17,16 @@ class ClusterConfiguration:
     k8sVersion: Optional[str] = field(default_factory=lambda: None)
     nodes: int = field(default_factory=lambda: 1)
     nodeLabels: dict = field(
-        default_factory=lambda: {"app": "beiboot", "beiboot.dev/is-node": "true"}
+        default_factory=lambda: {
+            "app": "beiboot",
+            "beiboot.getdeck.dev/is-node": "true",
+        }
     )
     serverLabels: dict = field(
         default_factory=lambda: {
             "app": "beiboot",
-            "beiboot.dev/is-node": "true",
-            "beiboot.dev/is-server": "true",
+            "beiboot.getdeck.dev/is-node": "true",
+            "beiboot.getdeck.dev/is-server": "true",
         }
     )
     serverResources: dict = field(
@@ -44,6 +47,9 @@ class ClusterConfiguration:
     serverStartupTimeout: int = field(default_factory=lambda: 60)
 
     clusterReadyTimeout: int = field(default_factory=lambda: 180)
+    storageClass: str = field(default_factory=lambda: "standard")
+    shelfStorageClass: str = field(default_factory=lambda: "standard")
+
     # Gefyra integration
     gefyra: dict = field(
         default_factory=lambda: {
@@ -178,3 +184,8 @@ class BeibootConfiguration:
 
 
 configuration = BeibootConfiguration()
+
+
+class ShelfConfiguration:
+    def __init__(self):
+        self.NAMESPACE = config("SHELF_NAMESPACE", default="getdeck")

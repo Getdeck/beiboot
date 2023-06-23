@@ -49,6 +49,12 @@ def cluster(ctx):
     pass
 
 
+@cli.group("shelf", cls=AliasedGroup, help="Shelve Beiboot clusters")
+@click.pass_context
+def shelf(ctx):
+    pass
+
+
 @cli.command()
 @click.pass_context
 def version(ctx):
@@ -67,3 +73,4 @@ if __name__ == "__main__":
 from .cluster import *  # noqa
 from .install import *  # noqa
 from .connect import *  # noqa
+from .shelf import *  # noqa

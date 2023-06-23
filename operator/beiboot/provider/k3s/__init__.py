@@ -1,6 +1,8 @@
+import os
+import base64
 import re
 from datetime import timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 import urllib
 
 import kopf
@@ -8,17 +10,25 @@ import kubernetes as k8s
 
 from beiboot.configuration import BeibootConfiguration, ClusterConfiguration
 from beiboot.provider.abstract import AbstractClusterProvider
-from beiboot.utils import exec_command_pod, get_label_selector
+from beiboot.utils import exec_command_pod, get_label_selector, get_shelf_by_name
 
 from .utils import (
     create_k3s_server_workload,
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
+    PVC_PREFIX_SERVER,
+    PVC_PREFIX_NODE,
 )
-from ...resources.utils import handle_delete_statefulset, handle_delete_service
+from ...resources.utils import (
+    handle_delete_statefulset,
+    handle_delete_service,
+    create_volume_snapshots_from_shelf,
+)
 
 core_api = k8s.client.CoreV1Api()
 app_api = k8s.client.AppsV1Api()
+custom_api = k8s.client.CustomObjectsApi()
+batch_api = k8s.client.BatchV1Api()
 
 
 class K3s(AbstractClusterProvider):
@@ -27,7 +37,7 @@ class K3s(AbstractClusterProvider):
 
     k3s_image: str = "rancher/k3s"
     k3s_default_image_tag: str = "v1.24.3-k3s1"
-    k3s_image_pullpolicy: str = "IfNotPresent"
+    k3s_image_pullpolicy: str = os.getenv("K3S_IMAGE_PULLPOLICY", "IfNotPresent")
     kubeconfig_from_location: str = "/getdeck/kube-config.yaml"
     api_server_container_name: str = "apiserver"
 
@@ -39,9 +49,20 @@ class K3s(AbstractClusterProvider):
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        shelf_name: str = "",
     ):
-        super().__init__(name, namespace, ports)
+        super().__init__(name, namespace, ports, shelf_name)
         self.configuration = configuration
+        if shelf_name:
+            shelf = get_shelf_by_name(
+                name=shelf_name,
+                api_instance=custom_api,
+                namespace=configuration.NAMESPACE,
+            )
+            self.shelf = shelf
+            cluster_parameter.update(shelf["clusterParameters"])
+        else:
+            self.shelf = None
         self.parameters = cluster_parameter
         self.logger = logger
 
@@ -73,7 +94,7 @@ class K3s(AbstractClusterProvider):
     def _parse_kubectl_nodes_output(self, string: str) -> dict:
 
         regex = re.compile(
-            r"((?P<hours>\d+?)hr)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
+            r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?"
         )
 
         def parse_time(time_str):
@@ -117,7 +138,7 @@ class K3s(AbstractClusterProvider):
             )
             if len(api_pod.items) != 1:
                 self.logger.warning(
-                    f"There is more then one API Pod, it is {len(api_pod.items)}"
+                    f"There is not exactly one API Pod, it is {len(api_pod.items)}"
                 )
 
             kubeconfig = exec_command_pod(
@@ -135,7 +156,13 @@ class K3s(AbstractClusterProvider):
             self.logger.error(str(e))
             raise kopf.TemporaryError("The kubeconfig is not yet ready.", delay=2)
 
-    async def create(self) -> bool:
+    async def prepare_restore_from_shelf(self) -> bool:
+        """
+        Returns True, as k3s doesn't need this state
+        """
+        return True
+
+    async def create_new(self) -> bool:
         from beiboot.utils import generate_token
         from beiboot.resources.utils import (
             handle_create_statefulset,
@@ -186,6 +213,124 @@ class K3s(AbstractClusterProvider):
             self.logger.debug("Creating: " + str(svc))
             handle_create_service(self.logger, svc, self.namespace)
         return True
+
+    async def restore_from_shelf(self) -> bool:
+        from beiboot.utils import generate_token
+        from beiboot.resources.utils import (
+            handle_create_statefulset,
+            handle_create_service,
+        )
+
+        try:
+            pod = core_api.read_namespaced_pod("server-0", self.namespace)
+        except k8s.client.ApiException as e:
+            if e.status == 404:
+                self.logger.info("Server pod doesn't exist, creating it")
+                # server pod doesn't exist, create it
+                node_to_snapshot_mapping = await create_volume_snapshots_from_shelf(
+                    self.logger, self.shelf, cluster_namespace=self.namespace
+                )
+
+                node_token = generate_token()
+                node_to_snapshot_mapping["node_token"] = node_token
+                secret_body = k8s.client.V1Secret(
+                    metadata=k8s.client.V1ObjectMeta(
+                        name="shelf-restore-data",
+                        namespace=self.namespace,
+                    ),
+                    string_data=node_to_snapshot_mapping,
+                )
+                core_api.create_namespaced_secret(self.namespace, secret_body)
+                server_workloads = [
+                    create_k3s_server_workload(
+                        self.namespace,
+                        node_token,
+                        self.k3s_image,
+                        self.k3s_image_tag,
+                        self.k3s_image_pullpolicy,
+                        self.kubeconfig_from_location,
+                        self.api_server_container_name,
+                        self.parameters,
+                        # TODO: what when that doesn't exist?
+                        node_to_snapshot_mapping["server"],
+                    )
+                ]
+
+                services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
+
+                #
+                # Create the server workload
+                #
+                for sts in server_workloads:
+                    self.logger.debug("Creating: " + str(sts))
+                    handle_create_statefulset(self.logger, sts, self.namespace)
+
+                #
+                # Create the services
+                #
+                for svc in services:
+                    self.logger.debug("Creating: " + str(svc))
+                    handle_create_service(self.logger, svc, self.namespace)
+
+                # as we've just created the server, we return False so that the agents are created next time
+                return False
+            else:
+                raise e
+        else:
+            # check whether server-0 is running
+            if pod.status.phase == "Running":
+                # get nodes to infer whether apiserver is runnning
+                output = exec_command_pod(
+                    core_api,
+                    "server-0",
+                    self.namespace,
+                    self.api_server_container_name,
+                    ["kubectl", "get", "node"],
+                )
+                if "Error from server" in output:
+                    self.logger.info(
+                        "Server pod is running but not ready, waiting for it to be ready"
+                    )
+                    # server pod is not ready, wait
+                    return False
+
+                self.logger.info("Server pod is running, creating agents")
+                # create agents when server is running
+                secret = core_api.read_namespaced_secret(
+                    "shelf-restore-data", self.namespace
+                )
+                node_workloads = [
+                    create_k3s_agent_workload(
+                        self.namespace,
+                        base64.b64decode(secret.data["node_token"]).decode("utf-8"),
+                        self.k3s_image,
+                        self.k3s_image_tag,
+                        self.k3s_image_pullpolicy,
+                        self.parameters,
+                        node,
+                        # TODO: what when that doesn't exist?
+                        base64.b64decode(secret.data[f"agent-{node}"]).decode("utf-8"),
+                    )
+                    for node in range(
+                        1, self.parameters.nodes
+                    )  # (no +1 ) since the server deployment already runs one node
+                ]
+                # remove the old agents, so that they are freshly joined to the cluster
+                for node in range(1, self.parameters.nodes):
+                    self._remove_cluster_node("server-0", f"agent-{node}-0")
+                #
+                # Create the agent workloads
+                #
+                for sts in node_workloads:
+                    self.logger.debug("Creating: " + str(sts))
+                    handle_create_statefulset(self.logger, sts, self.namespace)
+                return True
+            else:
+                self.logger.info(
+                    "Server pod is not running, waiting for it to be running"
+                )
+                # server is not running, so we return False and do nothing
+                return False
 
     async def delete(self) -> bool:
         try:
@@ -296,8 +441,10 @@ class K3s(AbstractClusterProvider):
                         if node["status"] == "Ready":
                             continue
                         else:
+                            self.logger.info(f"Node {name} is not ready")
                             # wait for a node to become ready within 30 seconds
-                            if node["age"].seconds > 30:
+                            if node["age"] > timedelta(seconds=30):
+                                self.logger.info(f"Removing cluster node {name}")
                                 self._remove_cluster_node(
                                     api_pod.items[0].metadata.name, name
                                 )
@@ -321,9 +468,111 @@ class K3s(AbstractClusterProvider):
         # add the kubernetes api port for k3s here
         if ports is None:
             ports = ["6443:6443"]
-        else:
+        elif "6443:6443" not in ports:
             ports.append("6443:6443")
         return ports
+
+    async def get_pvc_mapping(self) -> Dict:
+        """
+        Return a mapping of node-names to the PVC that node uses.
+
+        Example:
+        {
+            "server": "k8s-server-data-server-0",
+            "agent-1": "k8s-node-data-1-agent-1-0",
+            "agent-2": "k8s-node-data-2-agent-2-0",
+        }
+        """
+        pods = core_api.list_namespaced_pod(
+            self.namespace,
+            label_selector=get_label_selector(self.parameters.nodeLabels),
+        )
+        pvc_mapping = {}
+        for pod in pods.items:
+            sts_name = pod.metadata.owner_references[0].name
+            for volume in pod.spec.volumes:
+                try:
+                    claim_name = volume.persistent_volume_claim.claim_name
+                    if claim_name.startswith(
+                        PVC_PREFIX_SERVER
+                    ) or claim_name.startswith(PVC_PREFIX_NODE):
+                        pvc_mapping[sts_name] = claim_name
+                except AttributeError:
+                    # not every volume as a claim_name
+                    continue
+        return pvc_mapping
+
+    async def on_shelf_request(self) -> bool:
+        """
+        Create on demand k3s snapshot on the PVC and prune k3s snapshots, so that only the newly created exists.
+        """
+        # TODO: can/should we except errors here? Or are we fine that errors propagate and the shelf will permanently
+        #  fail if this fails? Interesting: errors of the command that's being run don't cause it to fail
+        #  - do errors actually propagate?
+        # TODO: can this be refactored, so that we don't need 5 calls? Command-chaining doesn't seem to work as one
+        #  would expect
+        self.logger.debug("K3s.on_shelf_request")
+        # we need three calls, as we can't seem to chain commands...
+        # ensure directory exists
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            ["mkdir", "-p", "/getdeck/data/shelf-snapshot"],
+        )
+        self.logger.debug(f"K3s.on_shelf_request mkdir response: {resp}")
+        # take k3s snapshot
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "k3s",
+                "etcd-snapshot",
+                "save",
+                "--data-dir",
+                "/getdeck/data",
+                "--dir",
+                "/getdeck/data/shelf-snapshot",
+                "--snapshot-compress",
+            ],
+        )
+        self.logger.debug(f"K3s.on_shelf_request snapshot response: {resp}")
+        # prune k3s snapshots except the most recent one
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            [
+                "k3s",
+                "etcd-snapshot",
+                "prune",
+                "--data-dir",
+                "/getdeck/data",
+                "--dir",
+                "/getdeck/data/shelf-snapshot",
+                "--snapshot-retention",
+                "1",
+            ],
+        )
+        self.logger.debug(f"K3s.on_shelf_request prune response: {resp}")
+        # sync and drop caches to ensure that compressed snapshot is written to disk before VolumeSnapshots are created
+        resp = exec_command_pod(
+            core_api, "server-0", self.namespace, "apiserver", ["sync"]
+        )
+        self.logger.debug(f"K3s.on_shelf_request sync response: {resp}")
+        resp = exec_command_pod(
+            core_api,
+            "server-0",
+            self.namespace,
+            "apiserver",
+            ["echo 3 > /proc/sys/vm/drop_caches"],
+        )
+        self.logger.debug(f"K3s.on_shelf_request drop_caches response: {resp}")
+        return True
 
 
 class K3sBuilder:
@@ -338,6 +587,7 @@ class K3sBuilder:
         namespace: str,
         ports: Optional[List[str]],
         logger,
+        shelf_name: str = "",
         **_ignored,
     ):
         instance = K3s(
@@ -347,5 +597,6 @@ class K3sBuilder:
             namespace=namespace,
             ports=ports,
             logger=logger,
+            shelf_name=shelf_name,
         )
         return instance

@@ -2,13 +2,25 @@ import kopf
 import kubernetes as k8s
 
 from beiboot.configuration import configuration, ClusterConfiguration
-from beiboot.utils import get_namespace_name, parse_timedelta
+from beiboot.utils import (
+    get_namespace_name,
+    parse_timedelta,
+    get_volume_snapshot_class_by_name,
+)
+
+core_v1_api = k8s.client.CoreV1Api()
+custom_api = k8s.client.CustomObjectsApi()
 
 
 def validate_namespace(name: str, _: dict, defaults: ClusterConfiguration, logger):
-    core_v1_api = k8s.client.CoreV1Api()
 
     namespace = get_namespace_name(name, defaults)
+
+    if len(namespace) > 63:
+        raise kopf.AdmissionError(
+            f"Namespace '{namespace}' is longer than 63 characters"
+        )
+
     try:
         ns = core_v1_api.read_namespace(namespace)
         logger.warning(f"Namespace {ns.metadata.name} exists")
@@ -60,7 +72,33 @@ def validate_ports(name: str, parameters: dict, _: ClusterConfiguration, logger)
             raise kopf.AdmissionError(f"ports parameter is not valid: {e}")
 
 
-VALIDATORS = [validate_namespace, validate_maxlifetime, validate_session_timeout]
+def validate_shelf(name: str, parameters: dict, defaults: ClusterConfiguration, logger):
+    if shelf_name := parameters.get("fromShelf"):
+        try:
+            shelf = custom_api.get_namespaced_custom_object(
+                group="beiboots.getdeck.dev",
+                version="v1",
+                namespace=configuration.NAMESPACE,
+                plural="shelves",
+                name=shelf_name,
+            )
+            if shelf.get("state") != "READY":
+                raise kopf.AdmissionError(
+                    f"Shelf for Beiboot '{shelf_name}' not ready: {shelf.get('state')}"
+                )
+        except k8s.client.exceptions.ApiException as e:
+            logger.info(f"Shelf {shelf_name} handled with {e.reason}")
+            raise kopf.AdmissionError(
+                f"Shelf '{shelf_name}' for Beiboot '{name}' doesn't exist or has other issue: {e.reason}"
+            )
+
+
+VALIDATORS = [
+    validate_namespace,
+    validate_maxlifetime,
+    validate_session_timeout,
+    validate_shelf,
+]
 
 
 @kopf.on.validate("beiboot.getdeck.dev", id="validate-parameters")  # type: ignore
@@ -81,7 +119,104 @@ def check_validate_beiboot_request(body, logger, operation, **_):
         name = body.get("metadata").get("name")
         parameters = body.get("parameters")
 
+        shelf_name = body.get("fromShelf")
+        if shelf_name:
+            parameters["fromShelf"] = shelf_name
+
         for validator in VALIDATORS:
+            validator(name, parameters, cluster_config, logger)
+        return True
+    else:
+        return True
+
+
+def validate_volume_snapshot_class(
+    name: str, parameters: dict, defaults: ClusterConfiguration, logger
+):
+    """
+    Validate that the volumeSnapshotClass exists and has deletionPolicy set to Retain.
+    """
+    if class_name := parameters.get("volumeSnapshotClass"):
+        try:
+            volume_snapshot_class = get_volume_snapshot_class_by_name(
+                class_name, custom_api
+            )
+            if volume_snapshot_class.get("deletionPolicy") != "Retain":
+                raise kopf.AdmissionError(
+                    f"VolumeSnapshotClass '{class_name}' for Shelf '{name}' doesn't have retentionPolicy set to Retain"
+                )
+        except k8s.client.exceptions.ApiException as e:
+            logger.info(f"Shelf {name} handled with {e.reason}")
+            raise kopf.AdmissionError(
+                f"VolumeSnapshotClass '{class_name}' for Shelf '{name}' doesn't exist or has other issue: {e.reason}"
+            )
+
+
+def validate_shelf_cluster(
+    name: str, parameters: dict, defaults: ClusterConfiguration, logger
+):
+    """
+    Validate that the cluster that is to be shelved exists (Beiboot CRD and namespace).
+    """
+    cluster_name = parameters.get("clusterName")
+    cluster_namespace = parameters.get("clusterNamespace")
+    try:
+        bbt = custom_api.get_namespaced_custom_object(
+            group="getdeck.dev",
+            version="v1",
+            namespace=configuration.NAMESPACE,
+            plural="beiboots",
+            name=cluster_name,
+        )
+        if bbt.get("state") != "READY":
+            raise kopf.AdmissionError(
+                f"Beiboot '{cluster_name}' for Shelf '{name}' not ready: {bbt.get('state')}"
+            )
+    except k8s.client.exceptions.ApiException as e:
+        logger.info(f"Shelf {name} handled with {e.reason}")
+        raise kopf.AdmissionError(
+            f"Beiboot '{cluster_name}' for Shelf '{name}' doesn't exist or has other issue: {e.reason}"
+        )
+
+    try:
+        _ = core_v1_api.read_namespace(name=cluster_namespace)
+    except k8s.client.exceptions.ApiException as e:
+        logger.info(f"Shelf {name} handled with {e.reason}")
+        raise kopf.AdmissionError(
+            f"Namespace '{cluster_namespace}' of Beiboot '{cluster_name}' for Shelf '{cluster_name}' doesn't exist or "
+            f"has other issue: {e.reason}"
+        )
+
+
+SHELF_VALIDATORS = [validate_volume_snapshot_class, validate_shelf_cluster]
+
+
+@kopf.on.validate("shelf.beiboots.getdeck.dev", id="validate-shelf")  # type: ignore
+def check_validate_shelf_request(body, logger, operation, **_):
+    """
+    If the operation is a CREATE, validate the specs of the Shelf given by the client. If it cannot successfully
+    validate, raise error.
+
+    :param body: The body of the request
+    :param logger: A logger object that can be used to log messages
+    :param operation: The operation that is being performed on the resource
+    :return: True
+    """
+    logger.info("Validating Shelf request")
+
+    if operation == "CREATE":
+        cluster_config = configuration.refresh_k8s_config()
+        name = body.get("metadata").get("name")
+        cluster_name = body.get("clusterName")
+        cluster_namespace = body.get("clusterNamespace")
+        volume_snapshot_class = body.get("volumeSnapshotClass")
+        parameters = {
+            "clusterName": cluster_name,
+            "clusterNamespace": cluster_namespace,
+            "volumeSnapshotClass": volume_snapshot_class,
+        }
+
+        for validator in SHELF_VALIDATORS:
             validator(name, parameters, cluster_config, logger)
         return True
     else:

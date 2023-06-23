@@ -17,10 +17,24 @@ Assuming you have Minikube installed, please run the following on your terminal:
 
 1) Create a Kubernetes cluster using the Docker driver
 ```bash
-> minikube start -p beiboot --cpus=max --memory=4000 --driver=docker --addons=default-storageclass storage-provisioner
+> minikube start -p beiboot --cpus=max --memory=4000 --driver=docker
 ```
 2) The `kubectl` context will be set automatically to this cluster
 3) Create the `getdeck` namespace: `kubectl create ns getdeck`.
+
+#### Shelf feature, i.e. VolumeSnapshots
+If you want to use the shelf feature, you need to ensure that the CSI-driver supports snapshotting. On minikube you need to run the following:
+4) Enable/disable addons
+```bash
+> minikube addons enable volumesnapshots
+> minikube addons enable csi-hostpath-driver
+> minikube addons disable default-storageclass
+> minikube addons disable storage-provisioner
+```
+5) Set default storageclass (of csi-hostpath-driver)
+```bash
+> kubectl patch storageclasses.storage.k8s.io csi-hostpath-sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
 
 ### Poetry
 Please follow the [Poetry documentation](https://python-poetry.org/docs/) on how to get started with it.
@@ -67,6 +81,8 @@ operations.
 Please add a test case for every new feature and other code changes alike. Please add both:
 * unit tests in `beiboot/operator/tests/unit/` in a new or existing module
 * an integration/e2e test in `beiboot/operator/tests/e2e/` with a new module
+
+As of 31.05.23, we need to use minikube for our tests, as it supports K8s snapshotting.
 
 ### Writing a test
 We're using [pytest](https://docs.pytest.org/) to run the test suite. Please write functions as documented.

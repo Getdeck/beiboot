@@ -1,8 +1,6 @@
 import logging
 from time import sleep
 
-import kopf
-import kubernetes
 import pytest
 
 from beiboot.configuration import ClusterConfiguration
@@ -54,41 +52,41 @@ def test_beiboot_configmap():
 
 
 class TestResources:
-    def test_create_statefulset(self, kubeconfig):
+    def test_create_statefulset(self, minikube):
         from beiboot.resources.utils import handle_create_statefulset
 
         sts = demo_statefulset()
         handle_create_statefulset(logging.getLogger(), sts, "default")
         handle_create_statefulset(logging.getLogger(), sts, "default")
 
-    def test_delete_statefulset(self, kubeconfig):
+    def test_delete_statefulset(self, minikube):
         from beiboot.resources.utils import handle_delete_statefulset
 
         sts = demo_statefulset()
         handle_delete_statefulset(logging.getLogger(), sts.metadata.name, "default")
         handle_delete_statefulset(logging.getLogger(), sts.metadata.name, "default")
 
-    def test_create_deployment(self, kubeconfig):
+    def test_create_deployment(self, minikube):
         from beiboot.resources.utils import handle_create_deployment
 
         deploy = demo_deployment()
         handle_create_deployment(logging.getLogger(), deploy, "default")
         handle_create_deployment(logging.getLogger(), deploy, "default")
 
-    def test_create_namespace(self, kubeconfig):
+    def test_create_namespace(self, minikube):
         from beiboot.resources.utils import handle_create_namespace
 
         handle_create_namespace(logging.getLogger(), "my-namespace")
         handle_create_namespace(logging.getLogger(), "my-namespace")
 
-    def test_create_service(self, kubeconfig):
+    def test_create_service(self, minikube):
         from beiboot.resources.utils import handle_create_service
 
         svc = demo_service()
         handle_create_service(logging.getLogger(), svc, "default")
         handle_create_service(logging.getLogger(), svc, "default")
 
-    def test_delete_service(self, kubeconfig):
+    def test_delete_service(self, minikube):
         from beiboot.resources.utils import handle_delete_service
 
         svc = demo_service()
@@ -96,14 +94,16 @@ class TestResources:
         handle_delete_service(logging.getLogger(), svc.metadata.name, "default")
 
     @pytest.mark.asyncio
-    async def test_delete_namespace(self, kubeconfig):
+    async def test_delete_namespace(self, minikube):
         from beiboot.resources.utils import handle_delete_namespace
 
         await handle_delete_namespace(logging.getLogger(), "my-namespace")
         await handle_delete_namespace(logging.getLogger(), "my-namespace")
 
     @pytest.mark.asyncio
-    async def test_service_account(self, kubeconfig):
+    async def test_service_account(self, minikube):
+        import kubernetes
+        import kopf
         from beiboot.resources.utils import (
             handle_create_beiboot_serviceaccount,
             get_serviceaccount_data,

@@ -51,6 +51,7 @@ def data(params: InstallOptions) -> list[dict]:
                         "secrets",
                         "deployments",
                         "statefulsets",
+                        "persistentvolumeclaims",
                         "services",
                         "pods",
                         "pods/exec",
@@ -61,6 +62,20 @@ def data(params: InstallOptions) -> list[dict]:
                 {
                     "apiGroups": ["getdeck.dev"],
                     "resources": ["beiboots"],
+                    "verbs": ["*"],
+                },
+                {
+                    "apiGroups": ["beiboots.getdeck.dev"],
+                    "resources": ["shelves"],
+                    "verbs": ["*"],
+                },
+                {
+                    "apiGroups": ["snapshot.storage.k8s.io"],
+                    "resources": [
+                        "volumesnapshots",
+                        "volumesnapshotcontents",
+                        "volumesnapshotclasses",
+                    ],
                     "verbs": ["*"],
                 },
             ],

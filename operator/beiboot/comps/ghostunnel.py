@@ -166,8 +166,8 @@ def create_ghostunnel_workload(
                 k8s.client.V1ContainerPort(container_port=probe_port),
             ],
             resources=k8s.client.V1ResourceRequirements(
-                requests={"cpu": "0.1", "memory": "16Mi"},
-                limits={"memory": "32Mi"},
+                requests={"cpu": "0.2", "memory": "32Mi"},
+                limits={"memory": "128Mi"},
             ),
             readiness_probe=k8s.client.V1Probe(
                 _exec=k8s.client.V1ExecAction(
@@ -317,7 +317,7 @@ async def extract_client_tls(namespace: str) -> dict[str, str]:
         )
         if len(tunnel_pods.items) != 1:
             logger.warning(
-                f"There is more then one API Pod, it is {len(tunnel_pods.items)}"
+                f"There is not exactly one API Pod, it is {len(tunnel_pods.items)}"
             )
         tunnel_pod = tunnel_pods.items[0]
         # we can use the first container, as all running container sharing the same volume containing the PKI

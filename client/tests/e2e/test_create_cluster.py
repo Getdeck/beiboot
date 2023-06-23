@@ -1,6 +1,7 @@
 from time import sleep
 
 import pytest
+from pytest_kubernetes.providers import AClusterManager
 
 from beiboot import api
 from beiboot.types import BeibootRequest, BeibootParameters
@@ -13,7 +14,8 @@ class TestBaseSetup(TestClientBase):
 
     beiboot_name = "mycluster"
 
-    def test_simple_beiboot(self, operator, kubectl, timeout):
+    def test_simple_beiboot(self, operator: AClusterManager, timeout):
+        minikube = operator
         req = BeibootRequest(
             name=self.beiboot_name,
             parameters=BeibootParameters(
@@ -26,7 +28,7 @@ class TestBaseSetup(TestClientBase):
         bbt = api.create(req)
 
         bbt.wait_for_state(awaited_state=BeibootState.PENDING, timeout=timeout)
-        bbt_raw = self._get_beiboot_data(kubectl)
+        bbt_raw = self._get_beiboot_data(minikube.kubectl)
         assert bbt_raw["state"] in [
             BeibootState.CREATING.value,
             BeibootState.PENDING.value,
@@ -49,4 +51,4 @@ class TestBaseSetup(TestClientBase):
         # assert bbt.state == BeibootState.TERMINATING
         sleep(5)
         with pytest.raises(RuntimeError):
-            _ = self._get_beiboot_data(kubectl)
+            _ = self._get_beiboot_data(minikube.kubectl)

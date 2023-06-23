@@ -7,7 +7,7 @@ import kubernetes as k8s
 
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Dict, Optional, Any, Union
+from typing import Dict, Optional, Any, Union, Type
 
 from beiboot.configuration import (
     default_configuration,
@@ -17,6 +17,76 @@ from beiboot.configuration import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class StateAndEventsMixin:
+    # this mixin is used by Beiboot and Shelf
+    # following class variables need to be set by class that uses this mixin
+    StateClass: Optional[Union[Type["BeibootState"], Type["ShelfState"]]] = None
+    # the uid from Kubernetes for this object
+    uid: str
+    _data: Optional[Dict[str, Any]] = None
+    _config: ClientConfiguration  # check for shelf
+
+    @property
+    def state(self):
+        self.fetch_object()
+        return self.StateClass(self._data.get("state"))
+
+    def fetch_object(self):
+        raise NotImplementedError
+
+    def wait_for_state(
+        self, awaited_state: Union["BeibootState", "ShelfState"], timeout: int = 60
+    ):
+        """
+        > Wait for the state of the resource to be the awaited state, or raise an error if the timeout is reached
+
+        :param awaited_state: The state we're waiting for
+        :type awaited_state: State enum class
+        :param timeout: The maximum time to wait for the state to change, defaults to 60
+        :type timeout: int (optional)
+        :return: the state of the resource.
+        """
+        _i = 0
+        while _i < timeout:
+            if self.state == awaited_state:
+                logger.info(
+                    f"Done waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
+                )
+                return
+            else:
+                logger.info(
+                    f"Waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
+                )
+                sleep(1)
+                _i = _i + 1
+        if self.state != awaited_state:
+            raise RuntimeError(f"Waiting for state {awaited_state.value} failed")
+
+    @property
+    def events_by_timestamp(self) -> dict[datetime, Any]:
+        """
+        This function returns a dictionary of events related to this resource, sorted by timestamp
+        :return: A dictionary of events sorted by timestamp.
+        """
+        try:
+            events = self._config.K8S_CORE_API.list_namespaced_event(
+                namespace=self._config.NAMESPACE
+            )
+            related_events = list(
+                filter(lambda et: et.involved_object.uid == self.uid, events.items)
+            )
+        except k8s.client.ApiException as e:  # type: ignore
+            raise RuntimeError(str(e)) from None
+        result = {}
+        for revent in related_events:
+            result[revent.event_time] = {
+                "reason": revent.reason,
+                "reporter": revent.reporting_component,
+                "message": revent.message,
+            }
+        return dict(sorted(result.items()))
 
 
 class BeibootProvider(Enum):
@@ -111,10 +181,13 @@ class BeibootRequest:
     provider: BeibootProvider = field(default_factory=lambda: BeibootProvider.K3S)
     parameters: BeibootParameters = field(default_factory=lambda: BeibootParameters())
     labels: Dict[str, str] = field(default_factory=lambda: {})
+    from_shelf: str = field(default_factory=lambda: "")
 
 
 class BeibootState(Enum):
     REQUESTED = "REQUESTED"
+    PREPARING = "PREPARING"
+    RESTORING = "RESTORING"
     CREATING = "CREATING"
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -123,13 +196,11 @@ class BeibootState(Enum):
     ERROR = "ERROR"
 
 
-class Beiboot:
+class Beiboot(StateAndEventsMixin):
     # the final name of this cluster
     name: str
     # the namespace this cluster runs in the host cluster
     namespace: str
-    # the uid from Kubernetes for this object
-    uid: str
     # the beiboot.getdeck.dev object namespace
     object_namespace: str
     # the labels of this Beiboot object
@@ -143,6 +214,9 @@ class Beiboot:
     # the cluster parameters
     parameters: BeibootParameters
     provider: str
+
+    # class variables from StateMixin (_data is set in _init_data(...))
+    StateClass = BeibootState
 
     def __init__(
         self, beiboot: dict, config: ClientConfiguration = default_configuration
@@ -162,11 +236,6 @@ class Beiboot:
         self.last_client_contact = self._data.get("lastClientContact")
         self.transitions = self._data.get("stateTransitions")
         self.parameters = BeibootParameters.from_raw(self._data["parameters"])
-
-    @property
-    def state(self):
-        self.fetch_object()
-        return BeibootState(self._data.get("state"))
 
     def fetch_object(self):
         logger.debug(f"Fetching object Beiboot {self.name}")
@@ -197,8 +266,9 @@ class Beiboot:
 
         if self.state != BeibootState.READY:
             logger.warning("This Beiboot is not in READY state")
-        kubeconfig_object = self._data.get("kubeconfig")  # noqa
-        if kubeconfig_object is None:
+        if self._data and "kubeconfig" in self._data:
+            kubeconfig_object: Dict[str, str] = self._data["kubeconfig"]  # noqa
+        else:
             return None
         try:
             kubeconfig = decode_kubeconfig(kubeconfig_object)
@@ -249,59 +319,9 @@ class Beiboot:
 
     @property
     def tunnel(self) -> Optional[dict[str, Any]]:
-        if tunnel := self._data.get("tunnel"):
-            return tunnel
+        if self._data and "tunnel" in self._data:
+            return self._data["tunnel"]
         return None
-
-    @property
-    def events_by_timestamp(self) -> dict[datetime, Any]:
-        """
-        This function returns a dictionary of events related to this Beiboot, sorted by timestamp
-        :return: A dictionary of events sorted by timestamp.
-        """
-        try:
-            events = self._config.K8S_CORE_API.list_namespaced_event(
-                namespace=self._config.NAMESPACE
-            )
-            related_events = list(
-                filter(lambda et: et.involved_object.uid == self.uid, events.items)
-            )
-        except k8s.client.ApiException as e:  # type: ignore
-            raise RuntimeError(str(e)) from None
-        result = {}
-        for revent in related_events:
-            result[revent.event_time] = {
-                "reason": revent.reason,
-                "reporter": revent.reporting_component,
-                "message": revent.message,
-            }
-        return dict(sorted(result.items()))
-
-    def wait_for_state(self, awaited_state: BeibootState, timeout: int = 60):
-        """
-        > Wait for the state of the Beiboot to be the awaited state, or raise an error if the timeout is reached
-
-        :param awaited_state: The state we're waiting for
-        :type awaited_state: BeibootState
-        :param timeout: The maximum time to wait for the state to change, defaults to 60
-        :type timeout: int (optional)
-        :return: the state of the beiboot.
-        """
-        _i = 0
-        while _i < timeout:
-            if self.state == awaited_state:
-                logger.info(
-                    f"Done waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
-                )
-                return
-            else:
-                logger.info(
-                    f"Waiting for state {awaited_state.value} (is: {self.state.value}, {_i}s/{timeout}s) "
-                )
-                sleep(1)
-                _i = _i + 1
-        if self.state != awaited_state:
-            raise RuntimeError(f"Waiting for state {awaited_state.value} failed")
 
 
 @dataclass
@@ -321,13 +341,13 @@ class InstallOptions:
     storage_class: str = field(
         default_factory=lambda: "standard",
         metadata=dict(
-            help="Set the Kubernetes storageClassName of PVCs created for Beiboot clusters (default: standard)"
+            help="Set the Kubernetes StorageClass of PVCs created for Beiboot clusters (default: standard)"
         ),
     )
     shelf_storage_class: str = field(
         default_factory=lambda: "standard",
         metadata=dict(
-            help="Set the Kubernetes storageClassName of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"
+            help="Set the Kubernetes VolumeSnapshotClass of VolumeSnapshots created for Beiboot shelf clusters (default: standard)"  # noqa: E501
         ),
     )
     node_storage_request: str = field(
@@ -388,3 +408,90 @@ class InstallOptions:
             help="The default memory request for each Beiboot node pod (default: 1Gi)",
         ),
     )
+
+
+@dataclass
+class VolumeSnapshotContentStatus(Enum):
+    NOT_READY_TO_USE = "NOT_READY_TO_USE"
+    READY_TO_USE = "READY_TO_USE"
+
+
+@dataclass
+class VolumeSnapshotContent:
+    name: str
+    snapshot_handle: str
+    node: str
+    status: VolumeSnapshotContentStatus = field(
+        default_factory=lambda: VolumeSnapshotContentStatus.NOT_READY_TO_USE
+    )
+
+
+@dataclass
+class ShelfRequest:
+    # a unique name for this Shelf
+    name: str
+    cluster_name: str
+    volume_snapshot_class: str = ""
+    volume_snapshot_contents: list[VolumeSnapshotContent] = field(
+        default_factory=lambda: []
+    )
+    labels: Dict[str, str] = field(default_factory=lambda: {})
+
+
+class ShelfState(Enum):
+    REQUESTED = "REQUESTED"
+    CREATING = "CREATING"
+    PREPARING = "PREPARING"
+    PENDING = "PENDING"
+    READY = "READY"
+    TERMINATING = "TERMINATING"
+    ERROR = "ERROR"
+
+
+class Shelf(StateAndEventsMixin):
+    # the final name of this cluster
+    name: str
+    # the namespace this shelf is located in the host cluster (currently it's always "getdeck")
+    namespace: str
+    # list of VolumeSnapshotContents that are contained in this shelf
+    volume_snapshot_contents: Optional[list[VolumeSnapshotContent]]
+    # the labels of this Beiboot object
+    labels: Dict[str, str]
+    # all state transitions
+    transitions: Optional[dict[str, str]]
+
+    # class variables from StateMixin (_data is set in _init_data(...))
+    StateClass = ShelfState
+
+    def __init__(
+        self, shelf: dict, config: ClientConfiguration = default_configuration
+    ):
+        self.name = shelf["metadata"]["name"]
+        self.uid = shelf["metadata"]["uid"]
+        self.labels = shelf["metadata"].get("labels")
+        self._init_data(shelf)
+        self._config = config
+
+    def _init_data(self, _object: dict[str, Any]):
+        self._data = _object
+        self.transitions = self._data.get("stateTransitions")
+        self.volume_snapshot_contents = self._data.get("volumeSnapshotContents")
+
+    def fetch_object(self):
+        logger.debug(f"Fetching object Shelf {self.name}")
+        try:
+            shelf = self._config.K8S_CUSTOM_OBJECT_API.get_namespaced_custom_object(
+                group="beiboots.getdeck.dev",
+                version="v1",
+                namespace=self._config.NAMESPACE,
+                plural="shelves",
+                name=self.name,
+            )
+        except k8s.client.exceptions.ApiException as e:  # type: ignore
+            if e.status == 404:
+                raise RuntimeError(
+                    f"The Shelf '{self.name}' does not exist anymore"
+                ) from None
+            else:
+                raise RuntimeError(str(e)) from None
+        self._init_data(shelf)  # type: ignore

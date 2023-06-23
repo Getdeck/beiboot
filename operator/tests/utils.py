@@ -1,4 +1,5 @@
 import kubernetes as k8s
+from pytest_kubernetes.providers import AClusterManager
 
 
 def demo_service():
@@ -81,3 +82,19 @@ def demo_deployment():
             selector={"matchLabels": {"app": "nginx"}},
         ),
     )
+
+
+def get_beiboot_data(beiboot_name: str, k8s: AClusterManager) -> dict:
+    output = k8s.kubectl(["-n", "getdeck", "get", "bbt", beiboot_name])
+    if not output:
+        raise RuntimeError("This Beiboot object does not exist or is not readable")
+    else:
+        return output
+
+
+def get_shelf_data(shelf_name: str, k8s: AClusterManager) -> dict:
+    output = k8s.kubectl(["-n", "getdeck", "get", "shelf", shelf_name])
+    if not output:
+        raise RuntimeError("This Beiboot object does not exist or is not readable")
+    else:
+        return output

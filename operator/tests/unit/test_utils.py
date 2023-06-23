@@ -1,10 +1,58 @@
 import logging
+from pathlib import Path
 from time import sleep
 
 import kopf
 import pytest
+from pytest_kubernetes.providers import AClusterManager
 
 from beiboot.configuration import ClusterConfiguration
+
+
+def test_validator_namespace(minikube: AClusterManager):
+    from beiboot.handler import validate_namespace
+
+    validate_namespace(
+        "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
+    )
+    minikube.kubectl(["create", "ns", "getdeck-bbt-my-default"])
+    sleep(1)
+    with pytest.raises(kopf.AdmissionError):
+        validate_namespace(
+            "my-default", None, ClusterConfiguration(), logging.getLogger()
+        )
+        validate_namespace(
+            "namespace-that-is-longer-than-63-characters-which-is-not-allowed",
+            None,
+            ClusterConfiguration(),
+            logging.getLogger(),
+        )
+
+
+def test_validator_volume_snapshot_class(minikube: AClusterManager):
+    from beiboot.handler import validate_volume_snapshot_class
+
+    minikube.apply(Path("tests/fixtures/volume-snapshot-class.yaml"))
+    sleep(1)
+    validate_volume_snapshot_class(
+        "test",
+        {"volumeSnapshotClass": "retain"},
+        ClusterConfiguration(),
+        logging.getLogger(),
+    )
+    with pytest.raises(kopf.AdmissionError):
+        validate_volume_snapshot_class(
+            "test",
+            {"volumeSnapshotClass": "does-not-exist"},
+            ClusterConfiguration(),
+            logging.getLogger(),
+        )
+        validate_volume_snapshot_class(
+            "test",
+            {"volumeSnapshotClass": "delete"},
+            ClusterConfiguration(),
+            logging.getLogger(),
+        )
 
 
 def test_parse_timedelta():
@@ -56,20 +104,6 @@ def test_validator_maxlifetime():
         validate_maxlifetime("", {"maxLifetime": "1.5h"}, None, logging.getLogger())
         validate_maxlifetime(
             "", {"maxLifetime": "-1h35m20s"}, None, logging.getLogger()
-        )
-
-
-def test_validator_namespace(kubeconfig, kubectl):
-    from beiboot.handler import validate_namespace
-
-    validate_namespace(
-        "my-test-beiboot", None, ClusterConfiguration(), logging.getLogger()
-    )
-    kubectl(["create", "ns", "getdeck-bbt-my-default"])
-    sleep(1)
-    with pytest.raises(kopf.AdmissionError):
-        validate_namespace(
-            "my-default", None, ClusterConfiguration(), logging.getLogger()
         )
 
 

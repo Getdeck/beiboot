@@ -8,7 +8,7 @@ from beiboot.connection.abstract import AbstractConnector
 from beiboot.types import BeibootParameters, BeibootRequest, BeibootState
 
 
-def test_write_files(operator, kubectl, timeout):
+def test_write_files(operator, timeout):
     req = BeibootRequest(
         name="mycluster",
         parameters=BeibootParameters(
