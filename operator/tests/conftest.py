@@ -126,12 +126,21 @@ def operator(minikube, default_k3s_image):
     operator.__enter__()
 
     kopf_logger = logging.getLogger("kopf")
-    # kopf_logger.setLevel(logging.INFO)
     kopf_logger.setLevel(logging.CRITICAL)
     beiboot_logger = logging.getLogger("beiboot")
-    # beiboot_logger.setLevel(logging.INFO)
     beiboot_logger.setLevel(logging.CRITICAL)
-    minikube.wait("crd/beiboots.getdeck.dev", "condition=established", timeout=30)
+
+    # we had issues using minikube.wait, possibly because it fails when the crd hasn't created yet
+    # so we check it with this loop
+    for _i in range(0, 10):
+        try:
+            minikube.kubectl(["get", "crd", "beiboots.getdeck.dev"])
+            break
+        except Exception:
+            sleep(1)
+            continue
+    else:
+        raise RuntimeError("There was an error setting up the operator correctly")
 
     yield minikube
 
