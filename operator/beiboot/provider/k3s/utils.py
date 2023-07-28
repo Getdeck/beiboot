@@ -6,6 +6,7 @@ from beiboot.configuration import ClusterConfiguration
 
 PVC_PREFIX_NODE = "k8s-node-data"
 PVC_PREFIX_SERVER = "k8s-server-data"
+PRIORITY = 0
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,7 @@ def create_k3s_server_workload(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.serverLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
+            priority=PRIORITY,
         ),
     )
 
@@ -261,6 +263,7 @@ def create_k3s_agent_workload(
         metadata=k8s.client.V1ObjectMeta(labels=parameters.nodeLabels),
         spec=k8s.client.V1PodSpec(
             containers=[container],
+            priority=PRIORITY,
         ),
     )
 
