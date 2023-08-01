@@ -26,9 +26,13 @@ def ports_to_services(
                 f"Cannot create service for port {target}: not in form <int>:<int>"
             )
             continue
+        if target == "6443":
+            labels = cluster_config.serverLabels
+        else:
+            labels = cluster_config.nodeLabels
         spec = k8s.client.V1ServiceSpec(
             type="ClusterIP",
-            selector=cluster_config.nodeLabels,
+            selector=labels,
             ports=[
                 k8s.client.V1ServicePort(
                     name=f"{target}-tcp", target_port=iport, port=iport, protocol="TCP"
