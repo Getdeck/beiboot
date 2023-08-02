@@ -77,7 +77,8 @@ def handle_create_pod_disruption_budgets(
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
             logger.warning(
-                f"Pod Disruption Budget {pdb.metadata.name} already available, now patching it with current configuration"
+                f"Pod Disruption Budget {pdb.metadata.name} already available, \
+                  now patching it with current configuration"
             )
             app_v1_api.patch_namespaced_deployment(
                 name=pdb.metadata.name,

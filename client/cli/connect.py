@@ -33,30 +33,30 @@ def connect(ctx, name, connector, host):
             )
         )
     )
-    # print_formatted_text(
-    #     FormattedText(  # type: ignore
-    #         [
-    #             ("class:info", "Creating port-forwards for the following ports: "),
-    #             ("class:italic", formatted_ports),
-    #         ],
-    #         style=styles,
-    #     )
-    # )
+    print_formatted_text(
+        FormattedText(  # type: ignore
+            [
+                ("class:info", "Creating port-forwards for the following ports: "),
+                ("class:italic", formatted_ports),
+            ],
+            style=styles,
+        )
+    )
 
     connector = api.connect(beiboot, connector_type, host, config=ctx.obj["config"])
 
     location = connector.save_kubeconfig_to_file(beiboot)
     info(f"The kubeconfig file is written to {location}")
-    # print_formatted_text(
-    #     FormattedText(  # type: ignore
-    #         [
-    #             ("class:info", "You can now run "),
-    #             ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
-    #             ("class:info", "to interact with the cluster"),
-    #         ],
-    #         style=styles,
-    #     )
-    # )
+    print_formatted_text(
+        FormattedText(  # type: ignore
+            [
+                ("class:info", "You can now run "),
+                ("class:italic", f"'kubectl --kubeconfig {location} ... '"),
+                ("class:info", "to interact with the cluster"),
+            ],
+            style=styles,
+        )
+    )
 
 
 @_cli.command(
