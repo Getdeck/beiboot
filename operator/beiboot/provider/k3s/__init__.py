@@ -200,7 +200,7 @@ class K3s(AbstractClusterProvider):
         ]
         services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
 
-        pdbs = handle_create_pod_disruption_budgets(self.namespace)
+        pdbs = create_k3d_pod_distuption_budget(self.namespace)
 
         for pdb in pdbs:
             self.logger.debug("Creating: " + str(pdb))
@@ -267,7 +267,7 @@ class K3s(AbstractClusterProvider):
 
                 services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
 
-                pdbs = handle_create_pod_disruption_budgets(self.namespace)
+                pdbs = create_k3d_pod_distuption_budget(self.namespace)
 
                 for pdb in pdbs:
                     self.logger.debug("Creating: " + str(pdb))
