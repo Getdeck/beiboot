@@ -227,7 +227,7 @@ class K3s(AbstractClusterProvider):
         from beiboot.resources.utils import (
             handle_create_statefulset,
             handle_create_service,
-            handle_create_pod_disruption_budgets
+            handle_create_pod_disruption_budgets,
         )
 
         try:
@@ -271,7 +271,9 @@ class K3s(AbstractClusterProvider):
 
                 for pdb in pdbs:
                     self.logger.debug("Creating: " + str(pdb))
-                    handle_create_pod_disruption_budgets(pdb=pdb, namespace=self.namespace)
+                    handle_create_pod_disruption_budgets(
+                        pdb=pdb, namespace=self.namespace
+                    )
 
                 #
                 # Create the server workload
