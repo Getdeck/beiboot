@@ -71,9 +71,7 @@ def handle_create_pod_disruption_budgets(
     logger, pdb: k8s.client.V1PodDisruptionBudget, namespace: str
 ) -> None:
     try:
-        policy_v1_api.create_namespaced_pod_disruption_budget(
-            namespace, body=pdb
-        )
+        policy_v1_api.create_namespaced_pod_disruption_budget(namespace, body=pdb)
     except k8s.client.exceptions.ApiException as e:
         if e.status == 409:
             logger.warning(

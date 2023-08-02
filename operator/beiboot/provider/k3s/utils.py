@@ -323,7 +323,8 @@ def create_k3d_pod_distuption_budget(
         selector={"matchLabels": {"beiboot.getdeck.dev/is-node": "true"}},
     )
     pdb_k3s = k8s.client.V1PodDisruptionBudget(
-        metadata=k8s.client.V1ObjectMeta(name="BeibootNodeBudget", namespace=namespace), spec=spec
+        metadata=k8s.client.V1ObjectMeta(name="BeibootNodeBudget", namespace=namespace),
+        spec=spec,
     )
     pdbs.append(pdb_k3s)
 
@@ -331,7 +332,10 @@ def create_k3d_pod_distuption_budget(
         min_available=1, selector={"matchLabels": {"beiboot.dev": "tunnel"}}
     )
     pdb_tunnel = k8s.client.V1PodDisruptionBudget(
-        metadata=k8s.client.V1ObjectMeta(name="BeibootTunnelBudget", namespace=namespace), spec=spec
+        metadata=k8s.client.V1ObjectMeta(
+            name="BeibootTunnelBudget", namespace=namespace
+        ),
+        spec=spec,
     )
     pdbs.append(pdb_tunnel)
     return pdbs
