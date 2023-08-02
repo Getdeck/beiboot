@@ -9,6 +9,7 @@ core_v1_api = k8s.client.CoreV1Api()
 rbac_v1_api = k8s.client.RbacAuthorizationV1Api()
 custom_api = k8s.client.CustomObjectsApi()
 batch_v1_api = k8s.client.BatchV1Api()
+policy_v1_api = k8s.client.PolicyV1Api()
 
 
 def handle_create_statefulset(
@@ -59,6 +60,29 @@ def handle_create_deployment(
                 namespace=namespace,
             )
             logger.info(f"Deployment {deployment.metadata.name} patched")
+        else:
+            raise e
+    except ValueError as e:
+        logger.info(str(e))
+        pass
+
+
+def handle_create_pod_disruption_budgets(
+    logger, pdb: k8s.client.V1PodDisruptionBudget, namespace: str
+) -> None:
+    try:
+        policy_v1_api.create_namespaced_pod_disruption_budget(body=pdb, namespace=namespace)
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 409:
+            logger.warning(
+                f"Pod Disruption Budget {pdb.metadata.name} already available, now patching it with current configuration"
+            )
+            app_v1_api.patch_namespaced_deployment(
+                name=pdb.metadata.name,
+                body=pdb,
+                namespace=namespace,
+            )
+            logger.info(f"Pod Disruption Budget {pdb.metadata.name} patched")
         else:
             raise e
     except ValueError as e:

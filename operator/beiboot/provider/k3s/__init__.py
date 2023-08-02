@@ -16,6 +16,7 @@ from .utils import (
     create_k3s_server_workload,
     create_k3s_agent_workload,
     create_k3s_kubeapi_service,
+    create_k3d_pod_distuption_budget,
     PVC_PREFIX_SERVER,
     PVC_PREFIX_NODE,
 )
@@ -167,6 +168,7 @@ class K3s(AbstractClusterProvider):
         from beiboot.resources.utils import (
             handle_create_statefulset,
             handle_create_service,
+            handle_create_pod_disruption_budgets,
         )
 
         node_token = generate_token()
@@ -198,6 +200,12 @@ class K3s(AbstractClusterProvider):
         ]
         services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
 
+        pdbs = handle_create_pod_disruption_budgets(self.namespace)
+
+        for pdb in pdbs:
+            self.logger.debug("Creating: " + str(pdb))
+            handle_create_pod_disruption_budgets(pdb=pdb, namespace=self.namespace)
+
         #
         # Create the workloads
         #
@@ -219,6 +227,7 @@ class K3s(AbstractClusterProvider):
         from beiboot.resources.utils import (
             handle_create_statefulset,
             handle_create_service,
+            handle_create_pod_disruption_budgets
         )
 
         try:
@@ -257,6 +266,12 @@ class K3s(AbstractClusterProvider):
                 ]
 
                 services = [create_k3s_kubeapi_service(self.namespace, self.parameters)]
+
+                pdbs = handle_create_pod_disruption_budgets(self.namespace)
+
+                for pdb in pdbs:
+                    self.logger.debug("Creating: " + str(pdb))
+                    handle_create_pod_disruption_budgets(pdb=pdb, namespace=self.namespace)
 
                 #
                 # Create the server workload

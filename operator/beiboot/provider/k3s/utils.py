@@ -312,3 +312,37 @@ def create_k3s_kubeapi_service(
     )
 
     return service
+
+
+def create_k3d_pod_distuption_budget(
+        namespace: str,
+) -> list[k8s.client.V1PodDisruptionBudget]:
+    pdbs = []
+    spec = k8s.client.V1PodDisruptionBudgetSpec(
+        max_unavailable=0,
+        selector={
+            "matchLabels": {
+                "beiboot.getdeck.dev/is-node": "true"
+            }
+        }
+    )
+    pdb_k3s = k8s.client.V1PodDisruptionBudget(
+        metadata=k8s.client.V1ObjectMeta(name="kubeapi", namespace=namespace),
+        spec=spec
+    )
+    pdbs.append(pdb_k3s)
+
+    spec = k8s.client.V1PodDisruptionBudgetSpec(
+        min_available=1,
+        selector={
+            "matchLabels": {
+                "beiboot.dev": "tunnel"
+            }
+        }
+    )
+    pdb_tunnel = k8s.client.V1PodDisruptionBudget(
+        metadata=k8s.client.V1ObjectMeta(name="kubeapi", namespace=namespace),
+        spec=spec
+    )
+    pdbs.append(pdb_tunnel)
+    return pdbs
