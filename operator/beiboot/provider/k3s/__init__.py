@@ -204,7 +204,9 @@ class K3s(AbstractClusterProvider):
 
         for pdb in pdbs:
             self.logger.debug("Creating: " + str(pdb))
-            handle_create_pod_disruption_budgets(pdb=pdb, namespace=self.namespace)
+            handle_create_pod_disruption_budgets(
+                self.logger, pdb=pdb, namespace=self.namespace
+            )
 
         #
         # Create the workloads
@@ -272,7 +274,7 @@ class K3s(AbstractClusterProvider):
                 for pdb in pdbs:
                     self.logger.debug("Creating: " + str(pdb))
                     handle_create_pod_disruption_budgets(
-                        pdb=pdb, namespace=self.namespace
+                        self.logger, pdb=pdb, namespace=self.namespace
                     )
 
                 #
