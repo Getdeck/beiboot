@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "beiboot"
-version = "1.4.2"
+version = "1.4.3"
 description = "Getdeck Beiboot client project."
 authors = ["Michael Schilonka <michael@blueshoe.de>"]
 readme = "README.md"
