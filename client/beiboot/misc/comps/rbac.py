@@ -39,6 +39,7 @@ def data(params: InstallOptions) -> list[dict]:
                         "batch",
                         "extensions",
                         "events.k8s.io",
+                        "policy",
                         "rbac.authorization.k8s.io",
                     ],
                     "resources": [
@@ -55,6 +56,7 @@ def data(params: InstallOptions) -> list[dict]:
                         "services",
                         "pods",
                         "pods/exec",
+                        "poddisruptionbudgets",
                         "events",
                     ],
                     "verbs": ["*"],
